@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SCENE } from './keys';
 import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
 import { TILE_INDEX } from '../gfx/tiles';
+import { ACTORS } from '../gfx/actors';
 import { MetaManager, META_UPGRADES } from '../meta/MetaManager';
 import { SoundFX } from '../audio/SoundFX';
 
@@ -115,73 +116,143 @@ export class MenuScene extends Phaser.Scene {
 
     let selectedHero: 'knight' | 'ranger' = 'knight';
 
-    // Hero Selection Container
-    const heroY = height * 0.48;
-    const knightBtn = this.add.container(width / 2 - 95, heroY).setDepth(DEPTH.UI);
-    const knightBg = this.add.rectangle(0, 0, 160, 42, 0x1e1528, 0.9).setStrokeStyle(2, 0xfbbf24);
+    // Hero Selection Showcase Cards with Animated Sprites
+    const heroY = height * 0.47;
+    const cardW = 205;
+    const cardH = 68;
+
+    // 1. Knight Card
+    const knightBtn = this.add.container(width / 2 - 115, heroY).setDepth(DEPTH.UI);
+    const knightBg = this.add.rectangle(0, 0, cardW, cardH, 0x1e1528, 0.95).setStrokeStyle(2, 0xfbbf24);
+
+    const knightSprite = this.add.sprite(-cardW / 2 + 28, 22, ACTORS.HERO.idle.key);
+    knightSprite.setOrigin(0.5, 1.0);
+    knightSprite.setScale(1.7);
+    knightSprite.play(ACTORS.HERO.idle.key);
+
+    const knightSword = this.add.sprite(-cardW / 2 + 38, 10, TEXTURE.WEAPON_SWORD);
+    knightSword.setOrigin(0.5, 0.88);
+    knightSword.setScale(1.15);
+    knightSword.setAngle(20);
+
     const knightText = this.add
-      .text(0, -6, '🗡️ РЫЦАРЬ', {
+      .text(-cardW / 2 + 56, -20, '🗡️ РЫЦАРЬ', {
         fontFamily: FONT.UI,
-        fontSize: '12px',
+        fontSize: '13px',
         fontStyle: '700',
         color: '#f0e2b8',
       })
-      .setOrigin(0.5);
+      .setOrigin(0, 0);
+
     const knightSub = this.add
-      .text(0, 8, '3 HP · Высокий урон · Вихрь (ПКМ)', {
+      .text(-cardW / 2 + 56, -3, '3 HP · Меч (2x Урон)', {
+        fontFamily: FONT.UI,
+        fontSize: '9px',
+        color: '#fcd34d',
+      })
+      .setOrigin(0, 0);
+
+    const knightSkill = this.add
+      .text(-cardW / 2 + 56, 12, 'ПКМ · Круговой Вихрь', {
         fontFamily: FONT.UI,
         fontSize: '8px',
         color: '#94a3b8',
       })
-      .setOrigin(0.5);
-    knightBtn.add([knightBg, knightText, knightSub]);
+      .setOrigin(0, 0);
+
+    knightBtn.add([knightBg, knightSprite, knightSword, knightText, knightSub, knightSkill]);
     knightBg.setInteractive({ useHandCursor: true });
 
-    const rangerBtn = this.add.container(width / 2 + 95, heroY).setDepth(DEPTH.UI);
-    const rangerBg = this.add.rectangle(0, 0, 160, 42, 0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+    // 2. Ranger Card
+    const rangerBtn = this.add.container(width / 2 + 115, heroY).setDepth(DEPTH.UI);
+    const rangerBg = this.add.rectangle(0, 0, cardW, cardH, 0x120d1c, 0.65).setStrokeStyle(1.5, 0x475569);
+
+    const rangerSprite = this.add.sprite(-cardW / 2 + 28, 22, TEXTURE.RANGER_IDLE);
+    rangerSprite.setOrigin(0.5, 1.0);
+    rangerSprite.setScale(1.7);
+    rangerSprite.play(ANIM.RANGER_IDLE);
+
+    const rangerBow = this.add.sprite(-cardW / 2 + 38, 10, TEXTURE.BOW);
+    rangerBow.setOrigin(0.5, 0.5);
+    rangerBow.setScale(1.1);
+
     const rangerText = this.add
-      .text(0, -6, '🏹 СЛЕДОПЫТ', {
+      .text(-cardW / 2 + 56, -20, '🏹 СЛЕДОПЫТ', {
         fontFamily: FONT.UI,
-        fontSize: '12px',
+        fontSize: '13px',
         fontStyle: '700',
         color: '#8b8398',
       })
-      .setOrigin(0.5);
+      .setOrigin(0, 0);
+
     const rangerSub = this.add
-      .text(0, 8, '2 HP · Стрельба · Залп стрел (ПКМ)', {
+      .text(-cardW / 2 + 56, -3, '2 HP · Дальний бой', {
+        fontFamily: FONT.UI,
+        fontSize: '9px',
+        color: '#4ade80',
+      })
+      .setOrigin(0, 0);
+
+    const rangerSkill = this.add
+      .text(-cardW / 2 + 56, 12, 'ПКМ · Залп из 5 стрел', {
         fontFamily: FONT.UI,
         fontSize: '8px',
         color: '#64748b',
       })
-      .setOrigin(0.5);
-    rangerBtn.add([rangerBg, rangerText, rangerSub]);
+      .setOrigin(0, 0);
+
+    rangerBtn.add([rangerBg, rangerSprite, rangerBow, rangerText, rangerSub, rangerSkill]);
     rangerBg.setInteractive({ useHandCursor: true });
+
+    // Gentle idle weapon bobbing
+    this.tweens.add({
+      targets: [knightSword, rangerBow],
+      y: '+=2',
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
 
     const updateHeroSelection = () => {
       if (selectedHero === 'knight') {
         knightBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0xfbbf24);
         knightText.setColor('#f0e2b8');
+        knightSprite.setAlpha(1);
+        knightSword.setAlpha(1);
+
         rangerBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
         rangerText.setColor('#8b8398');
+        rangerSprite.setAlpha(0.55);
+        rangerBow.setAlpha(0.55);
       } else {
         rangerBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0x4ade80);
         rangerText.setColor('#4ade80');
+        rangerSprite.setAlpha(1);
+        rangerBow.setAlpha(1);
+
         knightBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
         knightText.setColor('#8b8398');
+        knightSprite.setAlpha(0.55);
+        knightSword.setAlpha(0.55);
       }
     };
+
+    updateHeroSelection();
 
     knightBg.on('pointerdown', () => {
       selectedHero = 'knight';
       updateHeroSelection();
+      this.tweens.add({ targets: knightBtn, scale: 1.05, duration: 80, yoyo: true });
     });
 
     rangerBg.on('pointerdown', () => {
       selectedHero = 'ranger';
       updateHeroSelection();
+      this.tweens.add({ targets: rangerBtn, scale: 1.05, duration: 80, yoyo: true });
     });
 
-    const playBtn = makeButton(this, width / 2, height * 0.60, 'ИГРАТЬ');
+    const playBtn = makeButton(this, width / 2, height * 0.60 + 10, 'ИГРАТЬ');
     playBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -189,12 +260,12 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    const altarBtn = makeButton(this, width / 2, height * 0.60 + 40, '🔥 АЛТАРЬ ДУШ (ПРОКАЧКА)');
+    const altarBtn = makeButton(this, width / 2, height * 0.60 + 52, '🔥 АЛТАРЬ ДУШ (ПРОКАЧКА)');
     altarBtn.on('pointerdown', () => {
       this.openSoulAltar();
     });
 
-    const coopBtn = makeButton(this, width / 2, height * 0.60 + 80, 'СЕТЕВОЙ КООПЕРАТИВ', { fontSize: '15px', muted: true });
+    const coopBtn = makeButton(this, width / 2, height * 0.60 + 94, 'СЕТЕВОЙ КООПЕРАТИВ', { fontSize: '15px', muted: true });
     coopBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {

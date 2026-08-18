@@ -38,9 +38,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private netTargetY = 0;
   private hasNetTarget = false;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, slot = 0) {
+  constructor(scene: Phaser.Scene, x: number, y: number, slot = 0, initialHealth?: { hp?: number; maxHp?: number }) {
     super(scene, x, y, ACTORS.HERO.idle.key, 0);
     this.slot = slot;
+    if (initialHealth?.maxHp !== undefined) this.maxHp = initialHealth.maxHp;
+    if (initialHealth?.hp !== undefined) this.hp = initialHealth.hp;
     scene.add.existing(this);
     scene.physics.add.existing(this);
 

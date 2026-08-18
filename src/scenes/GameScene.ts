@@ -93,6 +93,7 @@ export class GameScene extends Phaser.Scene {
   private spawnY = 0;
 
   private depth = 1;
+  private playerHealth: Record<number, { hp: number; maxHp: number }> = {};
   private killCount = 0;
   private gameOver = false;
   private frozen = false;
@@ -101,10 +102,11 @@ export class GameScene extends Phaser.Scene {
     super(SCENE.GAME);
   }
 
-  init(data: { depth?: number; net?: NetContext }): void {
+  init(data: { depth?: number; net?: NetContext; playerHealth?: Record<number, { hp: number; maxHp: number }> }): void {
     this.depth = data?.depth ?? 1;
     this.net = data?.net;
     this.role = this.net?.role ?? 'offline';
+    this.playerHealth = data?.playerHealth ?? {};
   }
 
   create(): void {
@@ -226,7 +228,8 @@ export class GameScene extends Phaser.Scene {
       const angle = (entry.slot / 4) * Math.PI * 2;
       const px = this.spawnX + (entry.slot === 0 ? 0 : Math.cos(angle) * SPAWN_SPREAD);
       const py = this.spawnY + (entry.slot === 0 ? 0 : Math.sin(angle) * SPAWN_SPREAD);
-      const p = new Player(this, px, py, entry.slot);
+      const initialHp = this.playerHealth[entry.slot];
+      const p = new Player(this, px, py, entry.slot, initialHp);
       world.add(p);
       world.add(p.label);
       p.setLabelVisible(roster.length > 1);
@@ -352,7 +355,7 @@ export class GameScene extends Phaser.Scene {
       if (this.role === 'guest') {
         this.net.room.onSnapshot((snapshot) => this.applySnapshot(snapshot));
         this.net.room.onTransition((msg) => {
-          this.scene.restart({ depth: msg.nextDepth, net: this.net });
+          this.scene.restart({ depth: msg.nextDepth, net: this.net, playerHealth: msg.playerHealth });
         });
       }
     }
@@ -601,14 +604,19 @@ export class GameScene extends Phaser.Scene {
     this.gameOver = true;
     this.frozen = true;
 
+    const nextHealth: Record<number, { hp: number; maxHp: number }> = {};
+    for (const p of this.players) {
+      nextHealth[p.slot] = { hp: p.hp, maxHp: p.maxHp };
+    }
+
     this.showEndScreen({
       title: 'ПОДЗЕМЕЛЬЕ ПРОЙДЕНО',
       titleColor: '#9ee08a',
       stats: `Повержено врагов: ${this.killCount}   ·   Глубина: ${this.depth}`,
       buttonText: 'СПУСТИТЬСЯ ГЛУБЖЕ',
       onConfirm: () => {
-        this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1 });
-        this.scene.restart({ depth: this.depth + 1, net: this.net });
+        this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1, playerHealth: nextHealth });
+        this.scene.restart({ depth: this.depth + 1, net: this.net, playerHealth: nextHealth });
       },
     });
   }

@@ -4,7 +4,7 @@ import { TEXTURE } from './registry';
 export const TILE_SIZE = 32;
 export const TILE_MARGIN = 1;
 export const TILE_SPACING = 2;
-export const TOTAL_TILES = 18;
+export const TOTAL_TILES = 24;
 
 export const TILE_INDEX = {
   GRASS_1: 0,
@@ -17,15 +17,27 @@ export const TILE_INDEX = {
   DUNGEON_2: 7,
   DUNGEON_3: 8,
   DUNGEON_4: 9,
-  MAGMA_1: 10,
-  MAGMA_2: 11,
+  CANYON_DIRT_1: 10,
+  CANYON_DIRT_2: 11,
   WALL_DUNGEON: 12,
   WALL_RUIN: 13,
+  SNOW_1: 14,
+  SNOW_2: 15,
+  WALL_CANYON: 16,
+  WALL_GLACIAL: 17,
+  WATER_1: 18,
+  WATER_2: 19,
+  WOOD_BRIDGE: 20,
+  ICE_LAKE: 21,
+  SEWER_GRATE_TILE: 22,
+  RAIL_TRACK_TILE: 23,
+  // Backwards compatibility aliases
+  MAGMA_1: 10,
+  MAGMA_2: 11,
+  WALL_MAGMA: 16,
   VOID_1: 14,
   VOID_2: 15,
-  WALL_MAGMA: 16,
   WALL_VOID: 17,
-  // Backwards compatibility aliases
   WALL: 12,
   FLOOR_1: 6,
   FLOOR_2: 7,
@@ -44,10 +56,14 @@ export const FLOOR_INDICES: number[] = [
   TILE_INDEX.DUNGEON_2,
   TILE_INDEX.DUNGEON_3,
   TILE_INDEX.DUNGEON_4,
-  TILE_INDEX.MAGMA_1,
-  TILE_INDEX.MAGMA_2,
-  TILE_INDEX.VOID_1,
-  TILE_INDEX.VOID_2,
+  TILE_INDEX.CANYON_DIRT_1,
+  TILE_INDEX.CANYON_DIRT_2,
+  TILE_INDEX.SNOW_1,
+  TILE_INDEX.SNOW_2,
+  TILE_INDEX.WOOD_BRIDGE,
+  TILE_INDEX.ICE_LAKE,
+  TILE_INDEX.SEWER_GRATE_TILE,
+  TILE_INDEX.RAIL_TRACK_TILE,
 ];
 
 /** Sets up the multi-biome tileset texture with 1px extruded borders to eliminate WebGL tile bleed seams. */

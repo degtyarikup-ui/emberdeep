@@ -369,16 +369,27 @@ export class GameScene extends Phaser.Scene {
       const d = level.decorations[i];
       const x = d.col * TILE_SIZE + TILE_SIZE / 2;
       const yBottom = d.row * TILE_SIZE + TILE_SIZE;
-      const sprite = this.add.sprite(x, yBottom, TEXTURE.PROPS, d.key);
+
+      let sprite: Phaser.GameObjects.Sprite;
+      if (this.textures.exists(d.key)) {
+        sprite = this.add.sprite(x, yBottom, d.key);
+      } else {
+        sprite = this.add.sprite(x, yBottom, TEXTURE.PROPS, d.key);
+      }
+
+      if (d.scale) sprite.setScale(d.scale);
       sprite.setOrigin(0.5, 1);
       sprite.setPipeline('Light2D');
       sprite.setDepth(DEPTH.YSORT_BASE + yBottom);
       world.add(sprite);
+
       if (d.solid) {
         this.physics.add.existing(sprite, true);
         const body = sprite.body as Phaser.Physics.Arcade.StaticBody;
-        body.setSize(16, 12);
-        body.setOffset((sprite.width - 16) / 2, sprite.height - 12);
+        const bw = Math.min(sprite.displayWidth * 0.8, 48);
+        const bh = Math.min(sprite.displayHeight * 0.5, 24);
+        body.setSize(bw, bh);
+        body.setOffset((sprite.width - bw) / 2, sprite.height - bh);
         this.solids.add(sprite);
 
         const isDestructible = d.key === PROP.CRATE || d.key === PROP.BARREL;

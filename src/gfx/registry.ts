@@ -29,6 +29,18 @@ export const TEXTURE = {
   BONFIRE: 'tex-bonfire',
   PROP_ROCK: 'tex-prop-rock',
   PROP_BUSH: 'tex-prop-bush',
+  PROP_CABIN: 'tex-prop-cabin',
+  PROP_FENCE: 'tex-prop-fence',
+  PROP_WORKBENCH: 'tex-prop-workbench',
+  PROP_PRISON_BARS: 'tex-prop-prison-bars',
+  PROP_CHAINS: 'tex-prop-chains',
+  PROP_BLOOD_SPILL: 'tex-prop-blood-spill',
+  PROP_MINE_SHAFT: 'tex-prop-mine-shaft',
+  PROP_MINECART: 'tex-prop-minecart',
+  PROP_LUPINE: 'tex-prop-lupine',
+  PROP_MUSHROOM_GIANT: 'tex-prop-mushroom-giant',
+  PROP_ICE_CRYSTAL: 'tex-prop-ice-crystal',
+  PROP_VOID_OBELISK: 'tex-prop-void-obelisk',
 } as const;
 
 export const ANIM = {

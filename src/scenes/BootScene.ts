@@ -38,6 +38,18 @@ export class BootScene extends Phaser.Scene {
     this.load.image(TEXTURE.PROP_ROCK, asset('prop_rock.png'));
     this.load.image(TEXTURE.PROP_BUSH, asset('prop_bush.png'));
     this.load.spritesheet(TEXTURE.BONFIRE, asset('bonfire-sheet.png'), { frameWidth: 32, frameHeight: 32 });
+    this.load.image(TEXTURE.PROP_CABIN, asset('prop_cabin.png'));
+    this.load.image(TEXTURE.PROP_FENCE, asset('prop_fence.png'));
+    this.load.image(TEXTURE.PROP_WORKBENCH, asset('prop_workbench.png'));
+    this.load.image(TEXTURE.PROP_PRISON_BARS, asset('prop_prison_bars.png'));
+    this.load.image(TEXTURE.PROP_CHAINS, asset('prop_chains.png'));
+    this.load.image(TEXTURE.PROP_BLOOD_SPILL, asset('prop_blood_spill.png'));
+    this.load.image(TEXTURE.PROP_MINE_SHAFT, asset('prop_mine_shaft.png'));
+    this.load.image(TEXTURE.PROP_MINECART, asset('prop_minecart.png'));
+    this.load.image(TEXTURE.PROP_LUPINE, asset('prop_lupine.png'));
+    this.load.image(TEXTURE.PROP_MUSHROOM_GIANT, asset('prop_mushroom_giant.png'));
+    this.load.image(TEXTURE.PROP_ICE_CRYSTAL, asset('prop_ice_crystal.png'));
+    this.load.image(TEXTURE.PROP_VOID_OBELISK, asset('prop_void_obelisk.png'));
 
     preloadActor(this, ACTORS.HERO);
     preloadActor(this, ACTORS.ORC);

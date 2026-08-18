@@ -210,21 +210,36 @@ export class GameScene extends Phaser.Scene {
   private speedHack = false;
   private fullBright = false;
 
+  public levelData?: ReturnType<typeof buildLevel1>;
+
   constructor() {
     super(SCENE.GAME);
   }
 
-  init(data: { depth?: number; net?: NetContext; playerHealth?: Record<number, { hp: number; maxHp: number }>; elapsedRunTime?: number; heroClass?: HeroClass }): void {
+  init(data: {
+    depth?: number;
+    net?: NetContext;
+    playerHealth?: Record<number, { hp: number; maxHp: number }>;
+    elapsedRunTime?: number;
+    heroClass?: HeroClass;
+    godMode?: boolean;
+    speedHack?: boolean;
+    fullBright?: boolean;
+  }): void {
     this.depth = data?.depth ?? 1;
     this.net = data?.net;
     this.role = this.net?.role ?? 'offline';
     this.playerHealth = data?.playerHealth ?? {};
     this.elapsedRunTime = data?.elapsedRunTime ?? 0;
     this.heroClass = data?.heroClass ?? 'knight';
+    if (data?.godMode !== undefined) this.godMode = data.godMode;
+    if (data?.speedHack !== undefined) this.speedHack = data.speedHack;
+    if (data?.fullBright !== undefined) this.fullBright = data.fullBright;
   }
 
   create(): void {
     const level = buildLevel1(this.depth);
+    this.levelData = level;
     const world = this.add.layer();
     this.worldLayer = world;
     this.gameOver = false;
@@ -524,8 +539,65 @@ export class GameScene extends Phaser.Scene {
       this.playerLights.set(p, light);
 
       this.players.push(p);
-      if (isMine) this.myPlayer = p;
+      if (isMine) {
+        this.myPlayer = p;
+        this.myPlayer.godMode = this.godMode;
+        this.myPlayer.speedHack = this.speedHack;
+      }
     }
+
+    // Spatial & Biome Audio Initialization
+    SoundFX.clearSpatialEmitters();
+    SoundFX.setBiome(this.depth);
+
+    if (level.bonfires) {
+      for (let i = 0; i < level.bonfires.length; i++) {
+        const b = level.bonfires[i];
+        SoundFX.registerSpatialEmitter({
+          id: `bonfire_${i}`,
+          x: b.col * TILE_SIZE + TILE_SIZE / 2,
+          y: b.row * TILE_SIZE + TILE_SIZE,
+          type: 'bonfire',
+          maxDist: 260,
+          baseVolume: 0.65,
+        });
+      }
+    }
+
+    for (let i = 0; i < level.torches.length; i++) {
+      const t = level.torches[i];
+      SoundFX.registerSpatialEmitter({
+        id: `torch_${i}`,
+        x: t.col * TILE_SIZE + TILE_SIZE / 2,
+        y: t.row * TILE_SIZE + TILE_SIZE / 2,
+        type: 'torch',
+        maxDist: 160,
+        baseVolume: 0.35,
+      });
+    }
+
+    if (level.shrines) {
+      for (let i = 0; i < level.shrines.length; i++) {
+        const sh = level.shrines[i];
+        SoundFX.registerSpatialEmitter({
+          id: `shrine_${i}`,
+          x: sh.col * TILE_SIZE + TILE_SIZE / 2,
+          y: sh.row * TILE_SIZE + TILE_SIZE,
+          type: sh.kind === 'blood' ? 'shrine_blood' : 'shrine_chance',
+          maxDist: 220,
+          baseVolume: 0.4,
+        });
+      }
+    }
+
+    SoundFX.registerSpatialEmitter({
+      id: 'altar',
+      x: this.altarX,
+      y: this.altarY,
+      type: 'altar',
+      maxDist: 280,
+      baseVolume: 0.45,
+    });
 
     this.enemies = level.enemies.map((e, id) => {
       const enemy = new Enemy(this, e.col * TILE_SIZE + TILE_SIZE / 2, e.row * TILE_SIZE + TILE_SIZE, e.kind, id);
@@ -770,6 +842,8 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.scale.off('resize', handleResize);
       this.closeDebugMenu();
+      SoundFX.clearSpatialEmitters();
+      SoundFX.stopAmbient();
       this.enemies = [];
       this.flasks = [];
       this.chests = [];
@@ -1122,6 +1196,16 @@ export class GameScene extends Phaser.Scene {
       light.y = player.y - 8;
     }
 
+    if (this.myPlayer) {
+      this.myPlayer.godMode = this.godMode;
+      this.myPlayer.speedHack = this.speedHack;
+      if (this.godMode && this.myPlayer.hp < this.myPlayer.maxHp) {
+        this.myPlayer.hp = this.myPlayer.maxHp;
+        this.buildHeartsUI();
+      }
+      SoundFX.updateSpatial(this.myPlayer.x, this.myPlayer.y, delta);
+    }
+
     if (this.role === 'guest') {
       this.updateGuestFrame(delta);
     } else {
@@ -1153,7 +1237,7 @@ export class GameScene extends Phaser.Scene {
     for (const enemy of this.enemies) {
       const target = this.nearestAlivePlayer(enemy.x, enemy.y);
       if (!target) continue;
-      const landedHit = enemy.update(target.x, target.y, delta);
+      const landedHit = enemy.updateAI(target.x, target.y, delta, this.enemies, target.isAttacking);
       if (landedHit) this.handlePlayerHurt(target, enemy);
     }
 
@@ -2056,7 +2140,7 @@ export class GameScene extends Phaser.Scene {
       if (!active) continue;
 
       for (const player of this.players) {
-        if (player.isDowned) continue;
+        if (player.isDowned || player.godMode || (player === this.myPlayer && this.godMode)) continue;
         const dist = Phaser.Math.Distance.Between(proj.x, proj.y, player.x, player.y - 8);
         if (dist < 16) {
           proj.destroyProjectile();
@@ -2289,6 +2373,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handlePlayerHurt(player: Player, enemy: Enemy): void {
+    if (player.godMode || (player === this.myPlayer && this.godMode)) return;
     const applied = player.takeDamage(enemy.contactDamage, enemy.x, enemy.y);
     if (!applied) return;
 
@@ -2573,8 +2658,8 @@ export class GameScene extends Phaser.Scene {
         const pressed = player === this.myPlayer ? this.interactPressed : this.consumeRemoteEdge(player.slot, 'interact');
         if (pressed) {
           if (shrine.kind === 'blood') {
-            if (player.hp > 1) {
-              player.takeDamage(1, shrine.x, shrine.y);
+            if (player.hp > 1 || player.godMode) {
+              if (!player.godMode) player.takeDamage(1, shrine.x, shrine.y);
               this.buildHeartsUI();
               this.spawnCoins(shrine.x, shrine.y, 22);
 

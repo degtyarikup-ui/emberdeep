@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, FONT, PLAYER_TINTS, PLAYER_LABEL_COLORS, TEXTURE, ANIM } from '../gfx/registry';
 import { ACTORS } from '../gfx/actors';
 import { ActorAnim } from '../net/types';
-import { SoundFX } from '../audio/SoundFX';
+import { SoundFX, SurfaceType } from '../audio/SoundFX';
 import { ArrowProjectile } from './ArrowProjectile';
 import { MetaManager } from '../meta/MetaManager';
 
@@ -74,7 +74,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private baseScale = 1;
   private animState: AnimState = 'idle';
   private dying = false;
-  private isAttacking = false;
+  public isAttacking = false;
   private swordOffset = { x: 6, y: -13 };
   private swordAngle = 20;
   private sprintTrailTimer = 0;
@@ -160,6 +160,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   godMode = false;
   speedHack = false;
+  private footstepTimer = 0;
 
   get moveSpeed(): number {
     const metaSpeed = MetaManager.get().getBonuses().speedMultiplier;
@@ -655,6 +656,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
+    if (moving && !blocked && !this.dying && !this.isDowned) {
+      this.footstepTimer += delta;
+      const stepInterval = this.isSprinting ? 180 : 270;
+      if (this.footstepTimer >= stepInterval) {
+        this.footstepTimer = 0;
+        const surface = this.detectCurrentSurface();
+        SoundFX.playFootstep(surface, this.isSprinting);
+      }
+    } else {
+      this.footstepTimer = 0;
+    }
+
     if (moving) {
       const len = Math.hypot(vx, vy) || 1;
       body.setVelocity((vx / len) * this.moveSpeed, (vy / len) * this.moveSpeed);
@@ -668,6 +681,23 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.label.setPosition(this.x, this.y - 34);
     this.setDepth(DEPTH.YSORT_BASE + this.y);
     this.updateSwordTransform(moving);
+  }
+
+  private detectCurrentSurface(): SurfaceType {
+    const gameScene = this.scene as unknown as { depth?: number; levelData?: { data: number[][] } };
+    const depth = gameScene.depth ?? 1;
+    if (depth > 1) return 'stone';
+
+    const col = Math.floor(this.x / 32);
+    const row = Math.floor(this.y / 32);
+    const levelData = gameScene.levelData;
+    if (levelData && levelData.data[row] && levelData.data[row][col] !== undefined) {
+      const tile = levelData.data[row][col];
+      if (tile === 3 || tile === 4) return 'dirt';
+      if (tile === 5 || tile === 12 || tile === 13) return 'stone';
+      return 'grass';
+    }
+    return 'grass';
   }
 
   private spawnGhostTrail(): void {

@@ -211,8 +211,24 @@ export class GameScene extends Phaser.Scene {
     this.gameOver = false;
     this.frozen = false;
     this.killCount = 0;
+
+    // Reset all arrays and objects so restarts never leak or crash
     this.chests = [];
     this.destructibles = [];
+    this.shrines = [];
+    this.enemies = [];
+    this.flasks = [];
+    this.coins = [];
+    this.torchLights = [];
+    this.playerArrows = [];
+    this.bossProjectiles = [];
+    this.boss = undefined;
+    this.bossBarContainer = undefined;
+    this.bossBarFill = undefined;
+    this.bossBarText = undefined;
+    this.hearts = [];
+    this.itemTray = [];
+    this.bannerContainer = undefined;
     this.players = [];
     this.playerLights.clear();
     this.remoteInputs.clear();
@@ -235,6 +251,12 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, worldW, worldH);
 
     this.solids = this.physics.add.staticGroup();
+
+    // Clean up duplicate extra cameras from previous runs
+    while (this.cameras.cameras.length > 1) {
+      const extraCam = this.cameras.cameras[this.cameras.cameras.length - 1];
+      this.cameras.remove(extraCam);
+    }
 
     for (const t of level.torches) {
       const x = t.col * TILE_SIZE + TILE_SIZE / 2;
@@ -1830,9 +1852,14 @@ export class GameScene extends Phaser.Scene {
       title: 'ВЫ ПОГИБЛИ',
       titleColor: '#c94f3d',
       stats: `Повержено врагов: ${this.killCount}   ·   Получено Углей: +${embersEarned} 🔥`,
-      buttonText: 'В ГЛАВНОЕ МЕНЮ',
+      buttonText: 'ИГРАТЬ СНОВА',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'gameover', nextDepth: 1 });
+        this.scene.restart({ depth: 1, net: this.net, heroClass: this.heroClass, playerHealth: {}, elapsedRunTime: 0 });
+      },
+      secondaryText: 'В ГЛАВНОЕ МЕНЮ (ПРОКАЧКА)',
+      onSecondaryConfirm: () => {
+        void this.net?.room.leave();
         this.scene.start(SCENE.MENU);
       },
     });
@@ -1869,6 +1896,8 @@ export class GameScene extends Phaser.Scene {
     stats: string;
     buttonText: string;
     onConfirm: () => void;
+    secondaryText?: string;
+    onSecondaryConfirm?: () => void;
   }): void {
     const w = this.scale.width;
     const h = this.scale.height;
@@ -1877,9 +1906,9 @@ export class GameScene extends Phaser.Scene {
 
     const backdrop = this.add.rectangle(w / 2, h / 2, w, h, 0x07050c, 0).setDepth(0);
     const title = this.add
-      .text(w / 2, h / 2 - 40, opts.title, {
+      .text(w / 2, h / 2 - 50, opts.title, {
         fontFamily: FONT.TITLE,
-        fontSize: '36px',
+        fontSize: '34px',
         fontStyle: '700',
         color: opts.titleColor,
       })
@@ -1887,34 +1916,55 @@ export class GameScene extends Phaser.Scene {
       .setAlpha(0)
       .setStroke('#0d0a10', 6);
     const stats = this.add
-      .text(w / 2, h / 2 + 8, opts.stats, {
+      .text(w / 2, h / 2 - 2, opts.stats, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         color: '#cfc6dd',
       })
       .setOrigin(0.5)
       .setAlpha(0);
+
     const confirm = this.add
-      .text(w / 2, h / 2 + 50, opts.buttonText, {
+      .text(w / 2, h / 2 + 40, opts.buttonText, {
         fontFamily: FONT.UI,
         fontSize: '16px',
         fontStyle: '600',
         color: '#f0e2b8',
       })
       .setOrigin(0.5)
-      .setPadding(14, 10, 14, 10)
+      .setPadding(14, 8, 14, 8)
       .setAlpha(0)
       .setInteractive({ useHandCursor: true });
     confirm.on('pointerover', () => confirm.setColor('#ffce6b'));
     confirm.on('pointerout', () => confirm.setColor('#f0e2b8'));
     confirm.on('pointerdown', opts.onConfirm);
 
-    container.add([backdrop, title, stats, confirm]);
+    const elements: Phaser.GameObjects.GameObject[] = [backdrop, title, stats, confirm];
 
-    this.tweens.add({ targets: backdrop, fillAlpha: 0.82, duration: 500 });
-    this.tweens.add({ targets: [title, stats, confirm], alpha: 1, duration: 500, delay: 250 });
+    if (opts.secondaryText && opts.onSecondaryConfirm) {
+      const secBtn = this.add
+        .text(w / 2, h / 2 + 78, opts.secondaryText, {
+          fontFamily: FONT.UI,
+          fontSize: '12px',
+          color: '#94a3b8',
+        })
+        .setOrigin(0.5)
+        .setPadding(10, 6, 10, 6)
+        .setAlpha(0)
+        .setInteractive({ useHandCursor: true });
+      secBtn.on('pointerover', () => secBtn.setColor('#f97316'));
+      secBtn.on('pointerout', () => secBtn.setColor('#94a3b8'));
+      secBtn.on('pointerdown', opts.onSecondaryConfirm);
+      elements.push(secBtn);
+    }
+
+    container.add(elements);
+
+    this.tweens.add({ targets: backdrop, fillAlpha: 0.85, duration: 400 });
+    this.tweens.add({ targets: elements.filter((e) => e !== backdrop), alpha: 1, duration: 400, delay: 200 });
 
     this.input.keyboard!.once('keydown-SPACE', opts.onConfirm);
+    this.input.keyboard!.once('keydown-ENTER', opts.onConfirm);
   }
 
   private updateFlaskPickups(): void {

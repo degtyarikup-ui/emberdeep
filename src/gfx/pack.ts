@@ -1,15 +1,23 @@
 import Phaser from 'phaser';
 
+// Resolves a public/assets/ file against Vite's base path — a plain
+// '/assets/...' string breaks once the site is served from a subpath (e.g.
+// GitHub Pages' /emberdeep/), since Vite has no way to rewrite raw string
+// literals the way it rewrites imports.
+export function asset(name: string): string {
+  return `${import.meta.env.BASE_URL}assets/${name}`;
+}
+
 // "Pixel Crawler" (Free Pack) by Anokolisa — see vendor/pixel-crawler/CREDIT.md.
 export const PACK = {
-  DUNGEON_TILES: { key: 'raw-pc-dungeon-tiles', url: '/assets/pc-dungeon-tiles.png' },
-  RESOURCES: { key: 'raw-pc-resources', url: '/assets/pc-resources.png' },
-  DUNGEON_PROPS: { key: 'raw-pc-dungeon-props', url: '/assets/pc-dungeon-props.png' },
+  DUNGEON_TILES: { key: 'raw-pc-dungeon-tiles', url: asset('pc-dungeon-tiles.png') },
+  RESOURCES: { key: 'raw-pc-resources', url: asset('pc-resources.png') },
+  DUNGEON_PROPS: { key: 'raw-pc-dungeon-props', url: asset('pc-dungeon-props.png') },
 } as const;
 
 // 0x72's CC0 pack — kept only for the small HUD heart icons.
 // See vendor/0x72-dungeon-tileset-ii/CREDIT.md.
-export const LEGACY_PACK = { key: 'raw-dungeon-pack', url: '/assets/dungeon-pack.png' };
+export const LEGACY_PACK = { key: 'raw-dungeon-pack', url: asset('dungeon-pack.png') };
 
 export function getPackSource(scene: Phaser.Scene, sourceKey: string): CanvasImageSource {
   return scene.textures.get(sourceKey).getSourceImage() as CanvasImageSource;

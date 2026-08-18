@@ -13,6 +13,7 @@ export const TEXTURE = {
   DEBRIS_WOOD: 'tex-debris-wood',
   WEAPON_SWORD: 'tex-weapon-sword',
   BOW: 'tex-weapon-bow',
+  BOW_DRAWN: 'tex-weapon-bow-drawn',
   ARROW: 'tex-weapon-arrow',
   SLASH_FX: 'tex-slash-fx',
   SLASH_WHIRLWIND: 'tex-slash-whirlwind',

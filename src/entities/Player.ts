@@ -25,9 +25,9 @@ const BODY_CONFIG: Record<AnimState, { size: [number, number]; offset: [number, 
 };
 
 const RANGER_BODY_CONFIG: Record<AnimState, { size: [number, number]; offset: [number, number] }> = {
-  idle: { size: [14, 10], offset: [1, 18] }, // 16x28 frame
-  run: { size: [14, 10], offset: [1, 18] },
-  death: { size: [14, 10], offset: [1, 18] },
+  idle: { size: [14, 12], offset: [9, 20] }, // 32x32 frame
+  run: { size: [14, 12], offset: [9, 20] },
+  death: { size: [14, 12], offset: [9, 20] },
 };
 
 export interface PlayerInput {
@@ -120,7 +120,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setOrigin(0.5, 1.0);
     this.setPipeline('Light2D');
     this.setTint(PLAYER_TINTS[slot] ?? 0xffffff);
-    this.baseScale = isKnight ? 1.0 : 1.1;
+    this.baseScale = 1.0;
     this.setScale(this.baseScale);
 
     if (isKnight) {
@@ -139,10 +139,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // Weapon sprite: Sword for Knight, Bow for Ranger
     const weaponTex = isKnight ? TEXTURE.WEAPON_SWORD : TEXTURE.BOW;
     this.sword = scene.add.sprite(x + 6, y - 13, weaponTex);
-    this.sword.setOrigin(isKnight ? 0.5 : 0.4, isKnight ? 0.88 : 0.5);
+    this.sword.setOrigin(isKnight ? 0.5 : 0.5, isKnight ? 0.88 : 0.5);
     this.sword.setPipeline('Light2D');
     this.sword.setDepth(DEPTH.YSORT_BASE + y + 1);
-    this.sword.setScale(isKnight ? 1.05 : 1.0);
+    this.sword.setScale(1.0);
 
     this.label = scene.add
       .text(x, y - 34, `${slot + 1}`, {
@@ -283,18 +283,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       const dir = this.flipX ? -1 : 1;
       let angle = dir < 0 ? Math.PI : 0;
       if (targetX !== undefined && targetY !== undefined) {
-        angle = Phaser.Math.Angle.Between(this.x, this.y - 12, targetX, targetY);
+        angle = Phaser.Math.Angle.Between(this.x, this.y - 14, targetX, targetY);
       }
+      const spawnX = this.x + Math.cos(angle) * 12;
+      const spawnY = this.y - 14 + Math.sin(angle) * 12;
       const arrow = new ArrowProjectile(
         this.scene,
-        this.x + 8 * dir,
-        this.y - 12,
+        spawnX,
+        spawnY,
         angle,
         Math.max(1, Math.round(this.attackDamage * 1.3)),
         1,
-        340
+        360
       );
-      this.playRangerShootAnimation();
+      this.playRangerShootAnimation(angle);
       return { kind: 'arrow', projectile: arrow };
     } else {
       this.playAttackAnimation();
@@ -312,27 +314,29 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       const dir = this.flipX ? -1 : 1;
       let baseAngle = dir < 0 ? Math.PI : 0;
       if (targetX !== undefined && targetY !== undefined) {
-        baseAngle = Phaser.Math.Angle.Between(this.x, this.y - 12, targetX, targetY);
+        baseAngle = Phaser.Math.Angle.Between(this.x, this.y - 14, targetX, targetY);
       }
 
       const projectiles: ArrowProjectile[] = [];
-      const spread = 0.5; // ~28 degrees fan
+      const spread = 0.45; // ~26 degrees fan
       const count = 5;
       for (let i = 0; i < count; i++) {
         const offset = ((i - (count - 1) / 2) / (count - 1)) * spread;
         const angle = baseAngle + offset;
+        const spawnX = this.x + Math.cos(angle) * 12;
+        const spawnY = this.y - 14 + Math.sin(angle) * 12;
         const arrow = new ArrowProjectile(
           this.scene,
-          this.x + 8 * dir,
-          this.y - 12,
+          spawnX,
+          spawnY,
           angle,
           Math.max(1, Math.round(this.attackDamage * 1.5)),
           2, // pierce 2 targets
-          350
+          380
         );
         projectiles.push(arrow);
       }
-      this.playRangerShootAnimation();
+      this.playRangerShootAnimation(baseAngle);
       return { kind: 'volley', x: this.x, y: this.y, projectiles };
     } else {
       SoundFX.playWhirlwind();
@@ -379,14 +383,48 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
-  private playRangerShootAnimation(): void {
+  private playRangerShootAnimation(aimAngle: number): void {
+    this.isAttacking = true;
     const dir = this.flipX ? -1 : 1;
+
+    // Switch bow to drawn string texture
+    this.sword.setTexture(TEXTURE.BOW_DRAWN);
+    this.sword.setOrigin(0.5, 0.5);
+
+    // Aim bow in shooting direction
+    this.sword.setRotation(aimAngle);
+
+    // Pullback recoil
+    const recoilDist = -5;
+    const recoilX = Math.cos(aimAngle) * recoilDist;
+    const recoilY = Math.sin(aimAngle) * recoilDist;
+
+    this.sword.setPosition(this.x + 6 * dir + recoilX, this.y - 14 + recoilY);
+
+    // Body squash/recoil
     this.scene.tweens.add({
-      targets: this.sword,
-      x: this.x + 2 * dir,
-      duration: 60,
+      targets: this,
+      scaleX: this.baseScale * 1.12,
+      scaleY: this.baseScale * 0.92,
+      duration: 50,
       yoyo: true,
       ease: 'Quad.easeOut',
+    });
+
+    // Spring forward on release and return to standard bow
+    this.scene.time.delayedCall(70, () => {
+      this.sword.setTexture(TEXTURE.BOW);
+      this.scene.tweens.add({
+        targets: this.sword,
+        x: this.x + 6 * dir + Math.cos(aimAngle) * 4,
+        y: this.y - 14 + Math.sin(aimAngle) * 4,
+        duration: 90,
+        yoyo: true,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.isAttacking = false;
+        },
+      });
     });
   }
 
@@ -506,9 +544,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.sword.setDepth(DEPTH.YSORT_BASE + this.y + 1);
 
     if (this.heroClass === 'ranger') {
-      const bob = moving ? Math.sin(this.scene.time.now / 90) * 3 : 0;
-      this.sword.setPosition(this.x + 6 * dir, this.y - 12 + bob);
-      this.sword.setAngle(0);
+      if (!this.isAttacking) {
+        this.sword.setTexture(TEXTURE.BOW);
+        this.sword.setOrigin(0.5, 0.5);
+        const bob = moving ? Math.sin(this.scene.time.now / 90) * 2.5 : Math.sin(this.scene.time.now / 350) * 1.0;
+        this.sword.setPosition(this.x + 6 * dir, this.y - 13 + bob);
+        this.sword.setAngle(0);
+      }
       return;
     }
 

@@ -23,12 +23,13 @@ export class BootScene extends Phaser.Scene {
     this.load.image(LEGACY_PACK.key, LEGACY_PACK.url);
     this.load.image(TEXTURE.WEAPON_SWORD, asset('weapon-knight-sword.png'));
     this.load.image(TEXTURE.BOW, asset('bow.png'));
+    this.load.image(TEXTURE.BOW_DRAWN, asset('bow_drawn.png'));
     this.load.image(TEXTURE.ARROW, asset('arrow.png'));
     this.load.image(TEXTURE.SLASH_WHIRLWIND, asset('slash_whirlwind.png'));
     this.load.spritesheet(TEXTURE.COIN_ANIM, asset('coin-anim.png'), { frameWidth: 8, frameHeight: 8 });
     this.load.spritesheet(TEXTURE.BOSS_DEMON, asset('big_demon.png'), { frameWidth: 32, frameHeight: 36 });
-    this.load.spritesheet(TEXTURE.RANGER_IDLE, asset('ranger-idle.png'), { frameWidth: 16, frameHeight: 28 });
-    this.load.spritesheet(TEXTURE.RANGER_RUN, asset('ranger-run.png'), { frameWidth: 16, frameHeight: 28 });
+    this.load.spritesheet(TEXTURE.RANGER_IDLE, asset('ranger-idle.png'), { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet(TEXTURE.RANGER_RUN, asset('ranger-run.png'), { frameWidth: 32, frameHeight: 32 });
     this.load.image(TEXTURE.SKULL, asset('skull.png'));
 
     preloadActor(this, ACTORS.HERO);

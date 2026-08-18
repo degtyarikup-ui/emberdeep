@@ -612,7 +612,68 @@ class SoundFXManager {
     osc.start(t);
     osc.stop(t + 0.3);
   }
+
+  /** Triumphant golden fanfare chime for unlocked achievements */
+  playAchievementUnlocked(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    // Ascending shimmer fanfare: C5 (523), E5 (659), G5 (784), C6 (1046)
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const startTime = t + i * 0.08;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.setValueAtTime(0.3, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.85);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.85);
+
+      // Bell shimmer overtone
+      const bell = ctx.createOscillator();
+      const bellGain = ctx.createGain();
+      bell.type = 'sine';
+      bell.frequency.setValueAtTime(freq * 2.76, startTime);
+      bellGain.gain.setValueAtTime(0.12, startTime);
+      bellGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45);
+      bell.connect(bellGain);
+      bellGain.connect(this.masterGain!);
+      bell.start(startTime);
+      bell.stop(startTime + 0.45);
+    });
+  }
+
+  /** Quick wind dash / sprint whoosh */
+  playDash(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(360, t);
+    osc.frequency.exponentialRampToValueAtTime(140, t + 0.16);
+
+    gain.gain.setValueAtTime(0.24, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.16);
+  }
 }
 
 export const SoundFX = new SoundFXManager();
+
 

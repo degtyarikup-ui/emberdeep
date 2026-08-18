@@ -24,6 +24,7 @@ export interface PlayerInput {
   down: boolean;
   left: boolean;
   right: boolean;
+  shift?: boolean;
 }
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
@@ -31,6 +32,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   hp = 3;
   gold = 0;
   items: Record<string, number> = {};
+  isSprinting = false;
   readonly slot: number;
   readonly label: Phaser.GameObjects.Text;
   readonly sword: Phaser.GameObjects.Sprite;
@@ -45,6 +47,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private isAttacking = false;
   private swordOffset = { x: 6, y: -13 };
   private swordAngle = 20;
+  private sprintTrailTimer = 0;
+  private wasSprinting = false;
 
   private netTargetX = 0;
   private netTargetY = 0;
@@ -90,7 +94,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   get moveSpeed(): number {
-    return SPEED * (1 + (this.items['boots'] || 0) * 0.15);
+    const base = SPEED * (1 + (this.items['boots'] || 0) * 0.15);
+    return this.isSprinting ? base * 1.55 : base;
   }
 
   get attackDamage(): number {
@@ -402,6 +407,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     const moving = vx !== 0 || vy !== 0;
+    this.isSprinting = !blocked && moving && !!input.shift;
+
+    if (this.isSprinting && !this.wasSprinting) {
+      SoundFX.playDash();
+    }
+    this.wasSprinting = this.isSprinting;
+
+    if (this.isSprinting) {
+      this.sprintTrailTimer += delta;
+      if (this.sprintTrailTimer >= 80) {
+        this.sprintTrailTimer = 0;
+        this.spawnGhostTrail();
+      }
+    }
+
     if (moving) {
       const len = Math.hypot(vx, vy) || 1;
       body.setVelocity((vx / len) * this.moveSpeed, (vy / len) * this.moveSpeed);
@@ -415,5 +435,28 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.label.setPosition(this.x, this.y - 34);
     this.setDepth(DEPTH.YSORT_BASE + this.y);
     this.updateSwordTransform(moving);
+  }
+
+  private spawnGhostTrail(): void {
+    if (!this.scene) return;
+    const ghost = this.scene.add.sprite(this.x, this.y, this.texture.key, this.frame.name);
+    ghost.setOrigin(this.originX, this.originY);
+    ghost.setFlipX(this.flipX);
+    ghost.setScale(this.scaleX, this.scaleY);
+    ghost.setTint(0x38bdf8);
+    ghost.setAlpha(0.4);
+    ghost.setDepth(Math.max(0, this.depth - 1));
+
+    const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+    if (worldLayer) worldLayer.add(ghost);
+
+    this.scene.tweens.add({
+      targets: ghost,
+      alpha: 0,
+      scaleX: this.scaleX * 0.9,
+      duration: 180,
+      ease: 'Quad.easeOut',
+      onComplete: () => ghost.destroy(),
+    });
   }
 }

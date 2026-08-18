@@ -11,6 +11,7 @@ export interface InputPayload {
   down: boolean;
   left: boolean;
   right: boolean;
+  shift?: boolean;
   // cumulative press counters rather than edge-triggered booleans — input is
   // sent throttled (not every frame), so a boolean edge could land between
   // two sends and be lost. The host detects a new press by diffing against

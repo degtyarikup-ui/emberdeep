@@ -3,6 +3,7 @@ import { SCENE } from './keys';
 import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
 import { FLOOR_INDICES } from '../gfx/tiles';
 import { HUD_ICON } from '../gfx/hud';
+import { PROP } from '../gfx/props';
 import { buildLevel1, TILE_SIZE } from '../world/level1';
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
@@ -13,6 +14,7 @@ import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot, BossSnapsho
 import { SoundFX } from '../audio/SoundFX';
 import { ItemDef } from '../items/types';
 import { ITEMS, getRandomItem } from '../items/registry';
+import { AchievementManager } from '../achievements/AchievementManager';
 
 export const THREAT_TIERS = [
   { name: 'ЛЕГКО', color: '#4ade80', bg: 0x14532d, threshold: 0 },
@@ -98,6 +100,7 @@ export class GameScene extends Phaser.Scene {
   private wasd!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private attackKey!: Phaser.Input.Keyboard.Key;
   private interactKey!: Phaser.Input.Keyboard.Key;
+  private shiftKey!: Phaser.Input.Keyboard.Key;
   private torchLights: TorchLight[] = [];
   private enemies: Enemy[] = [];
   private flasks: Pickup[] = [];
@@ -240,14 +243,17 @@ export class GameScene extends Phaser.Scene {
         body.setOffset((sprite.width - 16) / 2, sprite.height - 12);
         this.solids.add(sprite);
 
-        this.destructibles.push({
-          id: i,
-          sprite,
-          body,
-          x,
-          y: yBottom,
-          broken: false,
-        });
+        const isDestructible = d.key === PROP.CRATE || d.key === PROP.BARREL;
+        if (isDestructible) {
+          this.destructibles.push({
+            id: i,
+            sprite,
+            body,
+            x,
+            y: yBottom,
+            broken: false,
+          });
+        }
       }
     }
 
@@ -476,6 +482,21 @@ export class GameScene extends Phaser.Scene {
     };
     this.attackKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.shiftKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+
+    // Attack on LMB (Left Mouse Click)
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.frozen || this.myPlayer.isDowned) return;
+      if (pointer.leftButtonDown()) {
+        const worldPoint = this.worldCam.getWorldPoint(pointer.x, pointer.y);
+        if (worldPoint.x !== this.myPlayer.x) {
+          this.myPlayer.setFlipX(worldPoint.x < this.myPlayer.x);
+        }
+        this.attackPressed = true;
+        this.mySeq.attack++;
+        this.handlePlayerAttack(this.myPlayer);
+      }
+    });
 
     this.buildHeartsUI();
 
@@ -536,7 +557,7 @@ export class GameScene extends Phaser.Scene {
     this.threatContainer.add([this.threatBadgeBg, this.threatBadgeText]);
 
     this.hint = this.add
-      .text(this.scale.width / 2, this.scale.height - 20, 'WASD — ДВИЖЕНИЕ   ПРОБЕЛ — АТАКА   E — ВЗАИМОДЕЙСТВИЕ   ESC — МЕНЮ', {
+      .text(this.scale.width / 2, this.scale.height - 20, 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ПРОБЕЛ / ЛКМ — АТАКА   E — ДЕЙСТВИЕ   ESC — МЕНЮ', {
         fontFamily: FONT.UI,
         fontSize: '11px',
         color: '#cfc6dd',
@@ -596,8 +617,13 @@ export class GameScene extends Phaser.Scene {
       down: this.cursors.down.isDown || this.wasd.down.isDown,
       left: this.cursors.left.isDown || this.wasd.left.isDown,
       right: this.cursors.right.isDown || this.wasd.right.isDown,
+      shift: this.shiftKey.isDown,
     };
     this.myPlayer.update(localInput, delta);
+    if (this.myPlayer.isSprinting) {
+      AchievementManager.get().unlock('speedrunner', this);
+    }
+
     this.attackPressed = Phaser.Input.Keyboard.JustDown(this.attackKey);
     this.interactPressed = Phaser.Input.Keyboard.JustDown(this.interactKey);
     if (this.attackPressed) this.mySeq.attack++;
@@ -628,7 +654,7 @@ export class GameScene extends Phaser.Scene {
     for (const player of this.players) {
       if (player === this.myPlayer) continue;
       const latest = this.remoteInputs.get(player.slot);
-      if (latest) player.update({ up: latest.up, down: latest.down, left: latest.left, right: latest.right }, delta);
+      if (latest) player.update({ up: latest.up, down: latest.down, left: latest.left, right: latest.right, shift: latest.shift }, delta);
     }
 
     if (this.attackPressed) this.handlePlayerAttack(this.myPlayer);
@@ -698,6 +724,7 @@ export class GameScene extends Phaser.Scene {
         down: this.cursors.down.isDown || this.wasd.down.isDown,
         left: this.cursors.left.isDown || this.wasd.left.isDown,
         right: this.cursors.right.isDown || this.wasd.right.isDown,
+        shift: this.shiftKey.isDown,
         attackSeq: this.mySeq.attack,
         interactSeq: this.mySeq.interact,
       });
@@ -821,6 +848,7 @@ export class GameScene extends Phaser.Scene {
 
         if (killed) {
           this.killCount += 1;
+          AchievementManager.get().unlock('boss_slayer', this);
           this.onBossDefeated();
         }
       }
@@ -865,6 +893,9 @@ export class GameScene extends Phaser.Scene {
         if (killed) {
           SoundFX.playEnemyDeath(enemy.kind);
           this.killCount += 1;
+
+          AchievementManager.get().enemiesKilled += 1;
+          AchievementManager.get().unlock('first_blood', this);
 
           // Enemy drops coins
           const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
@@ -1235,6 +1266,11 @@ export class GameScene extends Phaser.Scene {
 
     SoundFX.playWoodBreak();
 
+    AchievementManager.get().cratesBroken += 1;
+    if (AchievementManager.get().cratesBroken >= 10) {
+      AchievementManager.get().unlock('break_10_crates', this);
+    }
+
     // Wood particle explosion
     this.woodSpark.setPosition(prop.x, prop.y - 8);
     this.woodSpark.explode(18);
@@ -1338,6 +1374,10 @@ export class GameScene extends Phaser.Scene {
             coin.collected = true;
             coin.sprite.destroy();
             this.myPlayer.addGold(1);
+            AchievementManager.get().coinsCollected += 1;
+            if (this.myPlayer.gold >= 50 || AchievementManager.get().coinsCollected >= 50) {
+              AchievementManager.get().unlock('gold_rush', this);
+            }
             SoundFX.playCoinPickup();
             this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 16, '+1 🪙', '#fbbf24');
             this.goldLabel.setText(`${this.myPlayer.gold}`);
@@ -1368,7 +1408,10 @@ export class GameScene extends Phaser.Scene {
         player.items['immortal_crown'] -= 1;
         player.hp = player.maxHp;
         this.buildHeartsUI();
-        if (player === this.myPlayer) this.updateInventoryHUD();
+        if (player === this.myPlayer) {
+          this.updateInventoryHUD();
+          AchievementManager.get().unlock('near_death', this);
+        }
         SoundFX.playItemAcquired();
         this.spawnDamageNumber(player.x, player.y - 16, 'ВОСКРЕШЕНИЕ!', '#facc15');
         this.hitSpark.setPosition(player.x, player.y - 12);
@@ -1535,6 +1578,10 @@ export class GameScene extends Phaser.Scene {
               this.showItemAcquiredBanner(item);
               this.updateInventoryHUD();
               this.goldLabel.setText(`${this.myPlayer.gold}`);
+              const uniqueCount = Object.keys(player.items).filter((k) => player.items[k] > 0).length;
+              if (uniqueCount >= 3) {
+                AchievementManager.get().unlock('collector', this);
+              }
             }
 
             // Rising item float effect
@@ -1563,7 +1610,6 @@ export class GameScene extends Phaser.Scene {
       if (!chest.opened) chest.prompt.setVisible(anyMineInRange);
     }
   }
-
   private showItemAcquiredBanner(item: ItemDef): void {
     if (this.bannerContainer) this.bannerContainer.destroy();
 

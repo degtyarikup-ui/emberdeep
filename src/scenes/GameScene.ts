@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SCENE } from './keys';
 import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
-import { FLOOR_INDICES } from '../gfx/tiles';
+import { FLOOR_INDICES, TILE_MARGIN, TILE_SPACING } from '../gfx/tiles';
 import { HUD_ICON } from '../gfx/hud';
 import { PROP } from '../gfx/props';
 import { buildLevel1, TILE_SIZE } from '../world/level1';
@@ -273,7 +273,7 @@ export class GameScene extends Phaser.Scene {
     this.lights.setAmbientColor(level.biome.ambientColor);
 
     const map = this.make.tilemap({ data: level.data, tileWidth: TILE_SIZE, tileHeight: TILE_SIZE });
-    const tileset = map.addTilesetImage('dungeon', TEXTURE.DUNGEON_TILES, TILE_SIZE, TILE_SIZE, 0, 0)!;
+    const tileset = map.addTilesetImage('dungeon', TEXTURE.DUNGEON_TILES, TILE_SIZE, TILE_SIZE, TILE_MARGIN, TILE_SPACING)!;
     const layer = map.createLayer(0, tileset, 0, 0)!;
     layer.setCollisionByExclusion(FLOOR_INDICES);
     layer.setPipeline('Light2D');

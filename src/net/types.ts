@@ -53,4 +53,5 @@ export interface WorldSnapshot {
 export interface TransitionMsg {
   kind: 'gameover' | 'levelcomplete';
   nextDepth: number;
+  playerHealth?: Record<number, { hp: number; maxHp: number }>;
 }

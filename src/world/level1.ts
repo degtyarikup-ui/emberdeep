@@ -412,7 +412,7 @@ function buildMagmaLevel(biome: BiomeConfig, depth: number): LevelData {
   const rand = prand(8888 + depth * 43);
   const data = binary.map((row) =>
     row.map((cell) => {
-      if (cell === WALL) return TILE_INDEX.WALL_DUNGEON;
+      if (cell === WALL) return TILE_INDEX.WALL_MAGMA;
       return rand() < 0.6 ? TILE_INDEX.MAGMA_1 : TILE_INDEX.MAGMA_2;
     })
   );
@@ -474,13 +474,121 @@ function buildMagmaLevel(biome: BiomeConfig, depth: number): LevelData {
   };
 }
 
+/** Level 4: "Цитадель Бездны" (Expanded 60x38 floating astral platforms & cosmic amphitheater) */
+function buildVoidCitadel(biome: BiomeConfig, depth: number): LevelData {
+  const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(WALL));
+
+  // Astral Antechamber (West)
+  carveRect(binary, 4, 13, 11, 12);
+
+  // Western Astral Bridges
+  carveRect(binary, 15, 17, 6, 4);  // West -> Central Hub
+  carveRect(binary, 18, 9, 3, 9);   // Spoke to North Shrine
+  carveRect(binary, 18, 20, 3, 9);  // Spoke to South Shrine
+
+  // 4 Floating Astral Shrines
+  carveRect(binary, 15, 5, 12, 10);  // North Astral Library
+  carveRect(binary, 15, 23, 12, 10); // South Astral Crypt
+
+  // Astral Cross Bridges
+  carveRect(binary, 27, 8, 8, 4);   // North Bridge
+  carveRect(binary, 27, 26, 8, 4);  // South Bridge
+  carveRect(binary, 20, 15, 12, 8);  // Central Cosmic Nexus
+
+  // Eastern Astral Spires
+  carveRect(binary, 35, 5, 11, 10);  // North-East Spire
+  carveRect(binary, 35, 23, 11, 10); // South-East Spire
+  carveRect(binary, 31, 17, 10, 4);  // Nexus -> Throne Hallway
+
+  // Grand Throne Arena of the Void
+  carveRect(binary, 45, 8, 12, 22);  // Final Boss Arena
+
+  const rand = prand(7777 + depth * 53);
+  const data = binary.map((row) =>
+    row.map((cell) => {
+      if (cell === WALL) return TILE_INDEX.WALL_VOID;
+      return rand() < 0.65 ? TILE_INDEX.VOID_1 : TILE_INDEX.VOID_2;
+    })
+  );
+
+  const enemies: { col: number; row: number; kind: EnemyKind }[] = [
+    { col: 9, row: 16, kind: 'imp' },
+    { col: 9, row: 21, kind: 'skeleton' },
+    { col: 20, row: 9, kind: 'skeleton' },
+    { col: 22, row: 11, kind: 'imp' },
+    { col: 20, row: 27, kind: 'skeleton' },
+    { col: 22, row: 29, kind: 'imp' },
+    { col: 25, row: 19, kind: 'skeleton' },
+    { col: 38, row: 9, kind: 'imp' },
+    { col: 40, row: 11, kind: 'skeleton' },
+    { col: 38, row: 27, kind: 'imp' },
+    { col: 40, row: 29, kind: 'skeleton' },
+    { col: 49, row: 13, kind: 'skeleton' },
+    { col: 53, row: 13, kind: 'imp' },
+    { col: 49, row: 24, kind: 'imp' },
+    { col: 53, row: 24, kind: 'skeleton' },
+  ];
+
+  return {
+    biome,
+    data,
+    spawn: { col: 8, row: 19 },
+    torches: [
+      { col: 5, row: 12 },
+      { col: 13, row: 12 },
+      { col: 17, row: 4 },
+      { col: 25, row: 4 },
+      { col: 17, row: 22 },
+      { col: 25, row: 22 },
+      { col: 37, row: 4 },
+      { col: 44, row: 4 },
+      { col: 37, row: 22 },
+      { col: 44, row: 22 },
+      { col: 47, row: 7 },
+      { col: 55, row: 7 },
+      { col: 47, row: 30 },
+      { col: 55, row: 30 },
+    ],
+    decorations: [
+      { col: 6, row: 15, key: PROP.TOMBSTONE, solid: true },
+      { col: 12, row: 15, key: PROP.TOMBSTONE, solid: true },
+      { col: 21, row: 7, key: PROP.BANNER_RED, solid: false },
+      { col: 21, row: 25, key: PROP.BANNER_RED, solid: false },
+      { col: 26, row: 19, key: PROP.TOMBSTONE, solid: true },
+      { col: 39, row: 7, key: PROP.TOMBSTONE, solid: true },
+      { col: 39, row: 25, key: PROP.TOMBSTONE, solid: true },
+    ],
+    flasks: [
+      { col: 21, row: 10, key: PROP.FLASK_BLUE },
+      { col: 21, row: 28, key: PROP.FLASK_RED },
+      { col: 39, row: 10, key: PROP.FLASK_BLUE },
+      { col: 39, row: 28, key: PROP.FLASK_RED },
+    ],
+    chests: [
+      { col: 21, row: 8 },
+      { col: 21, row: 30 },
+      { col: 39, row: 8 },
+      { col: 39, row: 30 },
+    ],
+    shrines: [
+      { col: 25, row: 17, kind: 'blood' },
+      { col: 25, row: 21, kind: 'chance' },
+    ],
+    altar: { col: 51, row: 19 },
+    exit: { col: 55, row: 19 },
+    enemies,
+  };
+}
+
 export function buildLevel1(depth = 1): LevelData {
   const biome = getBiomeForDepth(depth);
   if (biome.id === 'ruins') {
     return buildOutdoorRuins(biome, depth);
   } else if (biome.id === 'catacombs') {
     return buildCatacombs(biome, depth);
-  } else {
+  } else if (biome.id === 'magma') {
     return buildMagmaLevel(biome, depth);
+  } else {
+    return buildVoidCitadel(biome, depth);
   }
 }

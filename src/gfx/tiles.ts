@@ -4,7 +4,7 @@ import { TEXTURE } from './registry';
 export const TILE_SIZE = 32;
 export const TILE_MARGIN = 1;
 export const TILE_SPACING = 2;
-export const TOTAL_TILES = 14;
+export const TOTAL_TILES = 18;
 
 export const TILE_INDEX = {
   GRASS_1: 0,
@@ -21,6 +21,10 @@ export const TILE_INDEX = {
   MAGMA_2: 11,
   WALL_DUNGEON: 12,
   WALL_RUIN: 13,
+  VOID_1: 14,
+  VOID_2: 15,
+  WALL_MAGMA: 16,
+  WALL_VOID: 17,
   // Backwards compatibility aliases
   WALL: 12,
   FLOOR_1: 6,
@@ -42,6 +46,8 @@ export const FLOOR_INDICES: number[] = [
   TILE_INDEX.DUNGEON_4,
   TILE_INDEX.MAGMA_1,
   TILE_INDEX.MAGMA_2,
+  TILE_INDEX.VOID_1,
+  TILE_INDEX.VOID_2,
 ];
 
 /** Sets up the multi-biome tileset texture with 1px extruded borders to eliminate WebGL tile bleed seams. */

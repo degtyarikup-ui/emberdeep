@@ -45,10 +45,10 @@ export function getBiomeForDepth(depth: number): BiomeConfig {
       name: 'Пылающие Недра',
       subtitle: 'Глубина 3 · Лавовое ядро',
       depth: 3,
-      ambientColor: 0x6b2118, // Magma red
+      ambientColor: 0x8a2c14, // Magma amber red
       dustColor: 0xf97316,   // Fire ember orange
       generationType: 'bsp_dungeon',
-      wallTile: 12,
+      wallTile: 16,          // Wall Magma (Volcanic obsidian with lava cracks)
       floorTiles: [10, 11],  // Magma stone 1..2
     };
   } else {
@@ -60,8 +60,8 @@ export function getBiomeForDepth(depth: number): BiomeConfig {
       ambientColor: 0x241442, // Void dark purple
       dustColor: 0xc084fc,   // Cosmic purple
       generationType: 'bsp_dungeon',
-      wallTile: 12,
-      floorTiles: [5, 6, 7],
+      wallTile: 17,          // Wall Void (Amethyst Astral Wall)
+      floorTiles: [14, 15],  // Void astral stone 1..2
     };
   }
 }

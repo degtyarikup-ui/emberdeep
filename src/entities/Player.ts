@@ -4,6 +4,7 @@ import { ACTORS } from '../gfx/actors';
 import { ActorAnim } from '../net/types';
 import { SoundFX } from '../audio/SoundFX';
 import { ArrowProjectile } from './ArrowProjectile';
+import { MetaManager } from '../meta/MetaManager';
 
 const KNIGHT_SPEED = 130;
 const RANGER_SPEED = 145;
@@ -97,10 +98,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.heroClass = heroClass;
     this.specialMaxCooldown = isKnight ? 4000 : 3200;
 
+    const bonuses = MetaManager.get().getBonuses();
+
     if (initialHealth?.maxHp !== undefined) {
       this.maxHp = initialHealth.maxHp;
     } else {
-      this.maxHp = isKnight ? 3 : 2;
+      this.maxHp = (isKnight ? 3 : 2) + bonuses.extraHp;
     }
 
     if (initialHealth?.hp !== undefined) {
@@ -108,6 +111,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     } else {
       this.hp = this.maxHp;
     }
+
+    this.gold = bonuses.startGold;
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -152,17 +157,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   get moveSpeed(): number {
-    const baseSpeed = this.heroClass === 'knight' ? KNIGHT_SPEED : RANGER_SPEED;
+    const metaSpeed = MetaManager.get().getBonuses().speedMultiplier;
+    const baseSpeed = (this.heroClass === 'knight' ? KNIGHT_SPEED : RANGER_SPEED) * metaSpeed;
     const base = baseSpeed * (1 + (this.items['boots'] || 0) * 0.15);
     return this.isSprinting ? base * 1.55 : base;
   }
 
   get attackDamage(): number {
-    return 1 + (this.items['whetstone'] || 0) * 0.25;
+    const metaDmg = MetaManager.get().getBonuses().damageMultiplier;
+    return (1 + (this.items['whetstone'] || 0) * 0.25) * metaDmg;
   }
 
   get critChance(): number {
-    return (this.items['crit_dagger'] || 0) * 0.15;
+    const metaCrit = MetaManager.get().getBonuses().extraCrit;
+    return (this.items['crit_dagger'] || 0) * 0.15 + metaCrit;
   }
 
   get leechChance(): number {

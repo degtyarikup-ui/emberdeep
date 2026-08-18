@@ -14,6 +14,7 @@ export interface LevelData {
   decorations: { col: number; row: number; key: PropKey; solid: boolean }[];
   flasks: { col: number; row: number; key: PropKey }[];
   chests: { col: number; row: number }[];
+  shrines: { col: number; row: number; kind: 'blood' | 'chance' }[];
   altar: { col: number; row: number };
   exit: { col: number; row: number };
   enemies: { col: number; row: number; kind: EnemyKind }[];
@@ -130,6 +131,10 @@ export function buildLevel1(depth = 1): LevelData {
     chests: [
       { col: 5, row: 11 }, // reward alcove
       { col: 39, row: 17 }, // exit chamber, a last bonus before descending
+    ],
+    shrines: [
+      { col: 4, row: 12, kind: 'blood' },
+      { col: 38, row: 14, kind: 'chance' },
     ],
     altar: { col: 22, row: 17 },
     exit: { col: 38, row: 16 },

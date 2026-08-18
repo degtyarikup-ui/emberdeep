@@ -2,18 +2,20 @@ import Phaser from 'phaser';
 import { SCENE } from './keys';
 import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
 import { TILE_INDEX } from '../gfx/tiles';
+import { MetaManager, META_UPGRADES } from '../meta/MetaManager';
+import { SoundFX } from '../audio/SoundFX';
 
 function makeButton(
   scene: Phaser.Scene,
   x: number,
   y: number,
   label: string,
-  opts: { muted?: boolean } = {}
+  opts: { muted?: boolean; fontSize?: string } = {}
 ): Phaser.GameObjects.Text {
   const txt = scene.add
     .text(x, y, label, {
       fontFamily: FONT.UI,
-      fontSize: '20px',
+      fontSize: opts.fontSize ?? '20px',
       fontStyle: '600',
       color: opts.muted ? '#8b8398' : '#f0e2b8',
     })
@@ -179,7 +181,7 @@ export class MenuScene extends Phaser.Scene {
       updateHeroSelection();
     });
 
-    const playBtn = makeButton(this, width / 2, height * 0.63, 'ИГРАТЬ');
+    const playBtn = makeButton(this, width / 2, height * 0.60, 'ИГРАТЬ');
     playBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -187,13 +189,30 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    const coopBtn = makeButton(this, width / 2, height * 0.63 + 44, 'СЕТЕВОЙ КООПЕРАТИВ');
+    const altarBtn = makeButton(this, width / 2, height * 0.60 + 40, '🔥 АЛТАРЬ ДУШ (ПРОКАЧКА)');
+    altarBtn.on('pointerdown', () => {
+      this.openSoulAltar();
+    });
+
+    const coopBtn = makeButton(this, width / 2, height * 0.60 + 80, 'СЕТЕВОЙ КООПЕРАТИВ', { fontSize: '15px', muted: true });
     coopBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.scene.start(SCENE.LOBBY, { heroClass: selectedHero });
       });
     });
+
+    // Top Embers counter
+    const embersCounter = this.add
+      .text(width - 24, 24, `🔥 ${MetaManager.get().embers}`, {
+        fontFamily: FONT.UI,
+        fontSize: '15px',
+        fontStyle: '700',
+        color: '#f97316',
+      })
+      .setOrigin(1, 0)
+      .setDepth(DEPTH.UI);
+    embersCounter.setStroke('#0d0a10', 4);
 
     this.add
       .image(width / 2, height / 2, TEXTURE.VIGNETTE)
@@ -204,5 +223,137 @@ export class MenuScene extends Phaser.Scene {
     const enterToPlay = () => playBtn.emit('pointerdown');
     this.input.keyboard?.once('keydown-ENTER', enterToPlay);
     this.input.keyboard?.once('keydown-SPACE', enterToPlay);
+  }
+
+  private openSoulAltar(): void {
+    const { width, height } = this.scale;
+    const modal = this.add.container(0, 0).setDepth(DEPTH.UI + 200);
+
+    const backdrop = this.add.rectangle(width / 2, height / 2, width, height, 0x06040c, 0.94);
+    backdrop.setInteractive();
+
+    const title = this.add
+      .text(width / 2, 45, '🔥 АЛТАРЬ ДУШ · ВЕЧНАЯ ПРОКАЧКА', {
+        fontFamily: FONT.TITLE,
+        fontSize: '22px',
+        fontStyle: '700',
+        color: '#f97316',
+      })
+      .setOrigin(0.5)
+      .setStroke('#000000', 5);
+
+    const embersLabel = this.add
+      .text(width / 2, 75, `Доступно Углей: ${MetaManager.get().embers} 🔥`, {
+        fontFamily: FONT.UI,
+        fontSize: '13px',
+        fontStyle: '600',
+        color: '#fbbf24',
+      })
+      .setOrigin(0.5);
+
+    modal.add([backdrop, title, embersLabel]);
+
+    const startY = 115;
+    const cardH = 50;
+    const meta = MetaManager.get();
+
+    const renderUpgrades = () => {
+      // Clean previous cards
+      modal.each((child: Phaser.GameObjects.GameObject) => {
+        if ((child as { isCard?: boolean }).isCard) child.destroy();
+      });
+
+      embersLabel.setText(`Доступно Углей: ${meta.embers} 🔥`);
+
+      META_UPGRADES.forEach((upg, idx) => {
+        const y = startY + idx * (cardH + 8);
+        const card = this.add.container(width / 2, y);
+        (card as { isCard?: boolean }).isCard = true;
+
+        const currentLvl = meta.getUpgradeLevel(upg.id);
+        const isMax = currentLvl >= upg.maxLevel;
+        const cost = meta.getUpgradeCost(upg.id);
+        const canAfford = cost !== null && meta.embers >= cost;
+
+        const bg = this.add.rectangle(0, 0, Math.min(width * 0.9, 440), cardH, 0x171024, 0.9);
+        bg.setStrokeStyle(1.5, isMax ? 0xf59e0b : 0x475569);
+
+        const icon = this.add
+          .text(-190, 0, upg.icon, {
+            fontSize: '18px',
+          })
+          .setOrigin(0.5);
+
+        const name = this.add
+          .text(-165, -10, upg.name, {
+            fontFamily: FONT.UI,
+            fontSize: '12px',
+            fontStyle: '700',
+            color: upg.color,
+          })
+          .setOrigin(0, 0.5);
+
+        const desc = this.add
+          .text(-165, 10, upg.desc, {
+            fontFamily: FONT.UI,
+            fontSize: '9px',
+            color: '#94a3b8',
+          })
+          .setOrigin(0, 0.5);
+
+        const bars = '■'.repeat(currentLvl) + '□'.repeat(upg.maxLevel - currentLvl);
+        const lvlText = this.add
+          .text(45, -10, `${bars} (${currentLvl}/${upg.maxLevel})`, {
+            fontFamily: FONT.UI,
+            fontSize: '10px',
+            fontStyle: '700',
+            color: isMax ? '#f59e0b' : '#94a3b8',
+          })
+          .setOrigin(0.5);
+
+        const bonusText = this.add
+          .text(45, 10, currentLvl > 0 ? upg.formatValue(currentLvl) : 'нет', {
+            fontFamily: FONT.UI,
+            fontSize: '10px',
+            color: currentLvl > 0 ? '#4ade80' : '#64748b',
+          })
+          .setOrigin(0.5);
+
+        // Buy button
+        const btnBg = this.add.rectangle(150, 0, 95, 28, isMax ? 0x27272a : canAfford ? 0xc2410c : 0x3f3f46, 1);
+        btnBg.setStrokeStyle(1, isMax ? 0x52525b : canAfford ? 0xf97316 : 0x71717a);
+
+        const btnText = this.add
+          .text(150, 0, isMax ? 'МАКС.' : `+ КУПИТЬ (${cost} 🔥)`, {
+            fontFamily: FONT.UI,
+            fontSize: '9px',
+            fontStyle: '700',
+            color: isMax ? '#a1a1aa' : canAfford ? '#ffffff' : '#a1a1aa',
+          })
+          .setOrigin(0.5);
+
+        if (!isMax && canAfford) {
+          btnBg.setInteractive({ useHandCursor: true });
+          btnBg.on('pointerdown', () => {
+            if (meta.buyUpgrade(upg.id)) {
+              SoundFX.playItemAcquired();
+              renderUpgrades();
+            }
+          });
+        }
+
+        card.add([bg, icon, name, desc, lvlText, bonusText, btnBg, btnText]);
+        modal.add(card);
+      });
+    };
+
+    renderUpgrades();
+
+    const closeBtn = makeButton(this, width / 2, height - 35, 'ЗАКРЫТЬ', { fontSize: '15px' });
+    closeBtn.on('pointerdown', () => {
+      modal.destroy();
+      this.scene.restart();
+    });
+    modal.add(closeBtn);
   }
 }

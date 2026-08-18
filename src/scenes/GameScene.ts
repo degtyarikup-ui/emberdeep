@@ -16,6 +16,7 @@ import { SoundFX } from '../audio/SoundFX';
 import { ItemDef } from '../items/types';
 import { ITEMS, getRandomItem } from '../items/registry';
 import { AchievementManager } from '../achievements/AchievementManager';
+import { MetaManager } from '../meta/MetaManager';
 
 export const THREAT_TIERS = [
   { name: 'ЛЕГКО', color: '#4ade80', bg: 0x14532d, threshold: 0 },
@@ -45,6 +46,17 @@ interface Chest {
   y: number;
   cost: number;
   opened: boolean;
+}
+
+interface Shrine {
+  sprite: Phaser.GameObjects.Sprite;
+  prompt: Phaser.GameObjects.Text;
+  x: number;
+  y: number;
+  kind: 'blood' | 'chance';
+  cost: number;
+  usesLeft: number;
+  light?: Phaser.GameObjects.Light;
 }
 
 interface CoinItem {
@@ -109,6 +121,7 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private flasks: Pickup[] = [];
   private chests: Chest[] = [];
+  private shrines: Shrine[] = [];
   private coins: CoinItem[] = [];
   private destructibles: DestructibleProp[] = [];
   private hitSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -296,6 +309,49 @@ export class GameScene extends Phaser.Scene {
       world.add(prompt);
 
       this.chests.push({ sprite, prompt, x, y, cost: 10, opened: false });
+    }
+
+    this.shrines = [];
+    for (const s of level.shrines) {
+      const x = s.col * TILE_SIZE + TILE_SIZE / 2;
+      const y = s.row * TILE_SIZE + TILE_SIZE;
+      const sprite = this.add.sprite(x, y, TEXTURE.PROPS, 'tombstone');
+      sprite.setOrigin(0.5, 1);
+      sprite.setPipeline('Light2D');
+      sprite.setDepth(DEPTH.YSORT_BASE + y);
+      world.add(sprite);
+
+      this.physics.add.existing(sprite, true);
+      const body = sprite.body as Phaser.Physics.Arcade.StaticBody;
+      body.setSize(16, 12);
+      body.setOffset((sprite.width - 16) / 2, sprite.height - 12);
+      this.solids.add(sprite);
+
+      const isBlood = s.kind === 'blood';
+      sprite.setTint(isBlood ? 0xef4444 : 0x38bdf8);
+
+      const light = this.lights.addLight(x, y - 12, 100, isBlood ? 0xef4444 : 0x38bdf8, 0.8);
+
+      const promptText = isBlood ? 'E — СВЯТИЛИЩЕ КРОВИ (1 HP -> 22 🪙)' : 'E — СВЯТИЛИЩЕ СЛУЧАЯ (15 🪙)';
+      const promptColor = isBlood ? '#f87171' : '#38bdf8';
+
+      const prompt = this.add
+        .text(x, y - 28, promptText, { fontFamily: FONT.UI, fontSize: '9px', color: promptColor })
+        .setOrigin(0.5, 1)
+        .setDepth(DEPTH.YSORT_BASE + y + 1000)
+        .setVisible(false);
+      world.add(prompt);
+
+      this.shrines.push({
+        sprite,
+        prompt,
+        x,
+        y,
+        kind: s.kind,
+        cost: isBlood ? 1 : 15,
+        usesLeft: 2,
+        light,
+      });
     }
 
     // Altar of the Void (Teleporter Event)
@@ -765,6 +821,7 @@ export class GameScene extends Phaser.Scene {
 
     this.updateFlaskPickups();
     this.updateChestInteractions();
+    this.updateShrineInteractions();
     this.updateAltarInteraction();
     this.updateExitInteraction();
 
@@ -979,6 +1036,11 @@ export class GameScene extends Phaser.Scene {
           const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
           this.spawnCoins(enemy.x, enemy.y, coinCount);
 
+          if (Math.random() < 0.2) {
+            MetaManager.get().addEmbers(1);
+            this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 🔥', '#f97316');
+          }
+
           // Leech Fang life steal
           if (player.leechChance > 0 && Math.random() < player.leechChance) {
             player.heal(1);
@@ -1063,6 +1125,11 @@ export class GameScene extends Phaser.Scene {
 
             const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
             this.spawnCoins(enemy.x, enemy.y, coinCount);
+
+            if (Math.random() < 0.2) {
+              MetaManager.get().addEmbers(1);
+              this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 🔥', '#f97316');
+            }
 
             if (player.leechChance > 0 && Math.random() < player.leechChance) {
               player.heal(1);
@@ -1173,6 +1240,11 @@ export class GameScene extends Phaser.Scene {
 
             const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
             this.spawnCoins(enemy.x, enemy.y, coinCount);
+
+            if (Math.random() < 0.2) {
+              MetaManager.get().addEmbers(1);
+              this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 🔥', '#f97316');
+            }
 
             if (this.myPlayer.leechChance > 0 && Math.random() < this.myPlayer.leechChance) {
               this.myPlayer.heal(1);
@@ -1710,14 +1782,17 @@ export class GameScene extends Phaser.Scene {
     this.frozen = true;
     for (const enemy of this.enemies) (enemy.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
 
+    const embersEarned = Math.max(1, Math.floor(this.myPlayer.gold / 10));
+    MetaManager.get().addEmbers(embersEarned);
+
     this.showEndScreen({
       title: 'ВЫ ПОГИБЛИ',
       titleColor: '#c94f3d',
-      stats: `Повержено врагов: ${this.killCount}`,
-      buttonText: 'ИГРАТЬ СНОВА',
+      stats: `Повержено врагов: ${this.killCount}   ·   Получено Углей: +${embersEarned} 🔥`,
+      buttonText: 'В ГЛАВНОЕ МЕНЮ',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'gameover', nextDepth: 1 });
-        this.scene.restart({ depth: 1, net: this.net, heroClass: this.heroClass });
+        this.scene.start(SCENE.MENU);
       },
     });
   }
@@ -1727,6 +1802,9 @@ export class GameScene extends Phaser.Scene {
     this.gameOver = true;
     this.frozen = true;
 
+    const embersEarned = 10 + Math.floor(this.myPlayer.gold / 10);
+    MetaManager.get().addEmbers(embersEarned);
+
     const nextHealth: Record<number, { hp: number; maxHp: number }> = {};
     for (const p of this.players) {
       nextHealth[p.slot] = { hp: p.hp, maxHp: p.maxHp };
@@ -1735,7 +1813,7 @@ export class GameScene extends Phaser.Scene {
     this.showEndScreen({
       title: 'ПОДЗЕМЕЛЬЕ ПРОЙДЕНО',
       titleColor: '#9ee08a',
-      stats: `Повержено врагов: ${this.killCount}   ·   Глубина: ${this.depth}`,
+      stats: `Повержено врагов: ${this.killCount}   ·   Глубина: ${this.depth}   ·   +${embersEarned} 🔥 Углей`,
       buttonText: 'СПУСТИТЬСЯ ГЛУБЖЕ',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1, playerHealth: nextHealth });
@@ -1889,6 +1967,110 @@ export class GameScene extends Phaser.Scene {
       if (!chest.opened) chest.prompt.setVisible(anyMineInRange);
     }
   }
+
+  private updateShrineInteractions(): void {
+    for (const shrine of this.shrines) {
+      if (shrine.usesLeft <= 0) {
+        shrine.prompt.setVisible(false);
+        continue;
+      }
+
+      let anyMineInRange = false;
+      for (const player of this.players) {
+        const dist = Phaser.Math.Distance.Between(player.x, player.y, shrine.x, shrine.y);
+        const inRange = dist < INTERACT_RANGE + 4;
+        if (!inRange) continue;
+
+        if (player === this.myPlayer) {
+          anyMineInRange = true;
+          if (shrine.kind === 'blood') {
+            const canAfford = player.hp > 1;
+            shrine.prompt.setText(canAfford ? 'E — СВЯТИЛИЩЕ КРОВИ (1 HP -> 22 🪙)' : 'СЛИШКОМ МАЛО HP (НУЖНО > 1)');
+            shrine.prompt.setColor(canAfford ? '#f87171' : '#94a3b8');
+          } else {
+            const canAfford = player.gold >= shrine.cost;
+            shrine.prompt.setText(canAfford ? `E — СВЯТИЛИЩЕ СЛУЧАЯ (${shrine.cost} 🪙)` : `НУЖНО ${shrine.cost} 🪙`);
+            shrine.prompt.setColor(canAfford ? '#38bdf8' : '#ef4444');
+          }
+        }
+
+        const pressed = player === this.myPlayer ? this.interactPressed : this.consumeRemoteEdge(player.slot, 'interact');
+        if (pressed) {
+          if (shrine.kind === 'blood') {
+            if (player.hp > 1) {
+              player.takeDamage(1, shrine.x, shrine.y);
+              this.buildHeartsUI();
+              this.spawnCoins(shrine.x, shrine.y, 22);
+
+              SoundFX.playPlayerHurt();
+              this.bloodSpark.setPosition(shrine.x, shrine.y - 10);
+              this.bloodSpark.explode(30);
+
+              if (player === this.myPlayer) {
+                this.damageFlash.setAlpha(0.3);
+                this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 240 });
+                this.worldCam.shake(70, 0.002);
+                this.spawnDamageNumber(shrine.x, shrine.y - 16, '-1 HP  +22 🪙', '#f87171');
+              }
+
+              shrine.usesLeft -= 1;
+              if (shrine.usesLeft <= 0) {
+                shrine.prompt.setText('(ИСТОЩЕНО)');
+                shrine.prompt.setColor('#64748b');
+                if (shrine.light) shrine.light.intensity = 0.2;
+              }
+              break;
+            } else if (player === this.myPlayer) {
+              this.spawnDamageNumber(shrine.x, shrine.y - 16, 'СЛИШКОМ МАЛО HP!', '#ef4444');
+            }
+          } else if (shrine.kind === 'chance') {
+            if (player.gold >= shrine.cost) {
+              player.gold -= shrine.cost;
+              if (player === this.myPlayer) this.goldLabel.setText(`${this.myPlayer.gold}`);
+
+              shrine.cost += 6;
+              const win = Math.random() < 0.6;
+
+              if (win) {
+                shrine.usesLeft -= 1;
+                const item = getRandomItem();
+                player.addItem(item.id);
+                if (player === this.myPlayer) {
+                  this.showItemAcquiredBanner(item);
+                  this.updateInventoryHUD();
+                }
+
+                SoundFX.playItemAcquired();
+                this.hitSpark.setPosition(shrine.x, shrine.y - 12);
+                this.hitSpark.explode(20);
+
+                if (shrine.usesLeft <= 0) {
+                  shrine.prompt.setText('(ИСТОЩЕНО)');
+                  shrine.prompt.setColor('#64748b');
+                  if (shrine.light) shrine.light.intensity = 0.2;
+                }
+              } else {
+                SoundFX.playWoodBreak();
+                this.boneSpark.setPosition(shrine.x, shrine.y - 12);
+                this.boneSpark.explode(10);
+                if (player === this.myPlayer) {
+                  this.spawnDamageNumber(shrine.x, shrine.y - 16, 'НЕУДАЧА...', '#94a3b8');
+                }
+              }
+              break;
+            } else if (player === this.myPlayer) {
+              this.spawnDamageNumber(shrine.x, shrine.y - 16, 'НЕ ХВАТАЕТ ЗОЛОТА!', '#ef4444');
+            }
+          }
+        }
+      }
+
+      if (shrine.usesLeft > 0) {
+        shrine.prompt.setVisible(anyMineInRange);
+      }
+    }
+  }
+
   private showItemAcquiredBanner(item: ItemDef): void {
     if (this.bannerContainer) this.bannerContainer.destroy();
 

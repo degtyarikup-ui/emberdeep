@@ -44,13 +44,15 @@ const FLOOR = 0;
 const WALL = 1;
 const PATH = 2;
 const RUIN_FLOOR = 3;
-const WATER = 4;
-const BRIDGE = 5;
-const SNOW = 6;
-const ICE = 7;
-const CANYON_DIRT = 8;
-const RAIL = 9;
-const GRATE = 10;
+const WATER_SHORE_L = 4;
+const WATER_DEEP = 5;
+const WATER_SHORE_R = 6;
+const BRIDGE = 7;
+const SNOW = 8;
+const ICE = 9;
+const CANYON_DIRT = 10;
+const RAIL = 11;
+const GRATE = 12;
 
 function carveRect(grid: number[][], x0: number, y0: number, w: number, h: number, type = FLOOR): void {
   for (let y = y0; y < y0 + h; y++) {
@@ -99,29 +101,34 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
     }
   }
 
-  // Meandering River down the center (cols 27..32)
+  // Organic Meandering River with Genuine Pixel Crawler Shorelines
   for (let r = 0; r < ROWS; r++) {
-    const shift = Math.floor(Math.sin(r * 0.25) * 3);
-    const riverCol = 29 + shift;
-    for (let w = -2; w <= 2; w++) {
-      const c = riverCol + w;
-      if (c >= 2 && c < COLS - 2 && r >= 2 && r < ROWS - 2) {
-        binary[r][c] = WATER;
-      }
+    const shift = Math.floor(Math.sin(r * 0.22) * 3);
+    const riverCenter = 29 + shift;
+    // Left Shoreline
+    const leftC = riverCenter - 2;
+    if (leftC >= 2 && leftC < COLS - 2) binary[r][leftC] = WATER_SHORE_L;
+    // Center Deep Water
+    for (let w = -1; w <= 1; w++) {
+      const c = riverCenter + w;
+      if (c >= 2 && c < COLS - 2) binary[r][c] = WATER_DEEP;
     }
+    // Right Shoreline
+    const rightC = riverCenter + 2;
+    if (rightC >= 2 && rightC < COLS - 2) binary[r][rightC] = WATER_SHORE_R;
   }
 
   // 2 Wooden bridges crossing the river
   // North Bridge (row 11..12)
   for (let r = 11; r <= 12; r++) {
-    for (let c = 24; c <= 34; c++) {
-      if (binary[r][c] === WATER || binary[r][c] === FLOOR) binary[r][c] = BRIDGE;
+    for (let c = 25; c <= 34; c++) {
+      binary[r][c] = BRIDGE;
     }
   }
   // South Bridge (row 25..26)
   for (let r = 25; r <= 26; r++) {
-    for (let c = 25; c <= 35; c++) {
-      if (binary[r][c] === WATER || binary[r][c] === FLOOR) binary[r][c] = BRIDGE;
+    for (let c = 25; c <= 34; c++) {
+      binary[r][c] = BRIDGE;
     }
   }
 
@@ -157,7 +164,9 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   const data = binary.map((row) =>
     row.map((cell) => {
       if (cell === WALL) return TILE_INDEX.WALL_RUIN;
-      if (cell === WATER) return rand() < 0.5 ? TILE_INDEX.WATER_1 : TILE_INDEX.WATER_2;
+      if (cell === WATER_SHORE_L) return TILE_INDEX.WATER_SHORE_L;
+      if (cell === WATER_DEEP) return TILE_INDEX.WATER_DEEP;
+      if (cell === WATER_SHORE_R) return TILE_INDEX.WATER_SHORE_R;
       if (cell === BRIDGE) return TILE_INDEX.WOOD_BRIDGE;
       if (cell === RUIN_FLOOR) return TILE_INDEX.RUIN_STONE;
       if (cell === PATH) return rand() < 0.5 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;

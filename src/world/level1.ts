@@ -48,21 +48,30 @@ function carvePath(grid: number[][], x1: number, y1: number, x2: number, y2: num
   let cx = x1;
   let cy = y1;
   while (cx !== x2 || cy !== y2) {
-    carveRect(grid, Math.round(cx) - Math.floor(width / 2), Math.round(cy) - Math.floor(width / 2), width, width, PATH);
+    for (let dy = -Math.floor(width / 2); dy <= Math.floor(width / 2); dy++) {
+      for (let dx = -Math.floor(width / 2); dx <= Math.floor(width / 2); dx++) {
+        const px = cx + dx;
+        const py = cy + dy;
+        if (py >= 2 && py < ROWS - 2 && px >= 2 && px < COLS - 2) {
+          if (grid[py][px] === FLOOR) {
+            grid[py][px] = PATH;
+          }
+        }
+      }
+    }
     if (Math.abs(x2 - cx) > Math.abs(y2 - cy)) {
       cx += cx < x2 ? 1 : -1;
     } else {
       cy += cy < y2 ? 1 : -1;
     }
   }
-  carveRect(grid, x2 - 1, y2 - 1, width, width, PATH);
 }
 
 /** Level 1: "Забытые Руины" — Outdoor forest clearings, paths, campsite and ancient stone dais */
 function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
   const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(FLOOR));
 
-  // Outer boundary walls (dense forest boundary)
+  // Outer boundary walls (forest perimeter)
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (r <= 1 || r >= ROWS - 2 || c <= 1 || c >= COLS - 2) {
@@ -71,49 +80,45 @@ function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
     }
   }
 
-  // Ancient Ruin Stone Platforms
-  carveRect(binary, 5, 12, 6, 6, RUIN_FLOOR); // West campsite dais
-  carveRect(binary, 20, 4, 8, 6, RUIN_FLOOR); // North shrine ruins
+  // Ancient Ruin Stone Platforms in clearings
+  carveRect(binary, 20, 4, 8, 6, RUIN_FLOOR);  // North shrine ruins
   carveRect(binary, 20, 18, 8, 6, RUIN_FLOOR); // South treasure ruins
-  carveRect(binary, 34, 10, 9, 9, RUIN_FLOOR); // East Altar Grand Dais
+  carveRect(binary, 33, 9, 10, 10, RUIN_FLOOR); // East Altar Grand Dais
 
-  // Winding Dirt Roads connecting clearings
-  carvePath(binary, 8, 15, 24, 7, 2);
-  carvePath(binary, 8, 15, 24, 21, 2);
+  // Winding Dirt Roads
+  carvePath(binary, 8, 14, 24, 7, 2);
+  carvePath(binary, 8, 14, 24, 21, 2);
   carvePath(binary, 24, 7, 38, 14, 2);
   carvePath(binary, 24, 21, 38, 14, 2);
-  carvePath(binary, 8, 15, 38, 14, 2);
+  carvePath(binary, 8, 14, 38, 14, 2);
 
-  // Stone Ruin Walls (impassable ancient structures)
-  // North ruin walls
+  // Stone Ruin Walls (ancient crumbling architecture)
   for (let c = 20; c <= 27; c++) binary[4][c] = WALL;
   binary[5][20] = WALL;
   binary[5][27] = WALL;
   binary[8][20] = WALL;
   binary[8][27] = WALL;
 
-  // South ruin walls
   for (let c = 20; c <= 27; c++) binary[23][c] = WALL;
   binary[19][20] = WALL;
   binary[19][27] = WALL;
   binary[22][20] = WALL;
   binary[22][27] = WALL;
 
-  // East dais boundary pillars / ruin walls
-  binary[10][34] = WALL;
-  binary[10][42] = WALL;
-  binary[18][34] = WALL;
+  binary[9][33] = WALL;
+  binary[9][42] = WALL;
+  binary[18][33] = WALL;
   binary[18][42] = WALL;
 
   const rand = prand(31415 + depth * 77);
 
-  // Tile classification
+  // Tile classification — 100% solid tiles from tiles-biome.png
   const data: number[][] = binary.map((row) =>
     row.map((cell) => {
       if (cell === WALL) return TILE_INDEX.WALL_RUIN;
       if (cell === PATH) return rand() > 0.5 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
       if (cell === RUIN_FLOOR) return TILE_INDEX.RUIN_STONE;
-      // Default grass variant
+      // Default grass variants
       const g = rand();
       return g < 0.45 ? TILE_INDEX.GRASS_1 : g < 0.8 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;
     })
@@ -155,13 +160,13 @@ function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
     { col: 26, row: 4 },
     { col: 21, row: 18 },
     { col: 26, row: 18 },
-    { col: 35, row: 10 },
-    { col: 41, row: 10 },
-    { col: 35, row: 18 },
+    { col: 34, row: 9 },
+    { col: 41, row: 9 },
+    { col: 34, row: 18 },
     { col: 41, row: 18 },
   ];
 
-  // Destructible props & rocks
+  // Destructible props & decorations
   const decorations = [
     // Campsite crates & barrels
     { col: 6, row: 13, key: PROP.CRATE, solid: true },
@@ -179,10 +184,10 @@ function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
     { col: 26, row: 21, key: PROP.BARREL, solid: true },
 
     // East Dais barrels
-    { col: 36, row: 12, key: PROP.BARREL, solid: true },
-    { col: 40, row: 12, key: PROP.CRATE, solid: true },
-    { col: 36, row: 16, key: PROP.BARREL, solid: true },
-    { col: 40, row: 16, key: PROP.CRATE, solid: true },
+    { col: 35, row: 11, key: PROP.BARREL, solid: true },
+    { col: 40, row: 11, key: PROP.CRATE, solid: true },
+    { col: 35, row: 17, key: PROP.BARREL, solid: true },
+    { col: 40, row: 17, key: PROP.CRATE, solid: true },
   ];
 
   const flasks = [
@@ -193,7 +198,7 @@ function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
   const chests = [
     { col: 7, row: 13 },
     { col: 24, row: 20 },
-    { col: 38, row: 12 },
+    { col: 38, row: 11 },
   ];
 
   const shrines: { col: number; row: number; kind: 'blood' | 'chance' }[] = [
@@ -225,7 +230,7 @@ function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
     chests,
     shrines,
     altar: { col: 38, row: 14 },
-    exit: { col: 42, row: 14 },
+    exit: { col: 41, row: 14 },
     enemies,
   };
 }

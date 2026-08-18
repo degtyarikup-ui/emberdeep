@@ -20,7 +20,7 @@ export function getBiomeForDepth(depth: number): BiomeConfig {
       name: 'Забытые Руины',
       subtitle: 'Глубина 1 · Поверхность под луной',
       depth: 1,
-      ambientColor: 0x24334a, // Moonlight cool blue
+      ambientColor: 0x5a6e8c, // Clear, crisp moonlight
       dustColor: 0x86efac,   // Forest firefly green
       generationType: 'outdoor',
       wallTile: 13,          // Wall Ruin

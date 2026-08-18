@@ -2455,7 +2455,16 @@ export class GameScene extends Phaser.Scene {
       buttonText: 'СПУСТИТЬСЯ ГЛУБЖЕ',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1, playerHealth: nextHealth });
-        this.scene.restart({ depth: this.depth + 1, net: this.net, playerHealth: nextHealth, elapsedRunTime: this.elapsedRunTime, heroClass: this.heroClass });
+        this.scene.restart({
+          depth: this.depth + 1,
+          net: this.net,
+          playerHealth: nextHealth,
+          elapsedRunTime: this.elapsedRunTime,
+          heroClass: this.heroClass,
+          godMode: this.godMode,
+          speedHack: this.speedHack,
+          fullBright: this.fullBright,
+        });
       },
     });
   }
@@ -2494,22 +2503,36 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
 
+    const confirmBg = this.add.rectangle(w / 2, h / 2 + 42, 230, 36, 0x166534, 0.95);
+    confirmBg.setStrokeStyle(2, 0x4ade80);
+    confirmBg.setInteractive({ useHandCursor: true });
+    confirmBg.setAlpha(0);
+
     const confirm = this.add
-      .text(w / 2, h / 2 + 40, opts.buttonText, {
+      .text(w / 2, h / 2 + 42, opts.buttonText, {
         fontFamily: FONT.UI,
-        fontSize: '16px',
-        fontStyle: '600',
+        fontSize: '15px',
+        fontStyle: '700',
         color: '#f0e2b8',
       })
       .setOrigin(0.5)
-      .setPadding(14, 8, 14, 8)
-      .setAlpha(0)
-      .setInteractive({ useHandCursor: true });
-    confirm.on('pointerover', () => confirm.setColor('#ffce6b'));
-    confirm.on('pointerout', () => confirm.setColor('#f0e2b8'));
-    confirm.on('pointerdown', opts.onConfirm);
+      .setAlpha(0);
 
-    const elements: Phaser.GameObjects.GameObject[] = [backdrop, title, stats, confirm];
+    const triggerConfirm = () => {
+      opts.onConfirm();
+    };
+
+    confirmBg.on('pointerover', () => {
+      confirmBg.setFillStyle(0x15803d, 1);
+      confirm.setColor('#ffffff');
+    });
+    confirmBg.on('pointerout', () => {
+      confirmBg.setFillStyle(0x166534, 0.95);
+      confirm.setColor('#f0e2b8');
+    });
+    confirmBg.on('pointerdown', triggerConfirm);
+
+    const elements: Phaser.GameObjects.GameObject[] = [backdrop, title, stats, confirmBg, confirm];
 
     if (opts.secondaryText && opts.onSecondaryConfirm) {
       const secBtn = this.add
@@ -2533,8 +2556,9 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: backdrop, fillAlpha: 0.85, duration: 400 });
     this.tweens.add({ targets: elements.filter((e) => e !== backdrop), alpha: 1, duration: 400, delay: 200 });
 
-    this.input.keyboard!.once('keydown-SPACE', opts.onConfirm);
-    this.input.keyboard!.once('keydown-ENTER', opts.onConfirm);
+    this.input.keyboard!.once('keydown-SPACE', triggerConfirm);
+    this.input.keyboard!.once('keydown-ENTER', triggerConfirm);
+    this.input.keyboard!.once('keydown-E', triggerConfirm);
   }
 
   private updateFlaskPickups(): void {
@@ -2837,18 +2861,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateExitInteraction(): void {
-    const aliveEnemies = this.enemies.filter((e) => !e.isDead);
-    const cleared = aliveEnemies.length === 0 && (!this.boss || this.boss.isDead);
     let anyMineInRange = false;
 
     for (const player of this.players) {
       const dist = Phaser.Math.Distance.Between(player.x, player.y, this.exitX, this.exitY);
-      const inRange = dist < INTERACT_RANGE;
+      const inRange = dist < INTERACT_RANGE + 10;
       if (!inRange) continue;
       if (player === this.myPlayer) anyMineInRange = true;
 
       const pressed = player === this.myPlayer ? this.interactPressed : this.consumeRemoteEdge(player.slot, 'interact');
-      if (inRange && cleared && this.altarCharged && pressed) {
+      if (inRange && this.altarCharged && pressed) {
         this.triggerLevelComplete();
         return;
       }

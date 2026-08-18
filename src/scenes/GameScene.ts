@@ -1432,20 +1432,61 @@ export class GameScene extends Phaser.Scene {
     this.altarPrompt.setVisible(false);
 
     SoundFX.playBossSpawn();
+    SoundFX.playShockwave();
+
+    // Safely push players away from altar so they aren't trapped
+    for (const player of this.players) {
+      const dist = Phaser.Math.Distance.Between(player.x, player.y, this.altarX, this.altarY);
+      if (dist < 60) {
+        const pushAngle = Phaser.Math.Angle.Between(this.altarX, this.altarY, player.x, player.y) || Math.PI / 2;
+        player.x += Math.cos(pushAngle) * 45;
+        player.y += Math.sin(pushAngle) * 45;
+        (player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+      }
+    }
+
     this.damageFlash.setFillStyle(0x581c87, 0.45);
     this.damageFlash.setAlpha(0.45);
     this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 800 });
-    this.worldCam.shake(250, 0.005);
+    this.worldCam.shake(280, 0.006);
 
     // Altar glow
     if (this.altarLight) {
       this.altarLight.setColor(0xef4444);
-      this.altarLight.setIntensity(1.2);
+      this.altarLight.setIntensity(1.3);
     }
+
+    // Spawn location: center of hall safely away from altar
+    const spawnX = this.altarX;
+    const spawnY = this.altarY - 70;
+
+    // Summoning ring effect
+    const summonRing = this.add.sprite(spawnX, spawnY, TEXTURE.SLASH_WHIRLWIND);
+    summonRing.setOrigin(0.5, 0.5);
+    summonRing.setScale(0.3);
+    summonRing.setTint(0xef4444);
+    summonRing.setDepth(DEPTH.FLOOR + 2);
+    summonRing.setPipeline('Light2D');
+    this.worldLayer.add(summonRing);
+
+    this.tweens.add({
+      targets: summonRing,
+      scaleX: 1.8,
+      scaleY: 1.8,
+      alpha: 0,
+      angle: 360,
+      duration: 1200,
+      ease: 'Cubic.easeOut',
+      onComplete: () => summonRing.destroy(),
+    });
+
+    // Fire sparks burst at spawn location
+    this.hitSpark.setPosition(spawnX, spawnY - 14);
+    this.hitSpark.explode(25);
 
     // Spawn Boss: Архидемон Бездны
     const bossHp = 45 + (this.players.length - 1) * 25 + Math.floor((this.elapsedRunTime / 60000) * 8);
-    this.boss = new BossEnemy(this, this.altarX, this.altarY - 32, bossHp);
+    this.boss = new BossEnemy(this, spawnX, spawnY, bossHp);
     this.worldLayer.add(this.boss);
 
     this.createBossHealthBar(this.boss);

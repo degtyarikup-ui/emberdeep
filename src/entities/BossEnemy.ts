@@ -19,10 +19,11 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   private animState: BossAnimState = 'idle';
   private phase: 1 | 2 = 1;
 
-  private meleeCooldown = 0;
-  private shootTimer = 0;
+  private meleeCooldown = 2600; // 2.6s grace on spawn so boss cannot immediately kill player
+  private shootTimer = 1800;
   private leapTimer = 0;
   private isLeaping = false;
+  private isSpawning = true;
   private hitFlashTimer = 0;
 
   private light?: Phaser.GameObjects.Light;
@@ -42,15 +43,30 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
 
     this.setPipeline('Light2D');
     this.setOrigin(0.5, 1.0);
-    this.setScale(1.45);
+    this.setAlpha(0);
+    this.setScale(0.3);
     this.play(ANIM.BOSS_DEMON_IDLE);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setSize(24, 18);
     body.setOffset(4, 18);
+    body.setVelocity(0, 0);
     this.setDepth(DEPTH.YSORT_BASE + y);
 
     this.light = scene.lights.addLight(x, y - 16, 180, 0xef4444, 0.85);
+
+    // Intro summon tween
+    scene.tweens.add({
+      targets: this,
+      alpha: 1,
+      scaleX: 1.45,
+      scaleY: 1.45,
+      duration: 1100,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.isSpawning = false;
+      },
+    });
   }
 
   get isDead(): boolean {
@@ -76,7 +92,7 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
       minionSpawns: [],
     };
 
-    if (this.isDead || !this.active) return result;
+    if (this.isDead || !this.active || this.isSpawning) return result;
 
     if (this.light) {
       this.light.x = this.x;

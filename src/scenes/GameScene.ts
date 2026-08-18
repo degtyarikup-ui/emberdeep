@@ -85,7 +85,6 @@ interface NetContext {
   room: RoomClient;
 }
 
-const ATTACK_RANGE = 46;
 const INTERACT_RANGE = 38;
 const PICKUP_RANGE = 20;
 const SNAPSHOT_INTERVAL = 66; // ~15Hz
@@ -964,21 +963,30 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.hitSpark.setPosition(player.x, player.y);
+    const aimAngle = res.aimAngle ?? (player.flipX ? Math.PI : 0);
+
+    const inSlashCone = (tx: number, ty: number, range = 54, maxAngleRad = 1.45): boolean => {
+      const d = Phaser.Math.Distance.Between(player.x, player.y - 14, tx, ty);
+      if (d <= 20) return true; // Close melee body contact always hits
+      if (d > range) return false;
+      const angleToTarget = Phaser.Math.Angle.Between(player.x, player.y - 14, tx, ty);
+      const angleDiff = Math.abs(Phaser.Math.Angle.Wrap(angleToTarget - aimAngle));
+      return angleDiff <= maxAngleRad;
+    };
+
+    this.hitSpark.setPosition(player.x + Math.cos(aimAngle) * 20, player.y - 14 + Math.sin(aimAngle) * 20);
     this.hitSpark.explode(5);
 
     for (const prop of this.destructibles) {
       if (prop.broken) continue;
-      const dist = Phaser.Math.Distance.Between(player.x, player.y, prop.x, prop.y);
-      if (dist <= ATTACK_RANGE) {
+      if (inSlashCone(prop.x, prop.y, 52, 1.45)) {
         this.breakProp(prop);
       }
     }
 
     // Attack Boss
     if (this.boss && !this.boss.isDead) {
-      const dist = Phaser.Math.Distance.Between(player.x, player.y, this.boss.x, this.boss.y);
-      if (dist <= ATTACK_RANGE + 14) {
+      if (inSlashCone(this.boss.x, this.boss.y - 14, 62, 1.45)) {
         const isCrit = Math.random() < player.critChance;
         const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1)));
 
@@ -1014,8 +1022,7 @@ export class GameScene extends Phaser.Scene {
     // Attack normal enemies
     for (const enemy of this.enemies) {
       if (enemy.isDead) continue;
-      const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
-      if (dist <= ATTACK_RANGE) {
+      if (inSlashCone(enemy.x, enemy.y - 8, 54, 1.45)) {
         const isCrit = Math.random() < player.critChance;
         const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1)));
 

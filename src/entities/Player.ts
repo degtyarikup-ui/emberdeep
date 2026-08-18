@@ -8,7 +8,8 @@ import { MetaManager } from '../meta/MetaManager';
 
 const KNIGHT_SPEED = 130;
 const RANGER_SPEED = 145;
-const ATTACK_COOLDOWN = 380;
+const KNIGHT_ATTACK_COOLDOWN = 360;
+const RANGER_ATTACK_COOLDOWN = 620;
 const ATTACK_LOCK = 140;
 const KNOCKBACK_LOCK = 150;
 const INVULN_DURATION = 900;
@@ -50,6 +51,7 @@ export interface SpecialResult {
 export interface AttackResult {
   kind: 'melee' | 'arrow';
   projectile?: ArrowProjectile;
+  aimAngle?: number;
 }
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
@@ -96,7 +98,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.slot = slot;
     this.heroClass = heroClass;
-    this.specialMaxCooldown = isKnight ? 4000 : 3200;
+    this.specialMaxCooldown = isKnight ? 3500 : 4200;
 
     const bonuses = MetaManager.get().getBonuses();
 
@@ -165,7 +167,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   get attackDamage(): number {
     const metaDmg = MetaManager.get().getBonuses().damageMultiplier;
-    return (1 + (this.items['whetstone'] || 0) * 0.25) * metaDmg;
+    const base = this.heroClass === 'knight' ? 2 : 1;
+    return (base + (this.items['whetstone'] || 0) * 0.3) * metaDmg;
   }
 
   get critChance(): number {
@@ -275,16 +278,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Returns attack result or null if on cooldown. */
   tryAttack(targetX?: number, targetY?: number): AttackResult | null {
     if (this.attackCooldown > 0 || this.dying) return null;
-    this.attackCooldown = ATTACK_COOLDOWN;
+    this.attackCooldown = this.heroClass === 'knight' ? KNIGHT_ATTACK_COOLDOWN : RANGER_ATTACK_COOLDOWN;
     this.attackLock = ATTACK_LOCK;
+
+    const dir = this.flipX ? -1 : 1;
+    let angle = dir < 0 ? Math.PI : 0;
+    if (targetX !== undefined && targetY !== undefined) {
+      angle = Phaser.Math.Angle.Between(this.x, this.y - 14, targetX, targetY);
+      this.setFlipX(Math.cos(angle) < 0);
+    }
 
     if (this.heroClass === 'ranger') {
       SoundFX.playArrowShoot();
-      const dir = this.flipX ? -1 : 1;
-      let angle = dir < 0 ? Math.PI : 0;
-      if (targetX !== undefined && targetY !== undefined) {
-        angle = Phaser.Math.Angle.Between(this.x, this.y - 14, targetX, targetY);
-      }
       const spawnX = this.x + Math.cos(angle) * 12;
       const spawnY = this.y - 14 + Math.sin(angle) * 12;
       const arrow = new ArrowProjectile(
@@ -292,15 +297,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         spawnX,
         spawnY,
         angle,
-        Math.max(1, Math.round(this.attackDamage * 1.3)),
+        Math.max(1, Math.round(this.attackDamage)),
         1,
         360
       );
       this.playRangerShootAnimation(angle);
-      return { kind: 'arrow', projectile: arrow };
+      return { kind: 'arrow', projectile: arrow, aimAngle: angle };
     } else {
-      this.playAttackAnimation();
-      return { kind: 'melee' };
+      this.playAttackAnimation(angle);
+      return { kind: 'melee', aimAngle: angle };
     }
   }
 
@@ -429,10 +434,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   /** Triggers the sword swing, slash arc FX, body lunge, and audio. */
-  playAttackAnimation(): void {
+  playAttackAnimation(aimAngle: number): void {
     this.isAttacking = true;
-    const dir = this.flipX ? -1 : 1;
-
     SoundFX.playSwordSwing();
 
     // Body squash/lunge tween
@@ -445,63 +448,52 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       ease: 'Quad.easeOut',
     });
 
-    // Slash Arc Visual Effect
-    const slash = this.scene.add.sprite(this.x + 18 * dir, this.y - 14, TEXTURE.SLASH_FX);
+    // Slash Arc Visual Effect placed and rotated along aimAngle
+    const slashDist = 24;
+    const slashX = this.x + Math.cos(aimAngle) * slashDist;
+    const slashY = this.y - 14 + Math.sin(aimAngle) * slashDist;
+
+    const slash = this.scene.add.sprite(slashX, slashY, TEXTURE.SLASH_FX);
     slash.setOrigin(0.35, 0.5);
-    slash.setFlipX(this.flipX);
     slash.setDepth(DEPTH.YSORT_BASE + this.y + 4);
     slash.setPipeline('Light2D');
-    slash.setScale(0.7);
+    slash.setScale(0.9);
     slash.setAlpha(0.95);
-    slash.setAngle(dir * -15);
+    slash.setRotation(aimAngle);
 
     const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
     if (worldLayer) worldLayer.add(slash);
 
     this.scene.tweens.add({
       targets: slash,
-      scaleX: 1.35,
-      scaleY: 1.35,
-      angle: dir * 35,
+      scaleX: 1.5,
+      scaleY: 1.5,
       alpha: 0,
-      duration: 130,
+      duration: 140,
       ease: 'Quad.easeOut',
       onComplete: () => slash.destroy(),
     });
 
-    // Sword dynamic swing tween: windup -> fast slash -> ease back
-    const startAngle = -65 * dir;
-    const slashAngle = 95 * dir;
-    const restAngle = 20 * dir;
+    // Sword dynamic rotation along aim angle: windup -> sweep through aimAngle -> rest
+    this.sword.setOrigin(0.5, 0.9);
+    const startAngle = aimAngle - 1.2;
+    const slashAngle = aimAngle + 1.2;
 
-    this.swordOffset.x = 4 * dir;
-    this.swordOffset.y = -16;
-    this.swordAngle = startAngle;
-
-    this.scene.tweens.add({
-      targets: this.swordOffset,
-      x: 12 * dir,
-      y: -10,
-      duration: 85,
-      ease: 'Cubic.easeOut',
-    });
+    this.sword.setPosition(this.x + Math.cos(aimAngle) * 6, this.y - 14 + Math.sin(aimAngle) * 6);
+    this.sword.setRotation(startAngle);
 
     this.scene.tweens.add({
-      targets: this,
-      swordAngle: slashAngle,
+      targets: this.sword,
+      rotation: slashAngle,
+      x: this.x + Math.cos(aimAngle) * 16,
+      y: this.y - 14 + Math.sin(aimAngle) * 16,
       duration: 85,
       ease: 'Cubic.easeOut',
       onComplete: () => {
         this.scene.tweens.add({
-          targets: this.swordOffset,
-          x: 6 * dir,
-          y: -13,
-          duration: 110,
-          ease: 'Sine.easeInOut',
-        });
-        this.scene.tweens.add({
-          targets: this,
-          swordAngle: restAngle,
+          targets: this.sword,
+          x: this.x + 6 * (this.flipX ? -1 : 1),
+          y: this.y - 13,
           duration: 110,
           ease: 'Sine.easeInOut',
           onComplete: () => {

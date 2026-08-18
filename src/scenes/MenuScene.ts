@@ -128,7 +128,7 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     const knightSub = this.add
-      .text(0, 8, '3 HP · Меч · Вихрь (ПКМ)', {
+      .text(0, 8, '3 HP · Высокий урон · Вихрь (ПКМ)', {
         fontFamily: FONT.UI,
         fontSize: '8px',
         color: '#94a3b8',
@@ -148,7 +148,7 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     const rangerSub = this.add
-      .text(0, 8, '2 HP · Лук · Залп стрел (ПКМ)', {
+      .text(0, 8, '2 HP · Стрельба · Залп стрел (ПКМ)', {
         fontFamily: FONT.UI,
         fontSize: '8px',
         color: '#64748b',

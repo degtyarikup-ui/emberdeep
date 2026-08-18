@@ -30,6 +30,8 @@ export interface PlayerSnapshot {
   hp: number;
   maxHp: number;
   downed: boolean;
+  gold?: number;
+  items?: Record<string, number>;
 }
 
 export interface EnemySnapshot {

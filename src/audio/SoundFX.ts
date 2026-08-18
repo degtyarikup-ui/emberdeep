@@ -322,6 +322,125 @@ class SoundFXManager {
     noise.start(t);
     noise.stop(t + 0.14);
   }
+
+  /** Pleasant retro coin pickup chime */
+  playCoinPickup(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(987.77, t); // B5
+    gain1.gain.setValueAtTime(0.22, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    osc1.connect(gain1);
+    gain1.connect(this.masterGain);
+    osc1.start(t);
+    osc1.stop(t + 0.08);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1318.51, t + 0.06); // E6
+    gain2.gain.setValueAtTime(0.28, t + 0.06);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    osc2.connect(gain2);
+    gain2.connect(this.masterGain);
+    osc2.start(t + 0.06);
+    osc2.stop(t + 0.22);
+  }
+
+  /** Triumphant item acquired fanfare chord */
+  playItemAcquired(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const freqs = [523.25, 659.25, 783.99, 1046.5, 1318.51]; // C Major arpeggio
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.07);
+      gain.gain.setValueAtTime(0.3, t + idx * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.07 + 0.35);
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+      osc.start(t + idx * 0.07);
+      osc.stop(t + idx * 0.07 + 0.35);
+    });
+  }
+
+  /** Heavy crunchy critical hit sound */
+  playCritHit(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(260, t);
+    osc.frequency.exponentialRampToValueAtTime(50, t + 0.15);
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.15);
+  }
+
+  /** Electric lightning crackle for Storm Earring */
+  playLightningZap(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const bufferSize = Math.floor(ctx.sampleRate * 0.12);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.4));
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(1500, t);
+    filter.frequency.linearRampToValueAtTime(400, t + 0.12);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    noise.start(t);
+    noise.stop(t + 0.12);
+  }
+
+  /** Fiery explosion blast for Oil Lamp */
+  playFireExplosion(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.exponentialRampToValueAtTime(25, t + 0.25);
+    gain.gain.setValueAtTime(0.65, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  }
 }
 
 export const SoundFX = new SoundFXManager();

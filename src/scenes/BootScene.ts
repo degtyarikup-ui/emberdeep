@@ -22,6 +22,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(PACK.DUNGEON_PROPS.key, PACK.DUNGEON_PROPS.url);
     this.load.image(LEGACY_PACK.key, LEGACY_PACK.url);
     this.load.image(TEXTURE.WEAPON_SWORD, asset('weapon-knight-sword.png'));
+    this.load.spritesheet(TEXTURE.COIN_ANIM, asset('coin-anim.png'), { frameWidth: 8, frameHeight: 8 });
 
     preloadActor(this, ACTORS.HERO);
     preloadActor(this, ACTORS.ORC);
@@ -47,6 +48,13 @@ export class BootScene extends Phaser.Scene {
       key: ANIM.TORCH_FLICKER,
       frames: this.anims.generateFrameNumbers(TEXTURE.TORCH, { start: 0, end: 3 }),
       frameRate: 9,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.COIN_SPIN,
+      frames: this.anims.generateFrameNumbers(TEXTURE.COIN_ANIM, { start: 0, end: 3 }),
+      frameRate: 8,
       repeat: -1,
     });
 

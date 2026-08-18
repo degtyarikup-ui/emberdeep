@@ -9,6 +9,8 @@ import { Enemy } from '../entities/Enemy';
 import { RoomClient } from '../net/RoomClient';
 import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot } from '../net/types';
 import { SoundFX } from '../audio/SoundFX';
+import { ItemDef } from '../items/types';
+import { ITEMS, getRandomItem } from '../items/registry';
 
 interface TorchLight {
   light: Phaser.GameObjects.Light;
@@ -28,7 +30,20 @@ interface Chest {
   prompt: Phaser.GameObjects.Text;
   x: number;
   y: number;
+  cost: number;
   opened: boolean;
+}
+
+interface CoinItem {
+  sprite: Phaser.GameObjects.Sprite;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  collected: boolean;
+  spawnTime: number;
 }
 
 interface DestructibleProp {
@@ -77,11 +92,14 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private flasks: Pickup[] = [];
   private chests: Chest[] = [];
+  private coins: CoinItem[] = [];
   private destructibles: DestructibleProp[] = [];
   private hitSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private bloodSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private boneSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private woodSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private fireSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private lightningGfx!: Phaser.GameObjects.Graphics;
   private solids!: Phaser.Physics.Arcade.StaticGroup;
 
   // A world camera zoomed in on the action, and a separate 1:1 UI camera for
@@ -99,6 +117,10 @@ export class GameScene extends Phaser.Scene {
   private exitY = 0;
 
   private hearts: Phaser.GameObjects.GameObject[] = [];
+  private goldIcon!: Phaser.GameObjects.Sprite;
+  private goldLabel!: Phaser.GameObjects.Text;
+  private itemTray: Phaser.GameObjects.Container[] = [];
+  private bannerContainer?: Phaser.GameObjects.Container;
   private depthLabel!: Phaser.GameObjects.Text;
   private vignette!: Phaser.GameObjects.Image;
   private damageFlash!: Phaser.GameObjects.Rectangle;
@@ -218,13 +240,13 @@ export class GameScene extends Phaser.Scene {
       world.add(sprite);
 
       const prompt = this.add
-        .text(x, y - 26, 'E — ОТКРЫТЬ', { fontFamily: FONT.UI, fontSize: '10px', color: '#f0e2b8' })
+        .text(x, y - 26, 'E — СУНДУК (10 🪙)', { fontFamily: FONT.UI, fontSize: '10px', color: '#fbbf24' })
         .setOrigin(0.5, 1)
         .setDepth(DEPTH.YSORT_BASE + y + 1000)
         .setVisible(false);
       world.add(prompt);
 
-      this.chests.push({ sprite, prompt, x, y, opened: false });
+      this.chests.push({ sprite, prompt, x, y, cost: 10, opened: false });
     }
 
     this.exitX = level.exit.col * TILE_SIZE + TILE_SIZE / 2;
@@ -330,6 +352,22 @@ export class GameScene extends Phaser.Scene {
     this.woodSpark.setDepth(DEPTH.YSORT_BASE + worldH + 12);
     world.add(this.woodSpark);
 
+    this.fireSpark = this.add.particles(0, 0, TEXTURE.PARTICLE_SPARK, {
+      lifespan: { min: 250, max: 480 },
+      speed: { min: 60, max: 190 },
+      scale: { start: 2.0, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: [0xff4500, 0xff8c00, 0xffd700],
+      blendMode: 'ADD',
+      emitting: false,
+    });
+    this.fireSpark.setDepth(DEPTH.YSORT_BASE + worldH + 15);
+    world.add(this.fireSpark);
+
+    this.lightningGfx = this.add.graphics();
+    this.lightningGfx.setDepth(DEPTH.YSORT_BASE + worldH + 16);
+    world.add(this.lightningGfx);
+
     // Ambient dust motes drifting across the whole level — fixed world-space,
     // deliberately NOT following the player.
     const dust = this.add.particles(0, 0, TEXTURE.PARTICLE_SPARK, {
@@ -381,6 +419,26 @@ export class GameScene extends Phaser.Scene {
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     this.buildHeartsUI();
+
+    this.goldIcon = this.add.sprite(22, 46, TEXTURE.PROPS, 'coin');
+    this.goldIcon.setOrigin(0.5, 0.5);
+    this.goldIcon.setScale(1.2);
+    this.goldIcon.setScrollFactor(0);
+    this.goldIcon.setDepth(DEPTH.UI);
+    this.worldCam.ignore(this.goldIcon);
+
+    this.goldLabel = this.add.text(34, 39, '0', {
+      fontFamily: FONT.UI,
+      fontSize: '13px',
+      fontStyle: '700',
+      color: '#fbbf24',
+    });
+    this.goldLabel.setStroke('#451a03', 3);
+    this.goldLabel.setScrollFactor(0);
+    this.goldLabel.setDepth(DEPTH.UI);
+    this.worldCam.ignore(this.goldLabel);
+
+    this.updateInventoryHUD();
 
     this.depthLabel = this.add
       .text(this.scale.width - 16, 18, `ПОДЗЕМЕЛЬЕ ${this.depth}`, {
@@ -471,6 +529,7 @@ export class GameScene extends Phaser.Scene {
       this.updateHostFrame(delta);
     }
 
+    this.updateCoins(delta);
     this.updateCamera();
   }
 
@@ -622,11 +681,26 @@ export class GameScene extends Phaser.Scene {
       if (enemy.isDead) continue;
       const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
       if (dist <= ATTACK_RANGE) {
-        const killed = enemy.takeDamage(1, player.x, player.y);
+        const isCrit = Math.random() < player.critChance;
+        const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1)));
 
-        SoundFX.playEnemyHit(enemy.kind);
+        const killed = enemy.takeDamage(dmg, player.x, player.y);
 
-        if (player === this.myPlayer) this.spawnDamageNumber(enemy.x, enemy.y, '-1', '#ffe28a');
+        if (isCrit) {
+          SoundFX.playCritHit();
+          if (player === this.myPlayer) {
+            this.spawnDamageNumber(enemy.x, enemy.y, `КРИТ! -${dmg}`, '#f87171');
+            this.worldCam.shake(70, 0.002);
+          }
+          if (player.stormTargets > 0) {
+            this.triggerChainLightning(enemy, player.stormTargets, Math.round(dmg * 0.75));
+          }
+        } else {
+          SoundFX.playEnemyHit(enemy.kind);
+          if (player === this.myPlayer) this.spawnDamageNumber(enemy.x, enemy.y, `-${dmg}`, '#ffe28a');
+          if (player === this.myPlayer) this.worldCam.shake(50, 0.0012);
+        }
+
         this.hitSpark.setPosition(enemy.x, enemy.y);
         this.hitSpark.explode(6);
 
@@ -638,8 +712,76 @@ export class GameScene extends Phaser.Scene {
           this.bloodSpark.explode(killed ? 22 : 12);
         }
 
-        if (player === this.myPlayer) this.worldCam.shake(50, 0.0012);
         if (killed) {
+          SoundFX.playEnemyDeath(enemy.kind);
+          this.killCount += 1;
+
+          // Enemy drops coins
+          const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+          this.spawnCoins(enemy.x, enemy.y, coinCount);
+
+          // Leech Fang life steal
+          if (player.leechChance > 0 && Math.random() < player.leechChance) {
+            player.heal(1);
+            this.buildHeartsUI();
+            this.spawnDamageNumber(player.x, player.y - 12, '+1 HP', '#4ade80');
+          }
+
+          // Oil Lamp death fire explosion
+          if (player.hasOilLamp) {
+            this.triggerOilExplosion(enemy.x, enemy.y);
+          }
+        }
+      }
+    }
+  }
+
+  private triggerChainLightning(sourceEnemy: Enemy, maxTargets: number, dmg: number): void {
+    const nearby = this.enemies
+      .filter((e) => !e.isDead && e !== sourceEnemy)
+      .sort((a, b) => Phaser.Math.Distance.Between(sourceEnemy.x, sourceEnemy.y, a.x, a.y) - Phaser.Math.Distance.Between(sourceEnemy.x, sourceEnemy.y, b.x, b.y))
+      .slice(0, maxTargets);
+
+    if (nearby.length === 0) return;
+
+    SoundFX.playLightningZap();
+    this.lightningGfx.clear();
+    this.lightningGfx.lineStyle(2, 0x38bdf8, 0.95);
+
+    for (const target of nearby) {
+      this.lightningGfx.beginPath();
+      this.lightningGfx.moveTo(sourceEnemy.x, sourceEnemy.y - 10);
+      const midX = (sourceEnemy.x + target.x) / 2 + Phaser.Math.Between(-8, 8);
+      const midY = (sourceEnemy.y + target.y) / 2 + Phaser.Math.Between(-8, 8);
+      this.lightningGfx.lineTo(midX, midY);
+      this.lightningGfx.lineTo(target.x, target.y - 10);
+      this.lightningGfx.strokePath();
+
+      const dead = target.takeDamage(dmg, sourceEnemy.x, sourceEnemy.y);
+      this.spawnDamageNumber(target.x, target.y, `⚡ -${dmg}`, '#38bdf8');
+      this.hitSpark.setPosition(target.x, target.y - 8);
+      this.hitSpark.explode(8);
+      if (dead) {
+        SoundFX.playEnemyDeath(target.kind);
+        this.killCount += 1;
+      }
+    }
+
+    this.time.delayedCall(140, () => this.lightningGfx.clear());
+  }
+
+  private triggerOilExplosion(x: number, y: number): void {
+    SoundFX.playFireExplosion();
+    this.fireSpark.setPosition(x, y - 8);
+    this.fireSpark.explode(26);
+
+    for (const enemy of this.enemies) {
+      if (enemy.isDead) continue;
+      const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+      if (dist < 48) {
+        const dead = enemy.takeDamage(2, x, y);
+        this.spawnDamageNumber(enemy.x, enemy.y, '🔥 -2', '#fb923c');
+        if (dead) {
           SoundFX.playEnemyDeath(enemy.kind);
           this.killCount += 1;
         }
@@ -683,6 +825,11 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => prop.sprite.destroy(),
     });
 
+    // 50% chance to drop coins
+    if (Math.random() < 0.5) {
+      this.spawnCoins(prop.x, prop.y, Phaser.Math.Between(1, 3));
+    }
+
     // 25% chance to drop a healing flask
     if (Math.random() < 0.25) {
       const flaskSprite = this.add.sprite(prop.x, prop.y, TEXTURE.PROPS, 'flask_red');
@@ -693,6 +840,75 @@ export class GameScene extends Phaser.Scene {
       this.tweens.add({ targets: flaskSprite, y: prop.y - 3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.flasks.push({ sprite: flaskSprite, x: prop.x, y: prop.y, collected: false });
     }
+  }
+
+  private spawnCoins(x: number, y: number, count: number): void {
+    for (let i = 0; i < count; i++) {
+      const sprite = this.add.sprite(x, y, TEXTURE.COIN_ANIM, 0);
+      sprite.setOrigin(0.5, 0.5);
+      sprite.play(ANIM.COIN_SPIN);
+      sprite.setDepth(DEPTH.YSORT_BASE + y + 2);
+      sprite.setPipeline('Light2D');
+      this.worldLayer.add(sprite);
+
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Phaser.Math.Between(25, 75);
+
+      this.coins.push({
+        sprite,
+        x,
+        y,
+        z: -Phaser.Math.Between(6, 14),
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed * 0.6,
+        vz: -Phaser.Math.Between(90, 160),
+        collected: false,
+        spawnTime: this.time.now,
+      });
+    }
+  }
+
+  private updateCoins(delta: number): void {
+    const dt = delta / 1000;
+    for (const coin of this.coins) {
+      if (coin.collected) continue;
+
+      if (coin.z < 0 || Math.abs(coin.vz) > 10) {
+        coin.vz += 400 * dt;
+        coin.z += coin.vz * dt;
+        coin.x += coin.vx * dt;
+        coin.y += coin.vy * dt;
+
+        if (coin.z >= 0) {
+          coin.z = 0;
+          coin.vz = -coin.vz * 0.45;
+          coin.vx *= 0.7;
+          coin.vy *= 0.7;
+        }
+      }
+
+      coin.sprite.setPosition(coin.x, coin.y + coin.z);
+
+      if (!this.myPlayer.isDowned) {
+        const dist = Phaser.Math.Distance.Between(this.myPlayer.x, this.myPlayer.y - 6, coin.x, coin.y);
+        if (dist < 42) {
+          const t = Math.min(1, (12 * delta) / 1000);
+          coin.x = Phaser.Math.Linear(coin.x, this.myPlayer.x, t);
+          coin.y = Phaser.Math.Linear(coin.y, this.myPlayer.y - 6, t);
+
+          if (dist < 14) {
+            coin.collected = true;
+            coin.sprite.destroy();
+            this.myPlayer.addGold(1);
+            SoundFX.playCoinPickup();
+            this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 16, '+1 🪙', '#fbbf24');
+            this.goldLabel.setText(`${this.myPlayer.gold}`);
+          }
+        }
+      }
+    }
+
+    this.coins = this.coins.filter((c) => !c.collected);
   }
 
   private handlePlayerHurt(player: Player, enemy: Enemy): void {
@@ -710,6 +926,18 @@ export class GameScene extends Phaser.Scene {
     this.buildHeartsUI();
 
     if (player.hp <= 0) {
+      if (player.immortalCharges > 0) {
+        player.items['immortal_crown'] -= 1;
+        player.hp = player.maxHp;
+        this.buildHeartsUI();
+        if (player === this.myPlayer) this.updateInventoryHUD();
+        SoundFX.playItemAcquired();
+        this.spawnDamageNumber(player.x, player.y - 16, 'ВОСКРЕШЕНИЕ!', '#facc15');
+        this.hitSpark.setPosition(player.x, player.y - 12);
+        this.hitSpark.explode(20);
+        return;
+      }
+
       player.playDeath(() => {
         if (this.players.every((p) => p.isDowned)) this.triggerGameOver();
       });
@@ -844,26 +1072,162 @@ export class GameScene extends Phaser.Scene {
         const dist = Phaser.Math.Distance.Between(player.x, player.y, chest.x, chest.y);
         const inRange = dist < INTERACT_RANGE;
         if (!inRange) continue;
-        if (player === this.myPlayer) anyMineInRange = true;
+        if (player === this.myPlayer) {
+          anyMineInRange = true;
+          const canAfford = player.gold >= chest.cost;
+          chest.prompt.setText(canAfford ? `E — СУНДУК (${chest.cost} 🪙)` : `НУЖНО ${chest.cost} 🪙`);
+          chest.prompt.setColor(canAfford ? '#fbbf24' : '#ef4444');
+        }
 
         const pressed = player === this.myPlayer ? this.interactPressed : this.consumeRemoteEdge(player.slot, 'interact');
         if (pressed) {
-          chest.opened = true;
-          chest.prompt.setVisible(false);
-          chest.sprite.setTexture(TEXTURE.CHEST, 1);
-          SoundFX.playChestOpen();
-          this.tweens.add({ targets: chest.sprite, scale: 1.15, duration: 120, yoyo: true });
-          this.hitSpark.setPosition(chest.x, chest.y - 10);
-          this.hitSpark.explode(10);
+          if (player.gold >= chest.cost) {
+            player.gold -= chest.cost;
+            chest.opened = true;
+            chest.prompt.setVisible(false);
+            chest.sprite.setTexture(TEXTURE.CHEST, 1);
+            SoundFX.playChestOpen();
+            this.tweens.add({ targets: chest.sprite, scale: 1.15, duration: 120, yoyo: true });
+            this.hitSpark.setPosition(chest.x, chest.y - 10);
+            this.hitSpark.explode(10);
 
-          player.increaseMaxHp(1);
-          this.buildHeartsUI();
-          if (player === this.myPlayer) this.spawnDamageNumber(chest.x, chest.y - 12, '+1 ЗДОРОВЬЕ', '#9ee08a');
-          break;
+            const item = getRandomItem();
+            player.addItem(item.id);
+            if (player === this.myPlayer) {
+              this.showItemAcquiredBanner(item);
+              this.updateInventoryHUD();
+              this.goldLabel.setText(`${this.myPlayer.gold}`);
+            }
+
+            // Rising item float effect
+            const itemSprite = this.add.sprite(chest.x, chest.y - 12, TEXTURE.PROPS, item.icon);
+            itemSprite.setOrigin(0.5, 0.5);
+            itemSprite.setScale(1.4);
+            itemSprite.setDepth(DEPTH.YSORT_BASE + chest.y + 10);
+            this.worldLayer.add(itemSprite);
+            this.tweens.add({
+              targets: itemSprite,
+              y: chest.y - 32,
+              alpha: 0,
+              scale: 2.0,
+              duration: 1100,
+              ease: 'Cubic.easeOut',
+              onComplete: () => itemSprite.destroy(),
+            });
+
+            SoundFX.playItemAcquired();
+            break;
+          } else if (player === this.myPlayer) {
+            this.spawnDamageNumber(chest.x, chest.y - 14, 'НЕ ХВАТАЕТ ЗОЛОТА!', '#ef4444');
+          }
         }
       }
       if (!chest.opened) chest.prompt.setVisible(anyMineInRange);
     }
+  }
+
+  private showItemAcquiredBanner(item: ItemDef): void {
+    if (this.bannerContainer) this.bannerContainer.destroy();
+
+    const banner = this.add.container(this.scale.width / 2, 50);
+    banner.setScrollFactor(0);
+    banner.setDepth(DEPTH.UI + 50);
+
+    const bg = this.add.rectangle(0, 0, 360, 44, 0x0f0b1a, 0.92);
+    bg.setStrokeStyle(2, Phaser.Display.Color.HexStringToColor(item.color).color);
+
+    const icon = this.add.sprite(-150, 0, TEXTURE.PROPS, item.icon);
+    icon.setScale(1.5);
+
+    const title = this.add.text(-125, -14, item.name, {
+      fontFamily: FONT.UI,
+      fontSize: '13px',
+      fontStyle: '700',
+      color: item.color,
+    });
+    title.setStroke('#000000', 3);
+
+    const desc = this.add.text(-125, 2, item.desc, {
+      fontFamily: FONT.UI,
+      fontSize: '10px',
+      color: '#e2e8f0',
+    });
+    desc.setStroke('#000000', 3);
+
+    banner.add([bg, icon, title, desc]);
+    banner.setScale(0.7);
+    banner.setAlpha(0);
+    this.worldCam.ignore(banner);
+
+    this.tweens.add({
+      targets: banner,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 1,
+      y: 60,
+      duration: 220,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(2400, () => {
+          this.tweens.add({
+            targets: banner,
+            alpha: 0,
+            y: 45,
+            duration: 300,
+            ease: 'Quad.easeIn',
+            onComplete: () => banner.destroy(),
+          });
+        });
+      },
+    });
+
+    this.bannerContainer = banner;
+  }
+
+  private updateInventoryHUD(): void {
+    for (const itemCont of this.itemTray) itemCont.destroy();
+    this.itemTray = [];
+
+    if (!this.myPlayer) return;
+    const items = this.myPlayer.items;
+    const itemIds = Object.keys(items).filter((id) => items[id] > 0);
+    const startX = 20;
+    const startY = 70;
+    const slotSize = 22;
+    const spacing = 4;
+
+    itemIds.forEach((id, idx) => {
+      const count = items[id];
+      const itemDef = ITEMS[id];
+      if (!itemDef) return;
+
+      const cont = this.add.container(startX + idx * (slotSize + spacing), startY);
+      cont.setScrollFactor(0);
+      cont.setDepth(DEPTH.UI + 5);
+
+      const bg = this.add.rectangle(0, 0, slotSize, slotSize, 0x181425, 0.85);
+      bg.setStrokeStyle(1.5, Phaser.Display.Color.HexStringToColor(itemDef.color).color);
+
+      const icon = this.add.sprite(0, 0, TEXTURE.PROPS, itemDef.icon);
+      icon.setScale(1.1);
+
+      cont.add([bg, icon]);
+
+      if (count > 1) {
+        const badge = this.add.text(8, 6, `x${count}`, {
+          fontFamily: FONT.UI,
+          fontSize: '9px',
+          fontStyle: '700',
+          color: '#ffffff',
+        });
+        badge.setOrigin(1, 1);
+        badge.setStroke('#000000', 3);
+        cont.add(badge);
+      }
+
+      this.worldCam.ignore(cont);
+      this.itemTray.push(cont);
+    });
   }
 
   private updateExitInteraction(): void {
@@ -920,6 +1284,8 @@ export class GameScene extends Phaser.Scene {
       hp: p.hp,
       maxHp: p.maxHp,
       downed: p.isDowned,
+      gold: p.gold,
+      items: p.items,
     }));
     const enemies: EnemySnapshot[] = this.enemies.map((e) => ({
       id: e.id,
@@ -946,8 +1312,13 @@ export class GameScene extends Phaser.Scene {
     for (const ps of snapshot.players) {
       const player = this.players.find((p) => p.slot === ps.slot);
       if (!player) continue;
+      if (ps.gold !== undefined) player.gold = ps.gold;
+      if (ps.items !== undefined) player.items = ps.items;
+
       if (player === this.myPlayer) {
         player.applyRemoteHealth(ps.hp, ps.maxHp, ps.downed);
+        this.goldLabel.setText(`${this.myPlayer.gold}`);
+        this.updateInventoryHUD();
       } else {
         player.applyRemoteState(ps.x, ps.y, ps.anim, ps.flipX, ps.hp, ps.maxHp, ps.downed);
       }

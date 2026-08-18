@@ -29,6 +29,8 @@ export interface PlayerInput {
 export class Player extends Phaser.Physics.Arcade.Sprite {
   maxHp = 3;
   hp = 3;
+  gold = 0;
+  items: Record<string, number> = {};
   readonly slot: number;
   readonly label: Phaser.GameObjects.Text;
   readonly sword: Phaser.GameObjects.Sprite;
@@ -85,6 +87,42 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       .setOrigin(0.5, 1)
       .setStroke('#0d0a10', 3)
       .setVisible(false);
+  }
+
+  get moveSpeed(): number {
+    return SPEED * (1 + (this.items['boots'] || 0) * 0.15);
+  }
+
+  get attackDamage(): number {
+    return 1 + (this.items['whetstone'] || 0) * 0.25;
+  }
+
+  get critChance(): number {
+    return (this.items['crit_dagger'] || 0) * 0.15;
+  }
+
+  get leechChance(): number {
+    return Math.min(0.75, (this.items['leech_fang'] || 0) * 0.25);
+  }
+
+  get stormTargets(): number {
+    return (this.items['storm_earring'] || 0) * 2;
+  }
+
+  get hasOilLamp(): boolean {
+    return (this.items['oil_lamp'] || 0) > 0;
+  }
+
+  get immortalCharges(): number {
+    return this.items['immortal_crown'] || 0;
+  }
+
+  addItem(itemId: string): void {
+    this.items[itemId] = (this.items[itemId] || 0) + 1;
+  }
+
+  addGold(amount: number): void {
+    this.gold += amount;
   }
 
   get isInvulnerable(): boolean {
@@ -366,7 +404,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const moving = vx !== 0 || vy !== 0;
     if (moving) {
       const len = Math.hypot(vx, vy) || 1;
-      body.setVelocity((vx / len) * SPEED, (vy / len) * SPEED);
+      body.setVelocity((vx / len) * this.moveSpeed, (vy / len) * this.moveSpeed);
     } else if (!blocked) {
       body.setVelocity(0, 0);
     }

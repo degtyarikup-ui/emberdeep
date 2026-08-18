@@ -5,6 +5,7 @@ export const TEXTURE = {
   CHEST: 'tex-chest',
   STAIRS: 'tex-stairs',
   HUD_ICONS: 'tex-hud-icons',
+  COIN_ANIM: 'tex-coin-anim',
   PARTICLE_SPARK: 'tex-particle-spark',
   PARTICLE_BLOOD: 'tex-particle-blood',
   PARTICLE_BONE: 'tex-particle-bone',
@@ -17,6 +18,7 @@ export const TEXTURE = {
 
 export const ANIM = {
   TORCH_FLICKER: 'anim-torch-flicker',
+  COIN_SPIN: 'anim-coin-spin',
 } as const;
 
 export const FONT = {

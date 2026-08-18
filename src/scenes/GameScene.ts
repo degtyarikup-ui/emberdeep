@@ -190,6 +190,14 @@ export class GameScene extends Phaser.Scene {
   private gameOver = false;
   private frozen = false;
 
+  // Debug Tools
+  private debugOpen = false;
+  private debugContainer?: Phaser.GameObjects.Container;
+  private debugBtn?: Phaser.GameObjects.Container;
+  private godMode = false;
+  private speedHack = false;
+  private fullBright = false;
+
   constructor() {
     super(SCENE.GAME);
   }
@@ -724,14 +732,270 @@ export class GameScene extends Phaser.Scene {
     this.scale.on('resize', handleResize);
 
     this.showBiomeBanner(level.biome);
+    this.buildDebugUI();
 
     this.events.once('shutdown', () => {
       this.scale.off('resize', handleResize);
+      this.closeDebugMenu();
       this.enemies = [];
       this.flasks = [];
       this.chests = [];
       this.players = [];
       this.bossProjectiles = [];
+    });
+  }
+
+  private buildDebugUI(): void {
+    const x = this.scale.width - 55;
+    const y = 92;
+
+    this.debugBtn = this.add.container(x, y);
+    this.debugBtn.setDepth(DEPTH.UI + 50);
+    this.worldCam.ignore(this.debugBtn);
+
+    const bg = this.add.rectangle(0, 0, 80, 18, 0x1e1b4b, 0.9);
+    bg.setStrokeStyle(1.5, 0x818cf8);
+
+    const txt = this.add
+      .text(0, 0, '🛠️ ДЕБАГ [F1]', {
+        fontFamily: FONT.UI,
+        fontSize: '8px',
+        fontStyle: '700',
+        color: '#c7d2fe',
+      })
+      .setOrigin(0.5);
+
+    this.debugBtn.add([bg, txt]);
+    bg.setInteractive({ useHandCursor: true });
+    bg.on('pointerdown', () => this.toggleDebugMenu());
+
+    // F1 and ` (Tilde) keys to toggle
+    this.input.keyboard?.on('keydown-F1', () => this.toggleDebugMenu());
+    this.input.keyboard?.on('keydown-BACKQUOTE', () => this.toggleDebugMenu());
+  }
+
+  private toggleDebugMenu(): void {
+    if (this.debugOpen) {
+      this.closeDebugMenu();
+    } else {
+      this.openDebugMenu();
+    }
+  }
+
+  private closeDebugMenu(): void {
+    this.debugOpen = false;
+    if (this.debugContainer) {
+      this.debugContainer.destroy();
+      this.debugContainer = undefined;
+    }
+  }
+
+  private openDebugMenu(): void {
+    if (this.debugContainer) this.debugContainer.destroy();
+    this.debugOpen = true;
+
+    const { width, height } = this.scale;
+    const modal = this.add.container(width / 2, height / 2).setDepth(DEPTH.UI + 600);
+    this.worldCam.ignore(modal);
+    this.debugContainer = modal;
+
+    const modalW = 420;
+    const modalH = 310;
+
+    const bg = this.add.rectangle(0, 0, modalW, modalH, 0x0a0614, 0.97);
+    bg.setStrokeStyle(2, 0x818cf8);
+    bg.setInteractive();
+
+    const title = this.add
+      .text(0, -modalH / 2 + 20, '🛠️ МЕНЮ РАЗРАБОТЧИКА (DEBUG)', {
+        fontFamily: FONT.TITLE,
+        fontSize: '16px',
+        fontStyle: '700',
+        color: '#818cf8',
+      })
+      .setOrigin(0.5);
+
+    const currentLevelLabel = this.add
+      .text(0, -modalH / 2 + 42, `Текущая глубина: ${this.depth} · Уровень угрозы: ${this.currentThreatTier + 1}`, {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        color: '#94a3b8',
+      })
+      .setOrigin(0.5);
+
+    const closeBtn = this.add
+      .text(modalW / 2 - 18, -modalH / 2 + 18, '✖', {
+        fontFamily: FONT.UI,
+        fontSize: '14px',
+        fontStyle: '700',
+        color: '#ef4444',
+      })
+      .setOrigin(0.5);
+    closeBtn.setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this.closeDebugMenu());
+
+    modal.add([bg, title, currentLevelLabel, closeBtn]);
+
+    // Section 1: Teleport to Levels
+    const sec1Title = this.add
+      .text(-modalW / 2 + 20, -85, '⏩ ПЕРЕХОД МЕЖДУ УРОВНЯМИ:', {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#fbbf24',
+      })
+      .setOrigin(0, 0.5);
+    modal.add(sec1Title);
+
+    const levels = [
+      { depth: 1, name: '🌲 УР. 1: РУИНЫ', color: 0x22c55e, hex: '#86efac' },
+      { depth: 2, name: '🏰 УР. 2: КАТАКОМБЫ', color: 0xa855f7, hex: '#d8b4fe' },
+      { depth: 3, name: '🔥 УР. 3: НЕДРА', color: 0xef4444, hex: '#fca5a5' },
+      { depth: 4, name: '🌌 УР. 4: БЕЗДНА', color: 0x6366f1, hex: '#a5b4fc' },
+    ];
+
+    levels.forEach((lvl, i) => {
+      const btnX = -100 + (i % 2) * 200;
+      const btnY = -55 + Math.floor(i / 2) * 32;
+
+      const btnBg = this.add.rectangle(btnX, btnY, 185, 26, this.depth === lvl.depth ? 0x312e81 : 0x1e1b4b, 0.9);
+      btnBg.setStrokeStyle(1.5, lvl.color);
+
+      const btnText = this.add
+        .text(btnX, btnY, lvl.name, {
+          fontFamily: FONT.UI,
+          fontSize: '9px',
+          fontStyle: '700',
+          color: lvl.hex,
+        })
+        .setOrigin(0.5);
+
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.on('pointerdown', () => {
+        this.closeDebugMenu();
+        this.scene.restart({
+          depth: lvl.depth,
+          net: this.net,
+          playerHealth: {},
+          elapsedRunTime: this.elapsedRunTime,
+          heroClass: this.heroClass,
+        });
+      });
+
+      modal.add([btnBg, btnText]);
+    });
+
+    // Section 2: Cheats & Testing Tools
+    const sec2Title = this.add
+      .text(-modalW / 2 + 20, 20, '⚡ ТЕСТОВЫЕ КОМАНДЫ И ЧИТЫ:', {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#38bdf8',
+      })
+      .setOrigin(0, 0.5);
+    modal.add(sec2Title);
+
+    const cheats = [
+      {
+        id: 'god',
+        label: () => `⚡ БЕССМЕРТИЕ: ${this.godMode ? 'ВКЛ' : 'ВЫКЛ'}`,
+        active: () => this.godMode,
+        onClick: () => {
+          this.godMode = !this.godMode;
+          this.myPlayer.godMode = this.godMode;
+          if (this.godMode) {
+            this.myPlayer.hp = this.myPlayer.maxHp;
+            this.buildHeartsUI();
+          }
+        },
+      },
+      {
+        id: 'speed',
+        label: () => `💨 СКОРОСТЬ x2: ${this.speedHack ? 'ВКЛ' : 'ВЫКЛ'}`,
+        active: () => this.speedHack,
+        onClick: () => {
+          this.speedHack = !this.speedHack;
+          this.myPlayer.speedHack = this.speedHack;
+        },
+      },
+      {
+        id: 'light',
+        label: () => `💡 ПОЛНЫЙ СВЕТ: ${this.fullBright ? 'ВКЛ' : 'ВЫКЛ'}`,
+        active: () => this.fullBright,
+        onClick: () => {
+          this.fullBright = !this.fullBright;
+          if (this.fullBright) {
+            this.lights.setAmbientColor(0xffffff);
+          } else {
+            const level = buildLevel1(this.depth);
+            this.lights.setAmbientColor(level.biome.ambientColor);
+          }
+        },
+      },
+      {
+        id: 'kill_all',
+        label: () => '💀 УБИТЬ ВСЕХ ВРАГОВ',
+        active: () => false,
+        onClick: () => {
+          this.enemies.forEach((e) => {
+            if (!e.isDead) e.takeDamage(999, e.x, e.y);
+          });
+          if (this.boss && !this.boss.isDead) {
+            this.boss.takeDamage(999, this.boss.x, this.boss.y);
+          }
+        },
+      },
+      {
+        id: 'coins',
+        label: () => '🪙 +100 МОНЕТ',
+        active: () => false,
+        onClick: () => {
+          this.myPlayer.gold += 100;
+          this.goldLabel.setText(`${this.myPlayer.gold}`);
+          SoundFX.playCoinPickup();
+        },
+      },
+      {
+        id: 'altar',
+        label: () => '🚪 АКТИВИРОВАТЬ АЛТАРЬ',
+        active: () => this.altarCharged,
+        onClick: () => {
+          this.altarCharged = true;
+          this.altarActivated = true;
+          this.enemies.forEach((e) => {
+            if (!e.isDead) e.takeDamage(999, e.x, e.y);
+          });
+          if (this.boss && !this.boss.isDead) {
+            this.boss.takeDamage(999, this.boss.x, this.boss.y);
+          }
+        },
+      },
+    ];
+
+    cheats.forEach((c, i) => {
+      const btnX = -100 + (i % 2) * 200;
+      const btnY = 50 + Math.floor(i / 2) * 32;
+
+      const btnBg = this.add.rectangle(btnX, btnY, 185, 26, c.active() ? 0x065f46 : 0x18181b, 0.9);
+      btnBg.setStrokeStyle(1.5, c.active() ? 0x34d399 : 0x52525b);
+
+      const btnText = this.add
+        .text(btnX, btnY, c.label(), {
+          fontFamily: FONT.UI,
+          fontSize: '9px',
+          fontStyle: '700',
+          color: c.active() ? '#6ee7b7' : '#e4e4e7',
+        })
+        .setOrigin(0.5);
+
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.on('pointerdown', () => {
+        c.onClick();
+        this.openDebugMenu(); // re-render to update state toggles
+      });
+
+      modal.add([btnBg, btnText]);
     });
   }
 

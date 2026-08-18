@@ -4,8 +4,8 @@ import { EnemyKind } from '../entities/Enemy';
 import { prand } from '../gfx/shapes';
 import { BiomeConfig, getBiomeForDepth } from './biomes';
 
-export const COLS = 46;
-export const ROWS = 28;
+export const COLS = 60;
+export const ROWS = 38;
 export const TILE_SIZE = 32;
 
 export interface TreeObject {
@@ -67,11 +67,11 @@ function carvePath(grid: number[][], x1: number, y1: number, x2: number, y2: num
   }
 }
 
-/** Level 1: "Забытые Руины" — Outdoor forest clearings, paths, campsite and ancient stone dais */
+/** Level 1: "Забытые Руины" (Expanded 60x38 open forest, multi-wing clearings & ancient dais) */
 function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
   const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(FLOOR));
 
-  // Outer boundary walls (forest perimeter)
+  // Dense impassable outer forest boundaries
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (r <= 1 || r >= ROWS - 2 || c <= 1 || c >= COLS - 2) {
@@ -80,148 +80,223 @@ function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
     }
   }
 
-  // Ancient Ruin Stone Platforms in clearings
-  carveRect(binary, 20, 4, 8, 6, RUIN_FLOOR);  // North shrine ruins
-  carveRect(binary, 20, 18, 8, 6, RUIN_FLOOR); // South treasure ruins
-  carveRect(binary, 33, 9, 10, 10, RUIN_FLOOR); // East Altar Grand Dais
+  // Ancient Ruin Stone Platforms
+  carveRect(binary, 36, 5, 10, 8, RUIN_FLOOR);  // North-East Chapel ruins
+  carveRect(binary, 16, 26, 10, 8, RUIN_FLOOR); // South-West Graveyard ruins
+  carveRect(binary, 38, 25, 9, 8, RUIN_FLOOR);  // South-East Outpost ruins
+  carveRect(binary, 46, 13, 11, 12, RUIN_FLOOR); // East Altar Grand Dais
 
-  // Winding Dirt Roads
-  carvePath(binary, 8, 14, 24, 7, 2);
-  carvePath(binary, 8, 14, 24, 21, 2);
-  carvePath(binary, 24, 7, 38, 14, 2);
-  carvePath(binary, 24, 21, 38, 14, 2);
-  carvePath(binary, 8, 14, 38, 14, 2);
+  // Winding Dirt Roads connecting all points of interest
+  carvePath(binary, 8, 19, 20, 8, 2);   // Campsite -> Elder Grove
+  carvePath(binary, 8, 19, 21, 30, 2);  // Campsite -> South-West Graveyard
+  carvePath(binary, 8, 19, 51, 19, 2);  // Campsite -> Grand Dais Main Highway
+  carvePath(binary, 20, 8, 41, 9, 2);   // Elder Grove -> Chapel
+  carvePath(binary, 41, 9, 51, 19, 2);  // Chapel -> Grand Dais
+  carvePath(binary, 21, 30, 42, 29, 2); // Graveyard -> South Outpost
+  carvePath(binary, 42, 29, 51, 19, 2); // South Outpost -> Grand Dais
 
-  // Stone Ruin Walls (ancient crumbling architecture)
-  for (let c = 20; c <= 27; c++) binary[4][c] = WALL;
-  binary[5][20] = WALL;
-  binary[5][27] = WALL;
-  binary[8][20] = WALL;
-  binary[8][27] = WALL;
+  // Ancient Ruin Stone Walls & Pillars
+  // North Chapel Walls
+  for (let c = 36; c <= 45; c++) binary[5][c] = WALL;
+  binary[6][36] = WALL;
+  binary[6][45] = WALL;
+  binary[10][36] = WALL;
+  binary[10][45] = WALL;
+  binary[12][36] = WALL;
+  binary[12][45] = WALL;
 
-  for (let c = 20; c <= 27; c++) binary[23][c] = WALL;
-  binary[19][20] = WALL;
-  binary[19][27] = WALL;
-  binary[22][20] = WALL;
-  binary[22][27] = WALL;
+  // South-West Graveyard Walls
+  for (let c = 16; c <= 25; c++) binary[33][c] = WALL;
+  binary[27][16] = WALL;
+  binary[27][25] = WALL;
+  binary[30][16] = WALL;
+  binary[30][25] = WALL;
 
-  binary[9][33] = WALL;
-  binary[9][42] = WALL;
-  binary[18][33] = WALL;
-  binary[18][42] = WALL;
+  // South-East Outpost Walls
+  for (let c = 38; c <= 46; c++) binary[32][c] = WALL;
+  binary[26][38] = WALL;
+  binary[26][46] = WALL;
+
+  // East Dais Boundary Pillars
+  binary[13][46] = WALL;
+  binary[13][56] = WALL;
+  binary[24][46] = WALL;
+  binary[24][56] = WALL;
 
   const rand = prand(31415 + depth * 77);
 
-  // Tile classification — 100% solid tiles from tiles-biome.png
+  // 100% Solid, seamless tile mapping
   const data: number[][] = binary.map((row) =>
     row.map((cell) => {
       if (cell === WALL) return TILE_INDEX.WALL_RUIN;
       if (cell === PATH) return rand() > 0.5 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
       if (cell === RUIN_FLOOR) return TILE_INDEX.RUIN_STONE;
-      // Default grass variants
+      // Lush grass variants
       const g = rand();
-      return g < 0.45 ? TILE_INDEX.GRASS_1 : g < 0.8 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;
+      return g < 0.6 ? TILE_INDEX.GRASS_1 : g < 0.85 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;
     })
   );
 
-  // Trees forming natural groves
+  // Atmospheric Pine & Oak Tree Groves
   const trees: TreeObject[] = [
-    // West forest cluster
-    { col: 3, row: 5, kind: 'pine' },
-    { col: 4, row: 8, kind: 'oak' },
-    { col: 3, row: 20, kind: 'pine' },
-    { col: 4, row: 23, kind: 'oak' },
+    // West Forest Perimeter & Campsite Surrounds
+    { col: 4, row: 5, kind: 'pine' },
+    { col: 5, row: 9, kind: 'oak' },
+    { col: 4, row: 13, kind: 'pine' },
+    { col: 4, row: 24, kind: 'oak' },
+    { col: 5, row: 29, kind: 'pine' },
+    { col: 4, row: 33, kind: 'oak' },
 
-    // Central forest divides
-    { col: 14, row: 6, kind: 'pine' },
-    { col: 16, row: 8, kind: 'oak' },
-    { col: 14, row: 21, kind: 'oak' },
-    { col: 16, row: 23, kind: 'pine' },
+    // Elder Grove (North-West)
+    { col: 17, row: 6, kind: 'oak' },
+    { col: 20, row: 5, kind: 'oak' },
+    { col: 23, row: 7, kind: 'pine' },
+    { col: 18, row: 11, kind: 'pine' },
+    { col: 22, row: 12, kind: 'oak' },
 
-    // North-Central grove
-    { col: 29, row: 4, kind: 'oak' },
-    { col: 31, row: 6, kind: 'pine' },
+    // Central Forest Dividers
+    { col: 15, row: 18, kind: 'pine' },
+    { col: 17, row: 20, kind: 'oak' },
+    { col: 27, row: 14, kind: 'oak' },
+    { col: 29, row: 16, kind: 'pine' },
+    { col: 28, row: 22, kind: 'pine' },
+    { col: 30, row: 24, kind: 'oak' },
 
-    // South-Central grove
-    { col: 29, row: 23, kind: 'pine' },
-    { col: 31, row: 21, kind: 'oak' },
+    // North Forest Edge
+    { col: 30, row: 4, kind: 'pine' },
+    { col: 33, row: 5, kind: 'oak' },
+    { col: 49, row: 5, kind: 'pine' },
+    { col: 52, row: 7, kind: 'oak' },
 
-    // East edge trees
-    { col: 43, row: 7, kind: 'pine' },
-    { col: 43, row: 21, kind: 'pine' },
+    // South Forest Edge
+    { col: 10, row: 34, kind: 'pine' },
+    { col: 29, row: 34, kind: 'oak' },
+    { col: 32, row: 33, kind: 'pine' },
+    { col: 48, row: 33, kind: 'oak' },
+    { col: 51, row: 31, kind: 'pine' },
+
+    // East Edge Trees
+    { col: 57, row: 9, kind: 'pine' },
+    { col: 57, row: 15, kind: 'oak' },
+    { col: 57, row: 23, kind: 'pine' },
+    { col: 57, row: 29, kind: 'oak' },
   ];
 
-  // Bonfire campsite at spawn
-  const bonfires = [{ col: 8, row: 14 }];
+  // Bonfires (Main Campsite + Hidden Hunter Camp)
+  const bonfires = [
+    { col: 8, row: 18 },
+    { col: 20, row: 8 },
+  ];
 
-  // Torches on ruin pillars
+  // Warm Torches across clearings and ruins
   const torches = [
-    { col: 21, row: 4 },
-    { col: 26, row: 4 },
-    { col: 21, row: 18 },
-    { col: 26, row: 18 },
-    { col: 34, row: 9 },
-    { col: 41, row: 9 },
-    { col: 34, row: 18 },
-    { col: 41, row: 18 },
+    { col: 37, row: 5 },
+    { col: 44, row: 5 },
+    { col: 37, row: 12 },
+    { col: 44, row: 12 },
+    { col: 17, row: 26 },
+    { col: 24, row: 26 },
+    { col: 39, row: 25 },
+    { col: 45, row: 25 },
+    { col: 47, row: 13 },
+    { col: 55, row: 13 },
+    { col: 47, row: 24 },
+    { col: 55, row: 24 },
   ];
 
-  // Destructible props & decorations
+  // Destructible Props & Environment Decor
   const decorations = [
-    // Campsite crates & barrels
-    { col: 6, row: 13, key: PROP.CRATE, solid: true },
-    { col: 6, row: 15, key: PROP.BARREL, solid: true },
-    { col: 10, row: 13, key: PROP.BARREL, solid: true },
+    // Campsite
+    { col: 6, row: 17, key: PROP.CRATE, solid: true },
+    { col: 6, row: 19, key: PROP.BARREL, solid: true },
+    { col: 10, row: 17, key: PROP.BARREL, solid: true },
+    { col: 10, row: 19, key: PROP.CRATE, solid: true },
 
-    // North ruin barrels
-    { col: 21, row: 6, key: PROP.BARREL, solid: true },
-    { col: 22, row: 6, key: PROP.CRATE, solid: true },
-    { col: 26, row: 6, key: PROP.BARREL, solid: true },
+    // Elder Grove
+    { col: 19, row: 7, key: PROP.BARREL, solid: true },
+    { col: 21, row: 7, key: PROP.CRATE, solid: true },
 
-    // South ruin crates & tombstones
-    { col: 21, row: 20, key: PROP.TOMBSTONE, solid: true },
-    { col: 25, row: 20, key: PROP.CRATE, solid: true },
-    { col: 26, row: 21, key: PROP.BARREL, solid: true },
+    // Chapel Ruins
+    { col: 38, row: 7, key: PROP.BARREL, solid: true },
+    { col: 43, row: 7, key: PROP.CRATE, solid: true },
+    { col: 38, row: 11, key: PROP.BARREL, solid: true },
+    { col: 43, row: 11, key: PROP.CRATE, solid: true },
 
-    // East Dais barrels
-    { col: 35, row: 11, key: PROP.BARREL, solid: true },
-    { col: 40, row: 11, key: PROP.CRATE, solid: true },
-    { col: 35, row: 17, key: PROP.BARREL, solid: true },
-    { col: 40, row: 17, key: PROP.CRATE, solid: true },
+    // Graveyard Ruins
+    { col: 18, row: 28, key: PROP.TOMBSTONE, solid: true },
+    { col: 20, row: 28, key: PROP.TOMBSTONE, solid: true },
+    { col: 23, row: 28, key: PROP.CRATE, solid: true },
+    { col: 18, row: 31, key: PROP.BARREL, solid: true },
+    { col: 23, row: 31, key: PROP.TOMBSTONE, solid: true },
+
+    // South Outpost
+    { col: 40, row: 27, key: PROP.BARREL, solid: true },
+    { col: 44, row: 27, key: PROP.CRATE, solid: true },
+    { col: 40, row: 30, key: PROP.BARREL, solid: true },
+    { col: 44, row: 30, key: PROP.CRATE, solid: true },
+
+    // Grand Dais
+    { col: 48, row: 15, key: PROP.BARREL, solid: true },
+    { col: 54, row: 15, key: PROP.CRATE, solid: true },
+    { col: 48, row: 22, key: PROP.BARREL, solid: true },
+    { col: 54, row: 22, key: PROP.CRATE, solid: true },
   ];
 
   const flasks = [
-    { col: 10, row: 15, key: PROP.FLASK_RED },
-    { col: 23, row: 5, key: PROP.FLASK_RED },
+    { col: 10, row: 18, key: PROP.FLASK_RED },
+    { col: 22, row: 8, key: PROP.FLASK_RED },
+    { col: 41, row: 6, key: PROP.FLASK_BLUE },
+    { col: 21, row: 31, key: PROP.FLASK_RED },
   ];
 
   const chests = [
-    { col: 7, row: 13 },
-    { col: 24, row: 20 },
-    { col: 38, row: 11 },
+    { col: 7, row: 17 },
+    { col: 21, row: 6 },
+    { col: 41, row: 11 },
+    { col: 23, row: 30 },
+    { col: 43, row: 29 },
   ];
 
   const shrines: { col: number; row: number; kind: 'blood' | 'chance' }[] = [
-    { col: 24, row: 6, kind: 'blood' },
-    { col: 23, row: 19, kind: 'chance' },
+    { col: 41, row: 8, kind: 'blood' },
+    { col: 21, row: 29, kind: 'chance' },
   ];
 
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
-    { col: 15, row: 11, kind: 'imp' },
-    { col: 15, row: 18, kind: 'imp' },
-    { col: 22, row: 7, kind: 'skeleton' },
-    { col: 25, row: 7, kind: 'imp' },
-    { col: 22, row: 21, kind: 'skeleton' },
-    { col: 25, row: 21, kind: 'skeleton' },
-    { col: 31, row: 14, kind: 'imp' },
-    { col: 36, row: 14, kind: 'imp' },
-    { col: 40, row: 14, kind: 'skeleton' },
+    // Elder Grove Patrol
+    { col: 18, row: 9, kind: 'imp' },
+    { col: 22, row: 10, kind: 'imp' },
+
+    // Central Crossroads
+    { col: 28, row: 18, kind: 'imp' },
+    { col: 30, row: 20, kind: 'skeleton' },
+
+    // Chapel Guards
+    { col: 38, row: 8, kind: 'skeleton' },
+    { col: 43, row: 8, kind: 'skeleton' },
+    { col: 40, row: 10, kind: 'imp' },
+
+    // Graveyard Undead
+    { col: 18, row: 29, kind: 'skeleton' },
+    { col: 22, row: 29, kind: 'skeleton' },
+    { col: 20, row: 32, kind: 'imp' },
+
+    // South Outpost Squad
+    { col: 41, row: 28, kind: 'imp' },
+    { col: 44, row: 28, kind: 'imp' },
+    { col: 42, row: 31, kind: 'skeleton' },
+
+    // Grand Dais Sentinels
+    { col: 49, row: 17, kind: 'imp' },
+    { col: 53, row: 17, kind: 'skeleton' },
+    { col: 49, row: 21, kind: 'imp' },
+    { col: 53, row: 21, kind: 'skeleton' },
   ];
 
   return {
     biome,
     data,
-    spawn: { col: 8, row: 15 },
+    spawn: { col: 8, row: 19 },
     torches,
     bonfires,
     trees,
@@ -229,24 +304,24 @@ function buildOutdoorRuins(biome: BiomeConfig, depth: number): LevelData {
     flasks,
     chests,
     shrines,
-    altar: { col: 38, row: 14 },
-    exit: { col: 41, row: 14 },
+    altar: { col: 51, row: 19 },
+    exit: { col: 55, row: 19 },
     enemies,
   };
 }
 
-/** Level 2: "Тёмные Катакомбы" — Classic stone dungeon rooms, corridors, columns and torch halls */
+/** Level 2: "Тёмные Катакомбы" (Expanded 60x38 multi-room ancient dungeon) */
 function buildCatacombs(biome: BiomeConfig, depth: number): LevelData {
   const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(WALL));
 
-  carveRect(binary, 2, 2, 10, 8); // Room A (Entry Hall): x2-11, y2-9
-  carveRect(binary, 4, 10, 4, 4); // reward alcove: x4-7, y10-13
-  carveRect(binary, 11, 4, 8, 3); // corridor A->B: x11-18, y4-6
-  carveRect(binary, 18, 1, 11, 9); // Room B (Guard Room): x18-28, y1-9
-  carveRect(binary, 22, 9, 3, 7); // corridor B->C: x22-24, y9-15
-  carveRect(binary, 14, 15, 18, 10); // Room C (Great Hall): x14-31, y15-24
-  carveRect(binary, 31, 17, 7, 4); // corridor C->Exit: x31-37, y17-20
-  carveRect(binary, 37, 14, 7, 9); // Exit Chamber: x37-43, y14-22
+  carveRect(binary, 3, 14, 12, 10); // Room 1: Entry Great Hall (x3-14, y14-23)
+  carveRect(binary, 15, 17, 8, 4);  // Corridor 1->2
+  carveRect(binary, 23, 8, 14, 12); // Room 2: Garrison & Shrines (x23-36, y8-19)
+  carveRect(binary, 23, 22, 14, 12); // Room 3: Crypt of the Forgotten (x23-36, y22-33)
+  carveRect(binary, 28, 19, 4, 4);  // Corridor 2->3
+  carveRect(binary, 37, 12, 7, 4);  // Corridor 2->4
+  carveRect(binary, 37, 26, 7, 4);  // Corridor 3->4
+  carveRect(binary, 44, 10, 13, 18); // Room 4: Boss Grand Sanctum (x44-56, y10-27)
 
   const rand = prand(9999 + depth * 31);
   const data = binary.map((row) =>
@@ -258,71 +333,81 @@ function buildCatacombs(biome: BiomeConfig, depth: number): LevelData {
   );
 
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
-    { col: 14, row: 5, kind: 'imp' },
-    { col: 22, row: 4, kind: 'imp' },
-    { col: 25, row: 6, kind: 'imp' },
-    { col: 23, row: 12, kind: 'skeleton' },
-    { col: 18, row: 19, kind: 'skeleton' },
-    { col: 26, row: 18, kind: 'imp' },
-    { col: 28, row: 21, kind: 'skeleton' },
-    { col: 34, row: 18, kind: 'imp' },
+    { col: 10, row: 17, kind: 'imp' },
+    { col: 18, row: 18, kind: 'imp' },
+    { col: 26, row: 12, kind: 'skeleton' },
+    { col: 33, row: 12, kind: 'imp' },
+    { col: 26, row: 26, kind: 'skeleton' },
+    { col: 33, row: 26, kind: 'skeleton' },
+    { col: 30, row: 29, kind: 'imp' },
+    { col: 40, row: 13, kind: 'imp' },
+    { col: 40, row: 27, kind: 'imp' },
+    { col: 48, row: 15, kind: 'skeleton' },
+    { col: 52, row: 15, kind: 'skeleton' },
+    { col: 48, row: 23, kind: 'imp' },
+    { col: 52, row: 23, kind: 'skeleton' },
   ];
 
   return {
     biome,
     data,
-    spawn: { col: 6, row: 6 },
+    spawn: { col: 8, row: 18 },
     torches: [
-      { col: 4, row: 1 },
-      { col: 9, row: 1 },
-      { col: 14, row: 3 },
-      { col: 20, row: 0 },
-      { col: 26, row: 0 },
-      { col: 21, row: 12 },
-      { col: 17, row: 14 },
-      { col: 28, row: 14 },
-      { col: 33, row: 16 },
-      { col: 39, row: 13 },
+      { col: 5, row: 13 },
+      { col: 12, row: 13 },
+      { col: 25, row: 7 },
+      { col: 34, row: 7 },
+      { col: 25, row: 21 },
+      { col: 34, row: 21 },
+      { col: 46, row: 9 },
+      { col: 54, row: 9 },
+      { col: 46, row: 27 },
+      { col: 54, row: 27 },
     ],
     decorations: [
-      { col: 4, row: 7, key: PROP.BARREL, solid: true },
-      { col: 5, row: 7, key: PROP.CRATE, solid: true },
-      { col: 5, row: 12, key: PROP.TOMBSTONE, solid: true },
-      { col: 21, row: 3, key: PROP.BARREL, solid: true },
-      { col: 26, row: 3, key: PROP.CRATE, solid: true },
-      { col: 18, row: 17, key: PROP.BARREL, solid: true },
-      { col: 28, row: 17, key: PROP.CRATE, solid: true },
-      { col: 23, row: 22, key: PROP.BANNER_RED, solid: false },
+      { col: 5, row: 16, key: PROP.BARREL, solid: true },
+      { col: 6, row: 16, key: PROP.CRATE, solid: true },
+      { col: 25, row: 10, key: PROP.TOMBSTONE, solid: true },
+      { col: 34, row: 10, key: PROP.BANNER_RED, solid: false },
+      { col: 25, row: 24, key: PROP.TOMBSTONE, solid: true },
+      { col: 34, row: 24, key: PROP.TOMBSTONE, solid: true },
+      { col: 47, row: 13, key: PROP.BARREL, solid: true },
+      { col: 53, row: 13, key: PROP.CRATE, solid: true },
+      { col: 47, row: 24, key: PROP.BARREL, solid: true },
+      { col: 53, row: 24, key: PROP.CRATE, solid: true },
     ],
     flasks: [
-      { col: 6, row: 12, key: PROP.FLASK_RED },
-      { col: 24, row: 5, key: PROP.FLASK_BLUE },
+      { col: 6, row: 21, key: PROP.FLASK_RED },
+      { col: 30, row: 10, key: PROP.FLASK_BLUE },
+      { col: 30, row: 31, key: PROP.FLASK_RED },
     ],
     chests: [
-      { col: 5, row: 11 },
-      { col: 26, row: 5 },
-      { col: 23, row: 16 },
+      { col: 5, row: 21 },
+      { col: 30, row: 9 },
+      { col: 30, row: 32 },
     ],
     shrines: [
-      { col: 20, row: 5, kind: 'blood' },
-      { col: 26, row: 21, kind: 'chance' },
+      { col: 30, row: 14, kind: 'blood' },
+      { col: 30, row: 25, kind: 'chance' },
     ],
-    altar: { col: 23, row: 19 },
-    exit: { col: 40, row: 18 },
+    altar: { col: 50, row: 19 },
+    exit: { col: 55, row: 19 },
     enemies,
   };
 }
 
-/** Level 3: "Пылающие Недра" — Magma caverns with basalt rock and intense enemy pressure */
+/** Level 3: "Пылающие Недра" (Expanded 60x38 molten cavern with lava bridges) */
 function buildMagmaLevel(biome: BiomeConfig, depth: number): LevelData {
   const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(WALL));
 
-  carveRect(binary, 3, 3, 12, 10); // Magma Entry Chamber
-  carveRect(binary, 13, 7, 8, 3); // Basalt Bridge 1
-  carveRect(binary, 19, 2, 14, 12); // Obsidian Hall
-  carveRect(binary, 24, 13, 4, 6); // Molten Bridge 2
-  carveRect(binary, 16, 17, 20, 9); // Core Sanctum
-  carveRect(binary, 35, 19, 8, 4); // Exit tunnel
+  carveRect(binary, 4, 14, 12, 11); // Magma Entry Chamber
+  carveRect(binary, 16, 18, 8, 4);   // Molten Bridge 1
+  carveRect(binary, 24, 6, 14, 13);  // Obsidian Vault North
+  carveRect(binary, 24, 21, 14, 13); // Obsidian Vault South
+  carveRect(binary, 30, 18, 3, 4);   // Central Chasm Bridge
+  carveRect(binary, 38, 10, 8, 4);   // Bridge North->Core
+  carveRect(binary, 38, 25, 8, 4);   // Bridge South->Core
+  carveRect(binary, 45, 9, 12, 21);  // Inferno Core Sanctum
 
   const rand = prand(8888 + depth * 43);
   const data = binary.map((row) =>
@@ -333,47 +418,58 @@ function buildMagmaLevel(biome: BiomeConfig, depth: number): LevelData {
   );
 
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
-    { col: 10, row: 7, kind: 'imp' },
-    { col: 16, row: 8, kind: 'imp' },
-    { col: 23, row: 6, kind: 'imp' },
-    { col: 28, row: 8, kind: 'skeleton' },
-    { col: 25, row: 15, kind: 'imp' },
-    { col: 20, row: 20, kind: 'imp' },
-    { col: 27, row: 20, kind: 'imp' },
-    { col: 30, row: 22, kind: 'skeleton' },
+    { col: 10, row: 18, kind: 'imp' },
+    { col: 19, row: 19, kind: 'imp' },
+    { col: 28, row: 10, kind: 'imp' },
+    { col: 33, row: 10, kind: 'skeleton' },
+    { col: 28, row: 27, kind: 'imp' },
+    { col: 33, row: 27, kind: 'skeleton' },
+    { col: 41, row: 11, kind: 'imp' },
+    { col: 41, row: 26, kind: 'imp' },
+    { col: 48, row: 14, kind: 'skeleton' },
+    { col: 53, row: 14, kind: 'imp' },
+    { col: 48, row: 24, kind: 'skeleton' },
+    { col: 53, row: 24, kind: 'skeleton' },
   ];
 
   return {
     biome,
     data,
-    spawn: { col: 7, row: 7 },
+    spawn: { col: 8, row: 18 },
     torches: [
-      { col: 5, row: 2 },
-      { col: 11, row: 2 },
-      { col: 21, row: 1 },
-      { col: 30, row: 1 },
-      { col: 19, row: 16 },
-      { col: 33, row: 16 },
-      { col: 38, row: 18 },
+      { col: 6, row: 13 },
+      { col: 13, row: 13 },
+      { col: 26, row: 5 },
+      { col: 35, row: 5 },
+      { col: 26, row: 20 },
+      { col: 35, row: 20 },
+      { col: 47, row: 8 },
+      { col: 54, row: 8 },
+      { col: 47, row: 29 },
+      { col: 54, row: 29 },
     ],
     decorations: [
-      { col: 6, row: 8, key: PROP.CRATE, solid: true },
-      { col: 7, row: 8, key: PROP.BARREL, solid: true },
-      { col: 22, row: 7, key: PROP.BARREL, solid: true },
-      { col: 28, row: 7, key: PROP.CRATE, solid: true },
-      { col: 22, row: 22, key: PROP.BARREL, solid: true },
+      { col: 6, row: 17, key: PROP.CRATE, solid: true },
+      { col: 7, row: 17, key: PROP.BARREL, solid: true },
+      { col: 27, row: 9, key: PROP.BARREL, solid: true },
+      { col: 33, row: 9, key: PROP.CRATE, solid: true },
+      { col: 27, row: 26, key: PROP.BARREL, solid: true },
+      { col: 33, row: 26, key: PROP.CRATE, solid: true },
     ],
-    flasks: [{ col: 8, row: 8, key: PROP.FLASK_RED }],
+    flasks: [
+      { col: 8, row: 19, key: PROP.FLASK_RED },
+      { col: 31, row: 10, key: PROP.FLASK_RED },
+    ],
     chests: [
-      { col: 25, row: 6 },
-      { col: 26, row: 21 },
+      { col: 31, row: 8 },
+      { col: 31, row: 30 },
     ],
     shrines: [
-      { col: 28, row: 6, kind: 'blood' },
-      { col: 21, row: 21, kind: 'chance' },
+      { col: 31, row: 12, kind: 'blood' },
+      { col: 31, row: 24, kind: 'chance' },
     ],
-    altar: { col: 26, row: 20 },
-    exit: { col: 40, row: 20 },
+    altar: { col: 51, row: 19 },
+    exit: { col: 55, row: 19 },
     enemies,
   };
 }

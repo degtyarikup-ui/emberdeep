@@ -158,11 +158,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       .setVisible(false);
   }
 
+  godMode = false;
+  speedHack = false;
+
   get moveSpeed(): number {
     const metaSpeed = MetaManager.get().getBonuses().speedMultiplier;
     const baseSpeed = (this.heroClass === 'knight' ? KNIGHT_SPEED : RANGER_SPEED) * metaSpeed;
     const base = baseSpeed * (1 + (this.items['boots'] || 0) * 0.15);
-    return this.isSprinting ? base * 1.55 : base;
+    const sprintFactor = this.isSprinting ? 1.55 : 1.0;
+    const hackFactor = this.speedHack ? 2.2 : 1.0;
+    return base * sprintFactor * hackFactor;
   }
 
   get attackDamage(): number {
@@ -220,9 +225,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.label.setVisible(visible);
   }
 
-  /** Returns true if damage was actually applied (false while invulnerable). */
+  /** Returns true if damage was actually applied (false while invulnerable or in godMode). */
   takeDamage(amount: number, fromX: number, fromY: number): boolean {
-    if (this.invuln > 0 || this.dying) return false;
+    if (this.godMode || this.invuln > 0 || this.dying) return false;
     this.hp = Math.max(0, this.hp - amount);
     this.invuln = INVULN_DURATION;
     this.knockbackLock = KNOCKBACK_LOCK;

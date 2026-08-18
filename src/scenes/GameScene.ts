@@ -8,6 +8,7 @@ import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { RoomClient } from '../net/RoomClient';
 import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot } from '../net/types';
+import { SoundFX } from '../audio/SoundFX';
 
 interface TorchLight {
   light: Phaser.GameObjects.Light;
@@ -68,6 +69,8 @@ export class GameScene extends Phaser.Scene {
   private flasks: Pickup[] = [];
   private chests: Chest[] = [];
   private hitSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private bloodSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private boneSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private solids!: Phaser.Physics.Arcade.StaticGroup;
 
   // A world camera zoomed in on the action, and a separate 1:1 UI camera for
@@ -231,6 +234,7 @@ export class GameScene extends Phaser.Scene {
       const initialHp = this.playerHealth[entry.slot];
       const p = new Player(this, px, py, entry.slot, initialHp);
       world.add(p);
+      world.add(p.sword);
       world.add(p.label);
       p.setLabelVisible(roster.length > 1);
 
@@ -268,6 +272,29 @@ export class GameScene extends Phaser.Scene {
     });
     this.hitSpark.setDepth(DEPTH.YSORT_BASE + worldH + 10);
     world.add(this.hitSpark);
+
+    this.bloodSpark = this.add.particles(0, 0, TEXTURE.PARTICLE_BLOOD, {
+      lifespan: { min: 220, max: 420 },
+      speed: { min: 60, max: 190 },
+      scale: { start: 1.4, end: 0.2 },
+      alpha: { start: 1, end: 0 },
+      gravityY: 170,
+      emitting: false,
+    });
+    this.bloodSpark.setDepth(DEPTH.YSORT_BASE + worldH + 12);
+    world.add(this.bloodSpark);
+
+    this.boneSpark = this.add.particles(0, 0, TEXTURE.PARTICLE_BONE, {
+      lifespan: { min: 220, max: 450 },
+      speed: { min: 50, max: 160 },
+      scale: { start: 1.2, end: 0.25 },
+      alpha: { start: 1, end: 0 },
+      rotate: { start: 0, end: 360 },
+      gravityY: 180,
+      emitting: false,
+    });
+    this.boneSpark.setDepth(DEPTH.YSORT_BASE + worldH + 12);
+    world.add(this.boneSpark);
 
     // Ambient dust motes drifting across the whole level — fixed world-space,
     // deliberately NOT following the player.
@@ -448,6 +475,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateGuestFrame(delta: number): void {
+    if (this.attackPressed) this.myPlayer.tryAttack();
     for (const player of this.players) {
       if (player === this.myPlayer) continue;
       player.interpolate(delta);
@@ -553,11 +581,26 @@ export class GameScene extends Phaser.Scene {
       const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
       if (dist <= ATTACK_RANGE) {
         const killed = enemy.takeDamage(1, player.x, player.y);
+
+        SoundFX.playEnemyHit(enemy.kind);
+
         if (player === this.myPlayer) this.spawnDamageNumber(enemy.x, enemy.y, '-1', '#ffe28a');
         this.hitSpark.setPosition(enemy.x, enemy.y);
         this.hitSpark.explode(6);
+
+        if (enemy.kind === 'skeleton') {
+          this.boneSpark.setPosition(enemy.x, enemy.y - 8);
+          this.boneSpark.explode(killed ? 18 : 10);
+        } else {
+          this.bloodSpark.setPosition(enemy.x, enemy.y - 8);
+          this.bloodSpark.explode(killed ? 22 : 12);
+        }
+
         if (player === this.myPlayer) this.worldCam.shake(50, 0.0012);
-        if (killed) this.killCount += 1;
+        if (killed) {
+          SoundFX.playEnemyDeath(enemy.kind);
+          this.killCount += 1;
+        }
       }
     }
   }
@@ -565,6 +608,8 @@ export class GameScene extends Phaser.Scene {
   private handlePlayerHurt(player: Player, enemy: Enemy): void {
     const applied = player.takeDamage(enemy.contactDamage, enemy.x, enemy.y);
     if (!applied) return;
+
+    SoundFX.playPlayerHurt();
 
     if (player === this.myPlayer) {
       this.spawnDamageNumber(player.x, player.y, `-${enemy.contactDamage}`, '#ff7a7a');
@@ -683,6 +728,7 @@ export class GameScene extends Phaser.Scene {
         if (dist < PICKUP_RANGE) {
           flask.collected = true;
           player.heal(1);
+          SoundFX.playFlaskPickup();
           this.buildHeartsUI();
           if (player === this.myPlayer) this.spawnDamageNumber(flask.x, flask.y, '+1', '#9ee08a');
           this.hitSpark.setPosition(flask.x, flask.y);
@@ -715,6 +761,7 @@ export class GameScene extends Phaser.Scene {
           chest.opened = true;
           chest.prompt.setVisible(false);
           chest.sprite.setTexture(TEXTURE.CHEST, 1);
+          SoundFX.playChestOpen();
           this.tweens.add({ targets: chest.sprite, scale: 1.15, duration: 120, yoyo: true });
           this.hitSpark.setPosition(chest.x, chest.y - 10);
           this.hitSpark.explode(10);

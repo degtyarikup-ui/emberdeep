@@ -7,7 +7,7 @@ import { buildChestTexture } from '../gfx/chest';
 import { buildStairsTexture } from '../gfx/stairs';
 import { ACTORS, createActorAnims, preloadActor } from '../gfx/actors';
 import { buildHudAtlas } from '../gfx/hud';
-import { PACK, LEGACY_PACK } from '../gfx/pack';
+import { PACK, LEGACY_PACK, asset } from '../gfx/pack';
 import { ANIM, TEXTURE } from '../gfx/registry';
 import { SCENE } from './keys';
 
@@ -21,6 +21,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(PACK.RESOURCES.key, PACK.RESOURCES.url);
     this.load.image(PACK.DUNGEON_PROPS.key, PACK.DUNGEON_PROPS.url);
     this.load.image(LEGACY_PACK.key, LEGACY_PACK.url);
+    this.load.image(TEXTURE.WEAPON_SWORD, asset('weapon-knight-sword.png'));
 
     preloadActor(this, ACTORS.HERO);
     preloadActor(this, ACTORS.ORC);
@@ -35,6 +36,9 @@ export class BootScene extends Phaser.Scene {
     buildHudAtlas(this, TEXTURE.HUD_ICONS);
     defineSpritesheet(this, TEXTURE.TORCH, buildTorchFrames(), TORCH_LEGEND);
     this.buildParticleTexture();
+    this.buildBloodParticleTexture();
+    this.buildBoneParticleTexture();
+    this.buildSlashFxTexture();
     this.buildVignetteTexture();
 
     this.anims.create({
@@ -75,6 +79,68 @@ export class BootScene extends Phaser.Scene {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 4, 4);
     this.textures.addCanvas(TEXTURE.PARTICLE_SPARK, canvas);
+  }
+
+  private buildBloodParticleTexture(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 5;
+    canvas.height = 5;
+    const ctx = canvas.getContext('2d')!;
+    const g = ctx.createRadialGradient(2.5, 2.5, 0, 2.5, 2.5, 2.5);
+    g.addColorStop(0, 'rgba(235, 25, 45, 1)');
+    g.addColorStop(0.5, 'rgba(175, 12, 28, 0.95)');
+    g.addColorStop(1, 'rgba(100, 4, 15, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 5, 5);
+    this.textures.addCanvas(TEXTURE.PARTICLE_BLOOD, canvas);
+  }
+
+  private buildBoneParticleTexture(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = 4;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#f2ebe0';
+    ctx.fillRect(1, 1, 2, 2);
+    ctx.fillStyle = '#b3a794';
+    ctx.fillRect(0, 1, 1, 2);
+    ctx.fillRect(2, 0, 1, 1);
+    this.textures.addCanvas(TEXTURE.PARTICLE_BONE, canvas);
+  }
+
+  private buildSlashFxTexture(): void {
+    const size = 48;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    const cx = size * 0.35;
+    const cy = size * 0.5;
+
+    // Draw stylized crescent slash arc
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 22, -Math.PI * 0.38, Math.PI * 0.38, false);
+    ctx.arc(cx, cy, 14, Math.PI * 0.35, -Math.PI * 0.35, true);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(0, 0, size, size);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    grad.addColorStop(0.3, 'rgba(200, 245, 255, 0.9)');
+    grad.addColorStop(0.7, 'rgba(100, 200, 255, 0.75)');
+    grad.addColorStop(1, 'rgba(60, 140, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Sharp white inner blade edge
+    ctx.beginPath();
+    ctx.arc(cx, cy, 21.5, -Math.PI * 0.32, Math.PI * 0.32, false);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.stroke();
+
+    ctx.restore();
+    this.textures.addCanvas(TEXTURE.SLASH_FX, canvas);
   }
 
   private buildVignetteTexture(): void {

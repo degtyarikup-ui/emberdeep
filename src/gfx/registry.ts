@@ -6,6 +6,10 @@ export const TEXTURE = {
   STAIRS: 'tex-stairs',
   HUD_ICONS: 'tex-hud-icons',
   PARTICLE_SPARK: 'tex-particle-spark',
+  PARTICLE_BLOOD: 'tex-particle-blood',
+  PARTICLE_BONE: 'tex-particle-bone',
+  WEAPON_SWORD: 'tex-weapon-sword',
+  SLASH_FX: 'tex-slash-fx',
   VIGNETTE: 'tex-vignette',
 } as const;
 

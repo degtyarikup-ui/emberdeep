@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
-import { DEPTH, FONT, PLAYER_TINTS, PLAYER_LABEL_COLORS } from '../gfx/registry';
+import { DEPTH, FONT, PLAYER_TINTS, PLAYER_LABEL_COLORS, TEXTURE } from '../gfx/registry';
 import { ACTORS } from '../gfx/actors';
 import { ActorAnim } from '../net/types';
+import { SoundFX } from '../audio/SoundFX';
 
 const SPEED = 130;
 const ATTACK_COOLDOWN = 380;
@@ -25,6 +26,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   hp = 3;
   readonly slot: number;
   readonly label: Phaser.GameObjects.Text;
+  readonly sword: Phaser.GameObjects.Sprite;
 
   private invuln = 0;
   private attackCooldown = 0;
@@ -33,6 +35,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private baseScale = 1;
   private animState: AnimState = 'idle';
   private dying = false;
+  private isAttacking = false;
+  private swordOffset = { x: 6, y: -9 };
+  private swordAngle = 20;
 
   private netTargetX = 0;
   private netTargetY = 0;
@@ -57,6 +62,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body.setOffset(7, 14);
     body.setCollideWorldBounds(true);
     this.setDepth(DEPTH.YSORT_BASE + y);
+
+    // Sword weapon sprite
+    this.sword = scene.add.sprite(x + 6, y - 9, TEXTURE.WEAPON_SWORD);
+    this.sword.setOrigin(0.5, 0.88);
+    this.sword.setPipeline('Light2D');
+    this.sword.setDepth(DEPTH.YSORT_BASE + y + 1);
+    this.sword.setScale(1.05);
 
     this.label = scene.add
       .text(x, y - 30, `${slot + 1}`, {
@@ -121,6 +133,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
     this.animState = 'death';
     this.setOrigin(0.5, ORIGIN_Y.death);
+    this.sword.setVisible(false);
     this.play(ACTORS.HERO.death.key);
     this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, onComplete);
   }
@@ -133,8 +146,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.knockbackLock = 0;
     this.attackLock = 0;
     this.setAlpha(1);
+    this.sword.setVisible(true);
     this.setAnimState('idle');
     (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    this.updateSwordTransform(false);
   }
 
   /** Returns true if an attack actually fired (respects its own cooldown). */
@@ -143,14 +158,92 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackCooldown = ATTACK_COOLDOWN;
     this.attackLock = ATTACK_LOCK;
 
+    this.playAttackAnimation();
+    return true;
+  }
+
+  /** Triggers the sword swing, slash arc FX, body lunge, and audio. */
+  playAttackAnimation(): void {
+    this.isAttacking = true;
+    const dir = this.flipX ? -1 : 1;
+
+    SoundFX.playSwordSwing();
+
+    // Body squash/lunge tween
     this.scene.tweens.add({
       targets: this,
-      scale: this.baseScale * 1.18,
-      duration: 70,
+      scaleX: this.baseScale * 1.25,
+      scaleY: this.baseScale * 0.88,
+      duration: 75,
       yoyo: true,
       ease: 'Quad.easeOut',
     });
-    return true;
+
+    // Slash Arc Visual Effect
+    const slash = this.scene.add.sprite(this.x + 18 * dir, this.y - 12, TEXTURE.SLASH_FX);
+    slash.setOrigin(0.35, 0.5);
+    slash.setFlipX(this.flipX);
+    slash.setDepth(DEPTH.YSORT_BASE + this.y + 4);
+    slash.setPipeline('Light2D');
+    slash.setScale(0.7);
+    slash.setAlpha(0.95);
+    slash.setAngle(dir * -15);
+
+    const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+    if (worldLayer) worldLayer.add(slash);
+
+    this.scene.tweens.add({
+      targets: slash,
+      scaleX: 1.35,
+      scaleY: 1.35,
+      angle: dir * 35,
+      alpha: 0,
+      duration: 130,
+      ease: 'Quad.easeOut',
+      onComplete: () => slash.destroy(),
+    });
+
+    // Sword dynamic swing tween: windup -> fast slash -> ease back
+    const startAngle = -65 * dir;
+    const slashAngle = 95 * dir;
+    const restAngle = 20 * dir;
+
+    this.swordOffset.x = 4 * dir;
+    this.swordOffset.y = -12;
+    this.swordAngle = startAngle;
+
+    this.scene.tweens.add({
+      targets: this.swordOffset,
+      x: 12 * dir,
+      y: -6,
+      duration: 85,
+      ease: 'Cubic.easeOut',
+    });
+
+    this.scene.tweens.add({
+      targets: this,
+      swordAngle: slashAngle,
+      duration: 85,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: this.swordOffset,
+          x: 6 * dir,
+          y: -9,
+          duration: 110,
+          ease: 'Sine.easeInOut',
+        });
+        this.scene.tweens.add({
+          targets: this,
+          swordAngle: restAngle,
+          duration: 110,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            this.isAttacking = false;
+          },
+        });
+      },
+    });
   }
 
   private setAnimState(next: AnimState): void {
@@ -158,6 +251,24 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.animState = next;
     this.setOrigin(0.5, ORIGIN_Y[next]);
     this.play(ACTORS.HERO[next].key, true);
+  }
+
+  private updateSwordTransform(moving: boolean): void {
+    if (!this.sword.visible) return;
+
+    const dir = this.flipX ? -1 : 1;
+    this.sword.setFlipX(this.flipX);
+    this.sword.setDepth(DEPTH.YSORT_BASE + this.y + 1);
+
+    if (!this.isAttacking) {
+      const bob = moving ? Math.sin(this.scene.time.now / 90) * 6 : Math.sin(this.scene.time.now / 350) * 2;
+      const yBob = moving ? (Math.sin(this.scene.time.now / 90) > 0 ? 1 : 0) : 0;
+      this.sword.setPosition(this.x + 6 * dir, this.y - 9 + yBob);
+      this.sword.setAngle(20 * dir + bob * dir);
+    } else {
+      this.sword.setPosition(this.x + this.swordOffset.x, this.y + this.swordOffset.y);
+      this.sword.setAngle(this.swordAngle);
+    }
   }
 
   /** Applies a state update received from the host — used for every player
@@ -173,9 +284,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (downed && !this.dying) {
       this.dying = true;
       this.setOrigin(0.5, ORIGIN_Y.death);
+      this.sword.setVisible(false);
       this.play(ACTORS.HERO.death.key);
     } else if (!downed) {
       this.dying = false;
+      this.sword.setVisible(true);
       const mapped: AnimState = anim === 'dead' ? 'idle' : anim;
       this.setAnimState(mapped);
     }
@@ -198,6 +311,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.y = Phaser.Math.Linear(this.y, this.netTargetY, t);
     this.label.setPosition(this.x, this.y - 30);
     this.setDepth(DEPTH.YSORT_BASE + this.y);
+    this.updateSwordTransform(this.animState === 'run');
+  }
+
+  override destroy(fromScene?: boolean): void {
+    this.sword.destroy(fromScene);
+    this.label.destroy(fromScene);
+    super.destroy(fromScene);
   }
 
   update(input: PlayerInput, delta: number): void {
@@ -218,7 +338,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (input.left) vx -= 1;
       if (input.right) vx += 1;
       if (input.up) vy -= 1;
-      if (input.down) vy += 1;
+      if (input.down) vy -= 1;
     }
 
     const moving = vx !== 0 || vy !== 0;
@@ -234,5 +354,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setAnimState(moving ? 'run' : 'idle');
     this.label.setPosition(this.x, this.y - 30);
     this.setDepth(DEPTH.YSORT_BASE + this.y);
+    this.updateSwordTransform(moving);
   }
 }

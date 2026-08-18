@@ -12,10 +12,15 @@ export const TEXTURE = {
   PARTICLE_WOOD: 'tex-particle-wood',
   DEBRIS_WOOD: 'tex-debris-wood',
   WEAPON_SWORD: 'tex-weapon-sword',
+  BOW: 'tex-weapon-bow',
+  ARROW: 'tex-weapon-arrow',
   SLASH_FX: 'tex-slash-fx',
+  SLASH_WHIRLWIND: 'tex-slash-whirlwind',
   VIGNETTE: 'tex-vignette',
   BOSS_DEMON: 'tex-boss-demon',
   SKULL: 'tex-skull',
+  RANGER_IDLE: 'tex-ranger-idle',
+  RANGER_RUN: 'tex-ranger-run',
 } as const;
 
 export const ANIM = {
@@ -23,6 +28,8 @@ export const ANIM = {
   COIN_SPIN: 'anim-coin-spin',
   BOSS_DEMON_IDLE: 'anim-boss-demon-idle',
   BOSS_DEMON_RUN: 'anim-boss-demon-run',
+  RANGER_IDLE: 'anim-ranger-idle',
+  RANGER_RUN: 'anim-ranger-run',
 } as const;
 
 export const FONT = {

@@ -5,10 +5,11 @@ import { FLOOR_INDICES } from '../gfx/tiles';
 import { HUD_ICON } from '../gfx/hud';
 import { PROP } from '../gfx/props';
 import { buildLevel1, TILE_SIZE } from '../world/level1';
-import { Player } from '../entities/Player';
+import { HeroClass, Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { BossEnemy } from '../entities/BossEnemy';
 import { BossProjectile } from '../entities/BossProjectile';
+import { ArrowProjectile } from '../entities/ArrowProjectile';
 import { RoomClient } from '../net/RoomClient';
 import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot, BossSnapshot } from '../net/types';
 import { SoundFX } from '../audio/SoundFX';
@@ -83,10 +84,12 @@ export class GameScene extends Phaser.Scene {
   private net?: NetContext;
   private role: 'offline' | 'host' | 'guest' = 'offline';
   private mySlot = 0;
+  private heroClass: HeroClass = 'knight';
 
   private players: Player[] = [];
   private myPlayer!: Player;
   private playerLights: Map<Player, Phaser.GameObjects.Light> = new Map();
+  private playerArrows: ArrowProjectile[] = [];
 
   private remoteInputs: Map<number, InputPayload> = new Map();
   private lastConsumedSeq: Map<number, { attack: number; interact: number }> = new Map();
@@ -99,6 +102,7 @@ export class GameScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private attackKey!: Phaser.Input.Keyboard.Key;
+  private specialKey!: Phaser.Input.Keyboard.Key;
   private interactKey!: Phaser.Input.Keyboard.Key;
   private shiftKey!: Phaser.Input.Keyboard.Key;
   private torchLights: TorchLight[] = [];
@@ -128,6 +132,11 @@ export class GameScene extends Phaser.Scene {
   private bossBarContainer?: Phaser.GameObjects.Container;
   private bossBarFill?: Phaser.GameObjects.Rectangle;
   private bossBarText?: Phaser.GameObjects.Text;
+
+  // Special Ability HUD
+  private specialHudContainer!: Phaser.GameObjects.Container;
+  private specialHudBg!: Phaser.GameObjects.Rectangle;
+  private specialHudText!: Phaser.GameObjects.Text;
 
   // Threat Meter (Time Scaling)
   private elapsedRunTime = 0;
@@ -173,12 +182,13 @@ export class GameScene extends Phaser.Scene {
     super(SCENE.GAME);
   }
 
-  init(data: { depth?: number; net?: NetContext; playerHealth?: Record<number, { hp: number; maxHp: number }>; elapsedRunTime?: number }): void {
+  init(data: { depth?: number; net?: NetContext; playerHealth?: Record<number, { hp: number; maxHp: number }>; elapsedRunTime?: number; heroClass?: HeroClass }): void {
     this.depth = data?.depth ?? 1;
     this.net = data?.net;
     this.role = this.net?.role ?? 'offline';
     this.playerHealth = data?.playerHealth ?? {};
     this.elapsedRunTime = data?.elapsedRunTime ?? 0;
+    this.heroClass = data?.heroClass ?? 'knight';
   }
 
   create(): void {
@@ -341,7 +351,7 @@ export class GameScene extends Phaser.Scene {
       const px = this.spawnX + (entry.slot === 0 ? 0 : Math.cos(angle) * SPAWN_SPREAD);
       const py = this.spawnY + (entry.slot === 0 ? 0 : Math.sin(angle) * SPAWN_SPREAD);
       const initialHp = this.playerHealth[entry.slot];
-      const p = new Player(this, px, py, entry.slot, initialHp);
+      const p = new Player(this, px, py, entry.slot, initialHp, this.heroClass);
       world.add(p);
       world.add(p.sword);
       world.add(p.label);
@@ -481,24 +491,33 @@ export class GameScene extends Phaser.Scene {
       right: this.input.keyboard!.addKey('D'),
     };
     this.attackKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.specialKey = this.input.keyboard!.addKey('Q');
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.shiftKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
-    // Attack on LMB (Left Mouse Click)
+    // Disable default browser context menu on canvas so RMB can be used for special ability
+    this.input.mouse?.disableContextMenu();
+
+    // Attack on LMB (Left Mouse Click) and Special on RMB (Right Mouse Click)
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.frozen || this.myPlayer.isDowned) return;
-      if (pointer.leftButtonDown()) {
-        const worldPoint = this.worldCam.getWorldPoint(pointer.x, pointer.y);
-        if (worldPoint.x !== this.myPlayer.x) {
-          this.myPlayer.setFlipX(worldPoint.x < this.myPlayer.x);
-        }
+      const worldPoint = this.worldCam.getWorldPoint(pointer.x, pointer.y);
+      if (worldPoint.x !== this.myPlayer.x) {
+        this.myPlayer.setFlipX(worldPoint.x < this.myPlayer.x);
+      }
+      const isRight = pointer.rightButtonDown() || ('button' in pointer.event && (pointer.event as MouseEvent).button === 2);
+      const isLeft = pointer.leftButtonDown() || ('button' in pointer.event && (pointer.event as MouseEvent).button === 0);
+      if (isRight) {
+        this.handlePlayerSpecial(this.myPlayer, worldPoint.x, worldPoint.y);
+      } else if (isLeft) {
         this.attackPressed = true;
         this.mySeq.attack++;
-        this.handlePlayerAttack(this.myPlayer);
+        this.handlePlayerAttack(this.myPlayer, worldPoint.x, worldPoint.y);
       }
     });
 
     this.buildHeartsUI();
+    this.buildSpecialAbilityHUD();
 
     this.goldIcon = this.add.sprite(22, 46, TEXTURE.PROPS, 'coin');
     this.goldIcon.setOrigin(0.5, 0.5);
@@ -557,7 +576,7 @@ export class GameScene extends Phaser.Scene {
     this.threatContainer.add([this.threatBadgeBg, this.threatBadgeText]);
 
     this.hint = this.add
-      .text(this.scale.width / 2, this.scale.height - 20, 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ПРОБЕЛ / ЛКМ — АТАКА   E — ДЕЙСТВИЕ   ESC — МЕНЮ', {
+      .text(this.scale.width / 2, this.scale.height - 20, 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ЛКМ/ПРОБЕЛ — АТАКА   ПКМ/Q — НАВЫК   E — ДЕЙСТВИЕ   ESC — МЕНЮ', {
         fontFamily: FONT.UI,
         fontSize: '11px',
         color: '#cfc6dd',
@@ -580,7 +599,7 @@ export class GameScene extends Phaser.Scene {
       if (this.role === 'guest') {
         this.net.room.onSnapshot((snapshot) => this.applySnapshot(snapshot));
         this.net.room.onTransition((msg) => {
-          this.scene.restart({ depth: msg.nextDepth, net: this.net, playerHealth: msg.playerHealth, elapsedRunTime: this.elapsedRunTime });
+          this.scene.restart({ depth: msg.nextDepth, net: this.net, playerHealth: msg.playerHealth, elapsedRunTime: this.elapsedRunTime, heroClass: this.heroClass });
         });
       }
     }
@@ -598,6 +617,51 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private buildSpecialAbilityHUD(): void {
+    const isKnight = this.heroClass === 'knight';
+    const x = 76;
+    const y = this.scale.height - 18;
+
+    this.specialHudContainer = this.add.container(x, y);
+    this.specialHudContainer.setDepth(DEPTH.UI);
+    this.worldCam.ignore(this.specialHudContainer);
+
+    this.specialHudBg = this.add.rectangle(0, 0, 130, 20, 0x140e21, 0.9);
+    this.specialHudBg.setStrokeStyle(1.5, isKnight ? 0x38bdf8 : 0x4ade80);
+
+    const labelName = isKnight ? 'ВИХРЬ' : 'ЗАЛП';
+    this.specialHudText = this.add
+      .text(0, 0, `[ПКМ/Q] ${labelName} · ГОТОВО`, {
+        fontFamily: FONT.UI,
+        fontSize: '9px',
+        fontStyle: '700',
+        color: isKnight ? '#38bdf8' : '#4ade80',
+      })
+      .setOrigin(0.5, 0.5);
+
+    this.specialHudContainer.add([this.specialHudBg, this.specialHudText]);
+  }
+
+  private updateSpecialAbilityHUD(): void {
+    if (!this.specialHudContainer || !this.myPlayer) return;
+    const cd = this.myPlayer.specialCooldown;
+    const isKnight = this.heroClass === 'knight';
+    const labelName = isKnight ? 'ВИХРЬ' : 'ЗАЛП';
+
+    if (cd > 0) {
+      const secs = (cd / 1000).toFixed(1);
+      this.specialHudBg.setStrokeStyle(1, 0x64748b);
+      this.specialHudText.setText(`[ПКМ/Q] ${labelName} · ${secs}с`);
+      this.specialHudText.setColor('#94a3b8');
+    } else {
+      const activeColor = isKnight ? '#38bdf8' : '#4ade80';
+      const activeHex = isKnight ? 0x38bdf8 : 0x4ade80;
+      this.specialHudBg.setStrokeStyle(1.5, activeHex);
+      this.specialHudText.setText(`[ПКМ/Q] ${labelName} · ГОТОВО`);
+      this.specialHudText.setColor(activeColor);
+    }
+  }
+
   private handleResize(width: number, height: number): void {
     this.uiCam.setSize(width, height);
     this.vignette.setPosition(width / 2, height / 2).setDisplaySize(width * 1.15, height * 1.15);
@@ -606,6 +670,7 @@ export class GameScene extends Phaser.Scene {
     this.depthLabel.setPosition(width - 16, 18);
     this.timerLabel.setPosition(width - 16, 36);
     this.threatContainer.setPosition(width - 60, 60);
+    if (this.specialHudContainer) this.specialHudContainer.setPosition(76, height - 18);
     if (this.bossBarContainer) this.bossBarContainer.setPosition(width / 2, 28);
   }
 
@@ -625,6 +690,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.attackPressed = Phaser.Input.Keyboard.JustDown(this.attackKey);
+    const specialJustPressed = Phaser.Input.Keyboard.JustDown(this.specialKey);
+    if (specialJustPressed) {
+      this.handlePlayerSpecial(this.myPlayer);
+    }
     this.interactPressed = Phaser.Input.Keyboard.JustDown(this.interactKey);
     if (this.attackPressed) this.mySeq.attack++;
     if (this.interactPressed) this.mySeq.interact++;
@@ -646,6 +715,8 @@ export class GameScene extends Phaser.Scene {
 
     this.updateThreatMeter(delta);
     this.updateBossProjectiles(delta);
+    this.updatePlayerArrows(delta);
+    this.updateSpecialAbilityHUD();
     this.updateCoins(delta);
     this.updateCamera();
   }
@@ -804,8 +875,15 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private handlePlayerAttack(player: Player): void {
-    if (!player.tryAttack()) return;
+  private handlePlayerAttack(player: Player, targetX?: number, targetY?: number): void {
+    const res = player.tryAttack(targetX, targetY);
+    if (!res) return;
+
+    if (res.kind === 'arrow' && res.projectile) {
+      this.worldLayer.add(res.projectile);
+      this.playerArrows.push(res.projectile);
+      return;
+    }
 
     this.hitSpark.setPosition(player.x, player.y);
     this.hitSpark.explode(5);
@@ -915,6 +993,207 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  private handlePlayerSpecial(player: Player, targetX?: number, targetY?: number): void {
+    const res = player.trySpecial(targetX, targetY);
+    if (!res) return;
+
+    if (res.kind === 'volley' && res.projectiles) {
+      for (const p of res.projectiles) {
+        this.worldLayer.add(p);
+        this.playerArrows.push(p);
+      }
+      if (player === this.myPlayer) this.worldCam.shake(50, 0.0015);
+      return;
+    }
+
+    if (res.kind === 'whirlwind') {
+      const radius = res.radius ?? 65;
+      const dmg = res.damage ?? 3;
+      if (player === this.myPlayer) this.worldCam.shake(90, 0.003);
+
+      for (const prop of this.destructibles) {
+        if (prop.broken) continue;
+        const dist = Phaser.Math.Distance.Between(player.x, player.y, prop.x, prop.y);
+        if (dist <= radius) {
+          this.breakProp(prop);
+        }
+      }
+
+      if (this.boss && !this.boss.isDead) {
+        const dist = Phaser.Math.Distance.Between(player.x, player.y, this.boss.x, this.boss.y);
+        if (dist <= radius + 14) {
+          const killed = this.boss.takeDamage(dmg, player.x, player.y);
+          SoundFX.playEnemyHit('demon');
+          if (player === this.myPlayer) this.spawnDamageNumber(this.boss.x, this.boss.y - 16, `-${dmg}`, '#67e8f9');
+          this.hitSpark.setPosition(this.boss.x, this.boss.y - 14);
+          this.hitSpark.explode(12);
+          this.updateBossHealthBar();
+          if (killed) {
+            this.killCount += 1;
+            AchievementManager.get().unlock('boss_slayer', this);
+            this.onBossDefeated();
+          }
+        }
+      }
+
+      for (const enemy of this.enemies) {
+        if (enemy.isDead) continue;
+        const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
+        if (dist <= radius) {
+          const killed = enemy.takeDamage(dmg, player.x, player.y);
+          if (player === this.myPlayer) this.spawnDamageNumber(enemy.x, enemy.y, `-${dmg}`, '#67e8f9');
+          this.hitSpark.setPosition(enemy.x, enemy.y);
+          this.hitSpark.explode(8);
+
+          if (enemy.kind === 'skeleton') {
+            this.boneSpark.setPosition(enemy.x, enemy.y - 8);
+            this.boneSpark.explode(killed ? 20 : 10);
+          } else {
+            this.bloodSpark.setPosition(enemy.x, enemy.y - 8);
+            this.bloodSpark.explode(killed ? 25 : 12);
+          }
+
+          if (killed) {
+            SoundFX.playEnemyDeath(enemy.kind);
+            this.killCount += 1;
+            AchievementManager.get().enemiesKilled += 1;
+            AchievementManager.get().unlock('first_blood', this);
+
+            const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+            this.spawnCoins(enemy.x, enemy.y, coinCount);
+
+            if (player.leechChance > 0 && Math.random() < player.leechChance) {
+              player.heal(1);
+              this.buildHeartsUI();
+              this.spawnDamageNumber(player.x, player.y - 12, '+1 HP', '#4ade80');
+            }
+            if (player.hasOilLamp) {
+              this.triggerOilExplosion(enemy.x, enemy.y);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private updatePlayerArrows(delta: number): void {
+    for (const arrow of this.playerArrows) {
+      const active = arrow.update(delta);
+      if (!active) continue;
+
+      // Check destructibles
+      for (const prop of this.destructibles) {
+        if (prop.broken) continue;
+        const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, prop.x, prop.y);
+        if (dist <= 18) {
+          this.breakProp(prop);
+          arrow.destroyProjectile();
+          break;
+        }
+      }
+      if (arrow.isDestroyed) continue;
+
+      // Check Boss
+      if (this.boss && !this.boss.isDead) {
+        const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, this.boss.x, this.boss.y - 12);
+        if (dist <= 22 && !arrow.hitEntityIds.has(9999)) {
+          arrow.hitEntityIds.add(9999);
+          SoundFX.playArrowHit();
+          const isCrit = Math.random() < this.myPlayer.critChance;
+          const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1)));
+          const killed = this.boss.takeDamage(dmg, arrow.x, arrow.y);
+
+          if (isCrit) {
+            SoundFX.playCritHit();
+            this.spawnDamageNumber(this.boss.x, this.boss.y - 16, `КРИТ! -${dmg}`, '#f87171');
+            this.worldCam.shake(70, 0.002);
+          } else {
+            this.spawnDamageNumber(this.boss.x, this.boss.y - 16, `-${dmg}`, '#ffe28a');
+          }
+
+          this.hitSpark.setPosition(this.boss.x, this.boss.y - 12);
+          this.hitSpark.explode(8);
+          this.bloodSpark.setPosition(this.boss.x, this.boss.y - 12);
+          this.bloodSpark.explode(killed ? 30 : 12);
+          this.updateBossHealthBar();
+
+          if (killed) {
+            this.killCount += 1;
+            AchievementManager.get().unlock('boss_slayer', this);
+            this.onBossDefeated();
+          }
+
+          arrow.pierce -= 1;
+          if (arrow.pierce <= 0) {
+            arrow.destroyProjectile();
+            continue;
+          }
+        }
+      }
+
+      // Check normal enemies
+      for (const enemy of this.enemies) {
+        if (enemy.isDead || arrow.hitEntityIds.has(enemy.id)) continue;
+        const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, enemy.x, enemy.y - 8);
+        if (dist <= 16) {
+          arrow.hitEntityIds.add(enemy.id);
+          SoundFX.playArrowHit();
+          const isCrit = Math.random() < this.myPlayer.critChance;
+          const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1)));
+          const killed = enemy.takeDamage(dmg, arrow.x, arrow.y);
+
+          if (isCrit) {
+            SoundFX.playCritHit();
+            this.spawnDamageNumber(enemy.x, enemy.y, `КРИТ! -${dmg}`, '#f87171');
+            if (this.myPlayer.stormTargets > 0) {
+              this.triggerChainLightning(enemy, this.myPlayer.stormTargets, Math.round(dmg * 0.75));
+            }
+          } else {
+            this.spawnDamageNumber(enemy.x, enemy.y, `-${dmg}`, '#ffe28a');
+          }
+
+          this.hitSpark.setPosition(enemy.x, enemy.y - 8);
+          this.hitSpark.explode(6);
+
+          if (enemy.kind === 'skeleton') {
+            this.boneSpark.setPosition(enemy.x, enemy.y - 8);
+            this.boneSpark.explode(killed ? 18 : 8);
+          } else {
+            this.bloodSpark.setPosition(enemy.x, enemy.y - 8);
+            this.bloodSpark.explode(killed ? 20 : 10);
+          }
+
+          if (killed) {
+            SoundFX.playEnemyDeath(enemy.kind);
+            this.killCount += 1;
+            AchievementManager.get().enemiesKilled += 1;
+            AchievementManager.get().unlock('first_blood', this);
+
+            const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+            this.spawnCoins(enemy.x, enemy.y, coinCount);
+
+            if (this.myPlayer.leechChance > 0 && Math.random() < this.myPlayer.leechChance) {
+              this.myPlayer.heal(1);
+              this.buildHeartsUI();
+              this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 12, '+1 HP', '#4ade80');
+            }
+            if (this.myPlayer.hasOilLamp) {
+              this.triggerOilExplosion(enemy.x, enemy.y);
+            }
+          }
+
+          arrow.pierce -= 1;
+          if (arrow.pierce <= 0) {
+            arrow.destroyProjectile();
+            break;
+          }
+        }
+      }
+    }
+
+    this.playerArrows = this.playerArrows.filter((a) => !a.isDestroyed);
   }
 
   private triggerChainLightning(sourceEnemy: Enemy, maxTargets: number, dmg: number): void {
@@ -1438,7 +1717,7 @@ export class GameScene extends Phaser.Scene {
       buttonText: 'ИГРАТЬ СНОВА',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'gameover', nextDepth: 1 });
-        this.scene.restart({ depth: 1, net: this.net });
+        this.scene.restart({ depth: 1, net: this.net, heroClass: this.heroClass });
       },
     });
   }
@@ -1460,7 +1739,7 @@ export class GameScene extends Phaser.Scene {
       buttonText: 'СПУСТИТЬСЯ ГЛУБЖЕ',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1, playerHealth: nextHealth });
-        this.scene.restart({ depth: this.depth + 1, net: this.net, playerHealth: nextHealth, elapsedRunTime: this.elapsedRunTime });
+        this.scene.restart({ depth: this.depth + 1, net: this.net, playerHealth: nextHealth, elapsedRunTime: this.elapsedRunTime, heroClass: this.heroClass });
       },
     });
   }

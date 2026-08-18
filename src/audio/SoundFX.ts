@@ -672,8 +672,99 @@ class SoundFXManager {
     osc.start(t);
     osc.stop(t + 0.16);
   }
+
+  /** Heavy circular whirlwind spin blade slash */
+  playWhirlwind(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(280, t);
+    osc.frequency.exponentialRampToValueAtTime(720, t + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(120, t + 0.3);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1200, t);
+    filter.frequency.exponentialRampToValueAtTime(3200, t + 0.1);
+    filter.frequency.exponentialRampToValueAtTime(400, t + 0.3);
+
+    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.3);
+  }
+
+  /** Whistling arrow release from bow */
+  playArrowShoot(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    // Bow string twang
+    const twang = ctx.createOscillator();
+    const twangGain = ctx.createGain();
+    twang.type = 'triangle';
+    twang.frequency.setValueAtTime(440, t);
+    twang.frequency.exponentialRampToValueAtTime(160, t + 0.12);
+
+    twangGain.gain.setValueAtTime(0.35, t);
+    twangGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+    twang.connect(twangGain);
+    twangGain.connect(this.masterGain);
+    twang.start(t);
+    twang.stop(t + 0.12);
+
+    // Arrow whistling air whoosh
+    const whoosh = ctx.createOscillator();
+    const whooshGain = ctx.createGain();
+    whoosh.type = 'sine';
+    whoosh.frequency.setValueAtTime(800, t);
+    whoosh.frequency.exponentialRampToValueAtTime(1600, t + 0.05);
+    whoosh.frequency.exponentialRampToValueAtTime(600, t + 0.18);
+
+    whooshGain.gain.setValueAtTime(0.2, t);
+    whooshGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+    whoosh.connect(whooshGain);
+    whooshGain.connect(this.masterGain);
+    whoosh.start(t);
+    whoosh.stop(t + 0.18);
+  }
+
+  /** Arrow impact thump */
+  playArrowHit(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(560, t);
+    osc.frequency.exponentialRampToValueAtTime(80, t + 0.09);
+
+    gain.gain.setValueAtTime(0.38, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.09);
+  }
 }
 
 export const SoundFX = new SoundFXManager();
+
 
 

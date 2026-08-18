@@ -54,8 +54,14 @@ export class LobbyScene extends Phaser.Scene {
   private myName = randomName();
   private joinTimeout?: Phaser.Time.TimerEvent;
 
+  private heroClass: 'knight' | 'ranger' = 'knight';
+
   constructor() {
     super(SCENE.LOBBY);
+  }
+
+  init(data?: { heroClass?: 'knight' | 'ranger' }): void {
+    this.heroClass = data?.heroClass ?? 'knight';
   }
 
   create(): void {
@@ -338,7 +344,7 @@ export class LobbyScene extends Phaser.Scene {
     if (!this.room) return;
     this.cameras.main.fadeOut(280, 8, 6, 12);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      this.scene.start(SCENE.GAME, { depth, net: { role: this.room!.role, room: this.room! } });
+      this.scene.start(SCENE.GAME, { depth, net: { role: this.room!.role, room: this.room! }, heroClass: this.heroClass });
     });
   }
 

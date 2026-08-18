@@ -111,19 +111,87 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(DEPTH.UI);
 
-    const playBtn = makeButton(this, width / 2, height * 0.6, 'ИГРАТЬ');
+    let selectedHero: 'knight' | 'ranger' = 'knight';
+
+    // Hero Selection Container
+    const heroY = height * 0.48;
+    const knightBtn = this.add.container(width / 2 - 95, heroY).setDepth(DEPTH.UI);
+    const knightBg = this.add.rectangle(0, 0, 160, 42, 0x1e1528, 0.9).setStrokeStyle(2, 0xfbbf24);
+    const knightText = this.add
+      .text(0, -6, '🗡️ РЫЦАРЬ', {
+        fontFamily: FONT.UI,
+        fontSize: '12px',
+        fontStyle: '700',
+        color: '#f0e2b8',
+      })
+      .setOrigin(0.5);
+    const knightSub = this.add
+      .text(0, 8, '3 HP · Меч · Вихрь (ПКМ)', {
+        fontFamily: FONT.UI,
+        fontSize: '8px',
+        color: '#94a3b8',
+      })
+      .setOrigin(0.5);
+    knightBtn.add([knightBg, knightText, knightSub]);
+    knightBg.setInteractive({ useHandCursor: true });
+
+    const rangerBtn = this.add.container(width / 2 + 95, heroY).setDepth(DEPTH.UI);
+    const rangerBg = this.add.rectangle(0, 0, 160, 42, 0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+    const rangerText = this.add
+      .text(0, -6, '🏹 СЛЕДОПЫТ', {
+        fontFamily: FONT.UI,
+        fontSize: '12px',
+        fontStyle: '700',
+        color: '#8b8398',
+      })
+      .setOrigin(0.5);
+    const rangerSub = this.add
+      .text(0, 8, '2 HP · Лук · Залп стрел (ПКМ)', {
+        fontFamily: FONT.UI,
+        fontSize: '8px',
+        color: '#64748b',
+      })
+      .setOrigin(0.5);
+    rangerBtn.add([rangerBg, rangerText, rangerSub]);
+    rangerBg.setInteractive({ useHandCursor: true });
+
+    const updateHeroSelection = () => {
+      if (selectedHero === 'knight') {
+        knightBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0xfbbf24);
+        knightText.setColor('#f0e2b8');
+        rangerBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+        rangerText.setColor('#8b8398');
+      } else {
+        rangerBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0x4ade80);
+        rangerText.setColor('#4ade80');
+        knightBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+        knightText.setColor('#8b8398');
+      }
+    };
+
+    knightBg.on('pointerdown', () => {
+      selectedHero = 'knight';
+      updateHeroSelection();
+    });
+
+    rangerBg.on('pointerdown', () => {
+      selectedHero = 'ranger';
+      updateHeroSelection();
+    });
+
+    const playBtn = makeButton(this, width / 2, height * 0.63, 'ИГРАТЬ');
     playBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        this.scene.start(SCENE.GAME);
+        this.scene.start(SCENE.GAME, { heroClass: selectedHero });
       });
     });
 
-    const coopBtn = makeButton(this, width / 2, height * 0.6 + 44, 'СЕТЕВОЙ КООПЕРАТИВ');
+    const coopBtn = makeButton(this, width / 2, height * 0.63 + 44, 'СЕТЕВОЙ КООПЕРАТИВ');
     coopBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        this.scene.start(SCENE.LOBBY);
+        this.scene.start(SCENE.LOBBY, { heroClass: selectedHero });
       });
     });
 

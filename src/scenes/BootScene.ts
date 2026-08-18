@@ -22,8 +22,13 @@ export class BootScene extends Phaser.Scene {
     this.load.image(PACK.DUNGEON_PROPS.key, PACK.DUNGEON_PROPS.url);
     this.load.image(LEGACY_PACK.key, LEGACY_PACK.url);
     this.load.image(TEXTURE.WEAPON_SWORD, asset('weapon-knight-sword.png'));
+    this.load.image(TEXTURE.BOW, asset('bow.png'));
+    this.load.image(TEXTURE.ARROW, asset('arrow.png'));
+    this.load.image(TEXTURE.SLASH_WHIRLWIND, asset('slash_whirlwind.png'));
     this.load.spritesheet(TEXTURE.COIN_ANIM, asset('coin-anim.png'), { frameWidth: 8, frameHeight: 8 });
     this.load.spritesheet(TEXTURE.BOSS_DEMON, asset('big_demon.png'), { frameWidth: 32, frameHeight: 36 });
+    this.load.spritesheet(TEXTURE.RANGER_IDLE, asset('ranger-idle.png'), { frameWidth: 16, frameHeight: 28 });
+    this.load.spritesheet(TEXTURE.RANGER_RUN, asset('ranger-run.png'), { frameWidth: 16, frameHeight: 28 });
     this.load.image(TEXTURE.SKULL, asset('skull.png'));
 
     preloadActor(this, ACTORS.HERO);
@@ -70,6 +75,20 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: ANIM.BOSS_DEMON_RUN,
       frames: this.anims.generateFrameNumbers(TEXTURE.BOSS_DEMON, { start: 4, end: 7 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.RANGER_IDLE,
+      frames: this.anims.generateFrameNumbers(TEXTURE.RANGER_IDLE, { start: 0, end: 3 }),
+      frameRate: 6,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.RANGER_RUN,
+      frames: this.anims.generateFrameNumbers(TEXTURE.RANGER_RUN, { start: 0, end: 3 }),
       frameRate: 8,
       repeat: -1,
     });

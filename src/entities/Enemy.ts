@@ -72,13 +72,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setPipeline('Light2D');
-    this.setOrigin(0.5, stats.originY.idle);
+    this.setOrigin(0.5, 1.0);
     this.setScale(stats.scale);
     this.play(stats.clips.idle.key);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setSize(18, 14);
-    body.setOffset(7, 14);
+    body.setSize(16, 12);
+    body.setOffset(8, 20);
     this.setDepth(DEPTH.YSORT_BASE + y);
   }
 
@@ -124,7 +124,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(0, 0);
     body.enable = false;
-    this.setOrigin(0.5, this.stats.originY.death);
+    this.setOrigin(0.5, 1.0);
     this.play(this.stats.clips.death.key);
     this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.scene.tweens.add({ targets: this, alpha: 0, duration: 200, onComplete: () => this.destroy() });
@@ -170,8 +170,19 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private setAnimState(next: 'idle' | 'run'): void {
     if (this.animState === next) return;
     this.animState = next;
-    this.setOrigin(0.5, this.stats.originY[next]);
+    this.setOrigin(0.5, 1.0);
     this.play(this.stats.clips[next].key, true);
+
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      if (next === 'run') {
+        body.setSize(16, 12);
+        body.setOffset(24, 52);
+      } else {
+        body.setSize(16, 12);
+        body.setOffset(8, 20);
+      }
+    }
   }
 
   /** Applies a state update received from the host — used on guest clients,

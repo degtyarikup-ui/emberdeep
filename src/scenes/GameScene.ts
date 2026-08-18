@@ -168,8 +168,8 @@ export class GameScene extends Phaser.Scene {
       if (d.solid) {
         this.physics.add.existing(sprite, true);
         const body = sprite.body as Phaser.Physics.Arcade.StaticBody;
-        body.setSize(26, 18);
-        body.setOffset((sprite.width - 26) / 2, sprite.height - 18);
+        body.setSize(16, 12);
+        body.setOffset((sprite.width - 16) / 2, sprite.height - 12);
         this.solids.add(sprite);
       }
     }
@@ -222,7 +222,7 @@ export class GameScene extends Phaser.Scene {
     world.add(this.exitPrompt);
 
     this.spawnX = level.spawn.col * TILE_SIZE + TILE_SIZE / 2;
-    this.spawnY = level.spawn.row * TILE_SIZE + TILE_SIZE / 2;
+    this.spawnY = level.spawn.row * TILE_SIZE + TILE_SIZE;
 
     const roster = this.net ? this.net.room.currentRoster : [{ peerId: 'local', slot: 0, name: 'Игрок' }];
     this.mySlot = this.role === 'guest' ? (this.net!.room.mySlot ?? 0) : 0;

@@ -2366,7 +2366,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateExitInteraction(): void {
-    const cleared = this.enemies.length === 0 && (!this.boss || this.boss.isDead);
+    const aliveEnemies = this.enemies.filter((e) => !e.isDead);
+    const cleared = aliveEnemies.length === 0 && (!this.boss || this.boss.isDead);
     let anyMineInRange = false;
 
     for (const player of this.players) {

@@ -22,6 +22,12 @@ export const TEXTURE = {
   SKULL: 'tex-skull',
   RANGER_IDLE: 'tex-ranger-idle',
   RANGER_RUN: 'tex-ranger-run',
+  TILES_BIOME: 'tex-tiles-biome',
+  TREE_PINE: 'tex-tree-pine',
+  TREE_OAK: 'tex-tree-oak',
+  BONFIRE: 'tex-bonfire',
+  PROP_ROCK: 'tex-prop-rock',
+  PROP_BUSH: 'tex-prop-bush',
 } as const;
 
 export const ANIM = {
@@ -31,6 +37,7 @@ export const ANIM = {
   BOSS_DEMON_RUN: 'anim-boss-demon-run',
   RANGER_IDLE: 'anim-ranger-idle',
   RANGER_RUN: 'anim-ranger-run',
+  BONFIRE_FLICKER: 'anim-bonfire-flicker',
 } as const;
 
 export const FONT = {

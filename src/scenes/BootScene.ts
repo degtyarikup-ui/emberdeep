@@ -30,7 +30,12 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet(TEXTURE.BOSS_DEMON, asset('big_demon.png'), { frameWidth: 32, frameHeight: 36 });
     this.load.spritesheet(TEXTURE.RANGER_IDLE, asset('ranger-idle.png'), { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet(TEXTURE.RANGER_RUN, asset('ranger-run.png'), { frameWidth: 32, frameHeight: 32 });
-    this.load.image(TEXTURE.SKULL, asset('skull.png'));
+    this.load.image(TEXTURE.TILES_BIOME, asset('tiles-biome.png'));
+    this.load.image(TEXTURE.TREE_PINE, asset('tree_pine.png'));
+    this.load.image(TEXTURE.TREE_OAK, asset('tree_oak.png'));
+    this.load.image(TEXTURE.PROP_ROCK, asset('prop_rock.png'));
+    this.load.image(TEXTURE.PROP_BUSH, asset('prop_bush.png'));
+    this.load.spritesheet(TEXTURE.BONFIRE, asset('bonfire-sheet.png'), { frameWidth: 32, frameHeight: 32 });
 
     preloadActor(this, ACTORS.HERO);
     preloadActor(this, ACTORS.ORC);
@@ -90,6 +95,13 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: ANIM.RANGER_RUN,
       frames: this.anims.generateFrameNumbers(TEXTURE.RANGER_RUN, { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.BONFIRE_FLICKER,
+      frames: this.anims.generateFrameNumbers(TEXTURE.BONFIRE, { start: 0, end: 3 }),
       frameRate: 8,
       repeat: -1,
     });

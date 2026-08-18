@@ -235,7 +235,7 @@ export class GameScene extends Phaser.Scene {
     this.mySeq = { attack: 0, interact: 0 };
 
     this.lights.enable();
-    this.lights.setAmbientColor(0x453a68);
+    this.lights.setAmbientColor(level.biome.ambientColor);
 
     const map = this.make.tilemap({ data: level.data, tileWidth: TILE_SIZE, tileHeight: TILE_SIZE });
     const tileset = map.addTilesetImage('dungeon', TEXTURE.DUNGEON_TILES, TILE_SIZE, TILE_SIZE, 0, 0)!;
@@ -255,6 +255,44 @@ export class GameScene extends Phaser.Scene {
     while (this.cameras.cameras.length > 1) {
       const extraCam = this.cameras.cameras[this.cameras.cameras.length - 1];
       this.cameras.remove(extraCam);
+    }
+
+    // Render Trees (Outdoor Biomes)
+    if (level.trees) {
+      for (const tr of level.trees) {
+        const x = tr.col * TILE_SIZE + TILE_SIZE / 2;
+        const y = tr.row * TILE_SIZE + TILE_SIZE;
+        const tex = tr.kind === 'pine' ? TEXTURE.TREE_PINE : TEXTURE.TREE_OAK;
+        const tree = this.add.sprite(x, y, tex);
+        tree.setOrigin(0.5, 1.0);
+        tree.setDepth(DEPTH.YSORT_BASE + y);
+        tree.setPipeline('Light2D');
+        world.add(tree);
+
+        // Solid trunk collision
+        this.physics.add.existing(tree, true);
+        const body = tree.body as Phaser.Physics.Arcade.StaticBody;
+        body.setSize(22, 14);
+        body.setOffset((tree.width - 22) / 2, tree.height - 14);
+        this.solids.add(tree);
+      }
+    }
+
+    // Render Campfires / Bonfires
+    if (level.bonfires) {
+      for (const b of level.bonfires) {
+        const x = b.col * TILE_SIZE + TILE_SIZE / 2;
+        const y = b.row * TILE_SIZE + TILE_SIZE;
+        const sprite = this.add.sprite(x, y, TEXTURE.BONFIRE, 0);
+        sprite.setOrigin(0.5, 1.0);
+        sprite.setDepth(DEPTH.YSORT_BASE + y);
+        sprite.setPipeline('Light2D');
+        sprite.play(ANIM.BONFIRE_FLICKER);
+        world.add(sprite);
+
+        const light = this.lights.addLight(x, y - 10, 180, 0xff7722, 1.7);
+        this.torchLights.push({ light, base: 1.7, phase: Math.random() * Math.PI * 2 });
+      }
     }
 
     for (const t of level.torches) {
@@ -529,8 +567,9 @@ export class GameScene extends Phaser.Scene {
       speedY: { min: -10, max: -3 },
       speedX: { min: -4, max: 4 },
       scale: { start: 1, end: 0.1 },
-      alpha: { start: 0.4, end: 0 },
-      frequency: 220,
+      alpha: { start: 0.45, end: 0 },
+      tint: level.biome.dustColor,
+      frequency: 200,
       blendMode: 'ADD',
     });
     dust.setDepth(DEPTH.DUST);
@@ -683,6 +722,8 @@ export class GameScene extends Phaser.Scene {
 
     const handleResize = (size: Phaser.Structs.Size) => this.handleResize(size.width, size.height);
     this.scale.on('resize', handleResize);
+
+    this.showBiomeBanner(level.biome);
 
     this.events.once('shutdown', () => {
       this.scale.off('resize', handleResize);
@@ -1378,6 +1419,57 @@ export class GameScene extends Phaser.Scene {
       SoundFX.playThreatLevelUp();
       this.showThreatLevelUpBanner(tier);
     }
+  }
+
+  private showBiomeBanner(biome: { name: string; subtitle: string; depth: number }): void {
+    const banner = this.add.container(this.scale.width / 2, 50);
+    banner.setDepth(DEPTH.UI + 90);
+
+    const bg = this.add.rectangle(0, 0, 360, 42, 0x090514, 0.92);
+    bg.setStrokeStyle(2, biome.depth === 1 ? 0x22c55e : biome.depth === 2 ? 0xa855f7 : 0xef4444);
+
+    const icon = biome.depth === 1 ? '🌲' : biome.depth === 2 ? '🏰' : '🔥';
+    const title = this.add
+      .text(0, -7, `${icon} ${biome.name.toUpperCase()}`, {
+        fontFamily: FONT.TITLE,
+        fontSize: '15px',
+        fontStyle: '700',
+        color: biome.depth === 1 ? '#86efac' : biome.depth === 2 ? '#d8b4fe' : '#fca5a5',
+      })
+      .setOrigin(0.5);
+
+    const sub = this.add
+      .text(0, 10, biome.subtitle, {
+        fontFamily: FONT.UI,
+        fontSize: '9px',
+        color: '#e2e8f0',
+      })
+      .setOrigin(0.5);
+
+    banner.add([bg, title, sub]);
+    banner.setScale(0.8);
+    banner.setAlpha(0);
+    this.worldCam.ignore(banner);
+
+    this.tweens.add({
+      targets: banner,
+      scale: 1,
+      alpha: 1,
+      y: 60,
+      duration: 350,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(2800, () => {
+          this.tweens.add({
+            targets: banner,
+            alpha: 0,
+            y: 45,
+            duration: 350,
+            onComplete: () => banner.destroy(),
+          });
+        });
+      },
+    });
   }
 
   private showThreatLevelUpBanner(tier: typeof THREAT_TIERS[number]): void {

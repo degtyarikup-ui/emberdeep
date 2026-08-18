@@ -31,6 +31,15 @@ interface Chest {
   opened: boolean;
 }
 
+interface DestructibleProp {
+  id: number;
+  sprite: Phaser.GameObjects.Sprite;
+  body: Phaser.Physics.Arcade.StaticBody;
+  x: number;
+  y: number;
+  broken: boolean;
+}
+
 interface NetContext {
   role: 'host' | 'guest';
   room: RoomClient;
@@ -68,9 +77,11 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private flasks: Pickup[] = [];
   private chests: Chest[] = [];
+  private destructibles: DestructibleProp[] = [];
   private hitSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private bloodSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private boneSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private woodSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private solids!: Phaser.Physics.Arcade.StaticGroup;
 
   // A world camera zoomed in on the action, and a separate 1:1 UI camera for
@@ -120,6 +131,7 @@ export class GameScene extends Phaser.Scene {
     this.frozen = false;
     this.killCount = 0;
     this.chests = [];
+    this.destructibles = [];
     this.players = [];
     this.playerLights.clear();
     this.remoteInputs.clear();
@@ -157,7 +169,8 @@ export class GameScene extends Phaser.Scene {
       this.torchLights.push({ light, base: 1.4, phase: Math.random() * Math.PI * 2 });
     }
 
-    for (const d of level.decorations) {
+    for (let i = 0; i < level.decorations.length; i++) {
+      const d = level.decorations[i];
       const x = d.col * TILE_SIZE + TILE_SIZE / 2;
       const yBottom = d.row * TILE_SIZE + TILE_SIZE;
       const sprite = this.add.sprite(x, yBottom, TEXTURE.PROPS, d.key);
@@ -171,6 +184,15 @@ export class GameScene extends Phaser.Scene {
         body.setSize(16, 12);
         body.setOffset((sprite.width - 16) / 2, sprite.height - 12);
         this.solids.add(sprite);
+
+        this.destructibles.push({
+          id: i,
+          sprite,
+          body,
+          x,
+          y: yBottom,
+          broken: false,
+        });
       }
     }
 
@@ -295,6 +317,18 @@ export class GameScene extends Phaser.Scene {
     });
     this.boneSpark.setDepth(DEPTH.YSORT_BASE + worldH + 12);
     world.add(this.boneSpark);
+
+    this.woodSpark = this.add.particles(0, 0, TEXTURE.PARTICLE_WOOD, {
+      lifespan: { min: 220, max: 460 },
+      speed: { min: 60, max: 190 },
+      scale: { start: 1.3, end: 0.25 },
+      alpha: { start: 1, end: 0 },
+      rotate: { start: 0, end: 360 },
+      gravityY: 190,
+      emitting: false,
+    });
+    this.woodSpark.setDepth(DEPTH.YSORT_BASE + worldH + 12);
+    world.add(this.woodSpark);
 
     // Ambient dust motes drifting across the whole level — fixed world-space,
     // deliberately NOT following the player.
@@ -576,6 +610,14 @@ export class GameScene extends Phaser.Scene {
     this.hitSpark.setPosition(player.x, player.y);
     this.hitSpark.explode(5);
 
+    for (const prop of this.destructibles) {
+      if (prop.broken) continue;
+      const dist = Phaser.Math.Distance.Between(player.x, player.y, prop.x, prop.y);
+      if (dist <= ATTACK_RANGE) {
+        this.breakProp(prop);
+      }
+    }
+
     for (const enemy of this.enemies) {
       if (enemy.isDead) continue;
       const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
@@ -602,6 +644,54 @@ export class GameScene extends Phaser.Scene {
           this.killCount += 1;
         }
       }
+    }
+  }
+
+  private breakProp(prop: DestructibleProp): void {
+    if (prop.broken) return;
+    prop.broken = true;
+    prop.body.enable = false;
+    this.solids.remove(prop.sprite);
+
+    SoundFX.playWoodBreak();
+
+    // Wood particle explosion
+    this.woodSpark.setPosition(prop.x, prop.y - 8);
+    this.woodSpark.explode(18);
+
+    // Hit spark
+    this.hitSpark.setPosition(prop.x, prop.y - 8);
+    this.hitSpark.explode(6);
+
+    // Spawn flat debris decal on floor
+    const debris = this.add.sprite(prop.x, prop.y, TEXTURE.DEBRIS_WOOD);
+    debris.setOrigin(0.5, 1);
+    debris.setDepth(DEPTH.YSORT_BASE + prop.y - 20);
+    debris.setPipeline('Light2D');
+    debris.setAngle(Phaser.Math.Between(-15, 15));
+    this.worldLayer.add(debris);
+
+    // Break animation: quick squash and fade out
+    this.tweens.add({
+      targets: prop.sprite,
+      scaleX: 1.25,
+      scaleY: 0.35,
+      alpha: 0,
+      y: prop.y - 2,
+      duration: 120,
+      ease: 'Quad.easeOut',
+      onComplete: () => prop.sprite.destroy(),
+    });
+
+    // 25% chance to drop a healing flask
+    if (Math.random() < 0.25) {
+      const flaskSprite = this.add.sprite(prop.x, prop.y, TEXTURE.PROPS, 'flask_red');
+      flaskSprite.setOrigin(0.5, 1);
+      flaskSprite.setPipeline('Light2D');
+      flaskSprite.setDepth(DEPTH.YSORT_BASE + prop.y);
+      this.worldLayer.add(flaskSprite);
+      this.tweens.add({ targets: flaskSprite, y: prop.y - 3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.flasks.push({ sprite: flaskSprite, x: prop.x, y: prop.y, collected: false });
     }
   }
 
@@ -845,6 +935,7 @@ export class GameScene extends Phaser.Scene {
       enemies,
       flasksTaken: this.flasks.map((f, i) => (f.collected ? i : -1)).filter((i) => i >= 0),
       chestsOpened: this.chests.map((c, i) => (c.opened ? i : -1)).filter((i) => i >= 0),
+      brokenProps: this.destructibles.filter((d) => d.broken).map((d) => d.id),
       killCount: this.killCount,
     };
   }
@@ -870,6 +961,15 @@ export class GameScene extends Phaser.Scene {
         enemy.applyRemoteState(es.x, es.y, es.anim, es.flipX);
       } else if (!seenIds.has(enemy.id) && !enemy.isDead) {
         enemy.applyRemoteState(enemy.x, enemy.y, 'dead', enemy.flipX);
+      }
+    }
+
+    if (snapshot.brokenProps) {
+      for (const id of snapshot.brokenProps) {
+        const prop = this.destructibles.find((d) => d.id === id);
+        if (prop && !prop.broken) {
+          this.breakProp(prop);
+        }
       }
     }
 

@@ -8,6 +8,8 @@ export const TEXTURE = {
   PARTICLE_SPARK: 'tex-particle-spark',
   PARTICLE_BLOOD: 'tex-particle-blood',
   PARTICLE_BONE: 'tex-particle-bone',
+  PARTICLE_WOOD: 'tex-particle-wood',
+  DEBRIS_WOOD: 'tex-debris-wood',
   WEAPON_SWORD: 'tex-weapon-sword',
   SLASH_FX: 'tex-slash-fx',
   VIGNETTE: 'tex-vignette',

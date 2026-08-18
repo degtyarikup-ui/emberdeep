@@ -47,6 +47,7 @@ export interface WorldSnapshot {
   enemies: EnemySnapshot[];
   flasksTaken: number[];
   chestsOpened: number[];
+  brokenProps?: number[];
   killCount: number;
 }
 

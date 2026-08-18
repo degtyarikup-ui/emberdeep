@@ -271,6 +271,57 @@ class SoundFXManager {
       chime.stop(t + 0.08 + i * 0.05 + 0.22);
     });
   }
+
+  /** Splintering wood crack / smash sound when a barrel or crate breaks */
+  playWoodBreak(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const jitter = 0.88 + Math.random() * 0.24;
+
+    // Heavy low wood thud
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180 * jitter, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.16);
+
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.16);
+
+    // High crunch splinter noise
+    const bufferSize = Math.floor(ctx.sampleRate * 0.14);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(800 * jitter, t);
+    filter.frequency.exponentialRampToValueAtTime(250 * jitter, t + 0.14);
+    filter.Q.setValueAtTime(2.5, t);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.5, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.masterGain);
+
+    noise.start(t);
+    noise.stop(t + 0.14);
+  }
 }
 
 export const SoundFX = new SoundFXManager();

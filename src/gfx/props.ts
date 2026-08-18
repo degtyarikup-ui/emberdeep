@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { buildAtlasFromPack, PACK, Rect } from './pack';
+import { buildAtlasFromPack, PACK, LEGACY_PACK, Rect } from './pack';
 
 export const PROP = {
   BARREL: 'barrel',
+  CRATE: 'crate',
   TOMBSTONE: 'tombstone',
   BANNER_RED: 'banner_red',
   BANNER_BLUE: 'banner_blue',
@@ -17,6 +18,7 @@ export type PropKey = (typeof PROP)[keyof typeof PROP];
 
 const RECTS: Record<PropKey, Rect> = {
   [PROP.BARREL]: [PACK.RESOURCES.key, 14, 154, 17, 22],
+  [PROP.CRATE]: [LEGACY_PACK.key, 288, 408, 16, 24],
   [PROP.TOMBSTONE]: [PACK.DUNGEON_PROPS.key, 96, 1, 15, 25],
   [PROP.BANNER_RED]: [PACK.DUNGEON_PROPS.key, 60, 60, 16, 30],
   [PROP.BANNER_BLUE]: [PACK.DUNGEON_PROPS.key, 76, 60, 16, 30],

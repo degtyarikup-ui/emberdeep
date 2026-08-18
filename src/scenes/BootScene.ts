@@ -38,6 +38,8 @@ export class BootScene extends Phaser.Scene {
     this.buildParticleTexture();
     this.buildBloodParticleTexture();
     this.buildBoneParticleTexture();
+    this.buildWoodParticleTexture();
+    this.buildWoodDebrisTexture();
     this.buildSlashFxTexture();
     this.buildVignetteTexture();
 
@@ -106,6 +108,58 @@ export class BootScene extends Phaser.Scene {
     ctx.fillRect(0, 1, 1, 2);
     ctx.fillRect(2, 0, 1, 1);
     this.textures.addCanvas(TEXTURE.PARTICLE_BONE, canvas);
+  }
+
+  private buildWoodParticleTexture(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = 4;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#945f37';
+    ctx.fillRect(0, 0, 3, 3);
+    ctx.fillStyle = '#c48956';
+    ctx.fillRect(1, 1, 2, 1);
+    ctx.fillStyle = '#543217';
+    ctx.fillRect(0, 2, 3, 1);
+    this.textures.addCanvas(TEXTURE.PARTICLE_WOOD, canvas);
+  }
+
+  private buildWoodDebrisTexture(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 24;
+    canvas.height = 14;
+    const ctx = canvas.getContext('2d')!;
+
+    // Broken wooden planks lying flat on the ground
+    // Plank 1 (tilted left)
+    ctx.fillStyle = '#422411';
+    ctx.fillRect(2, 6, 12, 5);
+    ctx.fillStyle = '#7a4722';
+    ctx.fillRect(3, 7, 10, 3);
+    ctx.fillStyle = '#9e6234';
+    ctx.fillRect(4, 7, 8, 1);
+
+    // Plank 2 (shattered right)
+    ctx.fillStyle = '#381e0e';
+    ctx.fillRect(11, 4, 11, 6);
+    ctx.fillStyle = '#6e3e1c';
+    ctx.fillRect(12, 5, 9, 4);
+    ctx.fillStyle = '#94582a';
+    ctx.fillRect(13, 5, 7, 1);
+
+    // Broken iron hoop fragment
+    ctx.fillStyle = '#262429';
+    ctx.fillRect(5, 10, 6, 2);
+    ctx.fillStyle = '#5c5866';
+    ctx.fillRect(6, 10, 4, 1);
+
+    // Splinters
+    ctx.fillStyle = '#b87c48';
+    ctx.fillRect(1, 8, 2, 1);
+    ctx.fillRect(15, 3, 3, 1);
+    ctx.fillRect(20, 9, 2, 1);
+
+    this.textures.addCanvas(TEXTURE.DEBRIS_WOOD, canvas);
   }
 
   private buildSlashFxTexture(): void {

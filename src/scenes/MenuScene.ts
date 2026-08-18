@@ -5,6 +5,8 @@ import { TILE_INDEX } from '../gfx/tiles';
 import { ACTORS } from '../gfx/actors';
 import { MetaManager, META_UPGRADES } from '../meta/MetaManager';
 import { SoundFX } from '../audio/SoundFX';
+import { ACHIEVEMENTS } from '../achievements/registry';
+import { AchievementManager } from '../achievements/AchievementManager';
 
 function makeButton(
   scene: Phaser.Scene,
@@ -252,7 +254,7 @@ export class MenuScene extends Phaser.Scene {
       this.tweens.add({ targets: rangerBtn, scale: 1.05, duration: 80, yoyo: true });
     });
 
-    const playBtn = makeButton(this, width / 2, height * 0.60 + 10, 'ИГРАТЬ');
+    const playBtn = makeButton(this, width / 2, height * 0.60 + 8, 'ИГРАТЬ');
     playBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -260,12 +262,17 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    const altarBtn = makeButton(this, width / 2, height * 0.60 + 52, '🔥 АЛТАРЬ ДУШ (ПРОКАЧКА)');
+    const altarBtn = makeButton(this, width / 2 - 110, height * 0.60 + 50, '🔥 АЛТАРЬ ДУШ', { fontSize: '15px' });
     altarBtn.on('pointerdown', () => {
       this.openSoulAltar();
     });
 
-    const coopBtn = makeButton(this, width / 2, height * 0.60 + 94, 'СЕТЕВОЙ КООПЕРАТИВ', { fontSize: '15px', muted: true });
+    const achBtn = makeButton(this, width / 2 + 110, height * 0.60 + 50, '🏆 ДОСТИЖЕНИЯ', { fontSize: '15px' });
+    achBtn.on('pointerdown', () => {
+      this.openAchievementsModal();
+    });
+
+    const coopBtn = makeButton(this, width / 2, height * 0.60 + 88, 'СЕТЕВОЙ КООПЕРАТИВ', { fontSize: '14px', muted: true });
     coopBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -425,6 +432,101 @@ export class MenuScene extends Phaser.Scene {
       modal.destroy();
       this.scene.restart();
     });
+    modal.add(closeBtn);
+  }
+
+  private openAchievementsModal(): void {
+    const { width, height } = this.scale;
+    const modal = this.add.container(0, 0).setDepth(DEPTH.UI + 250);
+
+    const backdrop = this.add.rectangle(width / 2, height / 2, width, height, 0x06040c, 0.94);
+    backdrop.setInteractive();
+
+    const achMgr = AchievementManager.get();
+    const achList = Object.values(ACHIEVEMENTS);
+    const unlockedCount = achList.filter((a) => achMgr.isUnlocked(a.id)).length;
+    const totalCount = achList.length;
+
+    const title = this.add
+      .text(width / 2, 40, '🏆 ЗАЛ СЛАВЫ · ДОСТИЖЕНИЯ', {
+        fontFamily: FONT.TITLE,
+        fontSize: '22px',
+        fontStyle: '700',
+        color: '#fbbf24',
+      })
+      .setOrigin(0.5)
+      .setStroke('#000000', 5);
+
+    const progressLabel = this.add
+      .text(width / 2, 70, `Открыто: ${unlockedCount} из ${totalCount} (${Math.round((unlockedCount / totalCount) * 100)}%)`, {
+        fontFamily: FONT.UI,
+        fontSize: '13px',
+        fontStyle: '600',
+        color: '#94a3b8',
+      })
+      .setOrigin(0.5);
+
+    modal.add([backdrop, title, progressLabel]);
+
+    const startY = 105;
+    const cardW = 260;
+    const cardH = 46;
+    const gapX = 14;
+    const gapY = 8;
+
+    achList.forEach((ach, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = width / 2 + (col === 0 ? -(cardW / 2 + gapX / 2) : cardW / 2 + gapX / 2);
+      const y = startY + row * (cardH + gapY);
+
+      const unlocked = achMgr.isUnlocked(ach.id);
+      const card = this.add.container(x, y);
+
+      const bg = this.add.rectangle(0, 0, cardW, cardH, unlocked ? 0x1a1228 : 0x0e0a16, 0.95);
+      const borderColor = unlocked ? Phaser.Display.Color.HexStringToColor(ach.color).color : 0x334155;
+      bg.setStrokeStyle(1.5, borderColor);
+
+      // Icon
+      let icon: Phaser.GameObjects.GameObject;
+      if (ach.iconFrame !== undefined) {
+        icon = this.add.sprite(-cardW / 2 + 22, 0, ach.iconTexture, ach.iconFrame);
+        (icon as Phaser.GameObjects.Sprite).setScale(1.2);
+      } else {
+        icon = this.add.sprite(-cardW / 2 + 22, 0, ach.iconTexture);
+        (icon as Phaser.GameObjects.Sprite).setScale(1.0);
+      }
+      if (!unlocked) (icon as Phaser.GameObjects.Sprite).setTint(0x475569);
+
+      const name = this.add
+        .text(-cardW / 2 + 42, -12, ach.title, {
+          fontFamily: FONT.UI,
+          fontSize: '11px',
+          fontStyle: '700',
+          color: unlocked ? '#f0e2b8' : '#64748b',
+        })
+        .setOrigin(0, 0);
+
+      const desc = this.add
+        .text(-cardW / 2 + 42, 3, ach.desc, {
+          fontFamily: FONT.UI,
+          fontSize: '8px',
+          color: unlocked ? '#94a3b8' : '#475569',
+        })
+        .setOrigin(0, 0);
+
+      const status = this.add
+        .text(cardW / 2 - 8, -12, unlocked ? '✅' : '🔒', {
+          fontSize: '11px',
+        })
+        .setOrigin(1, 0);
+
+      card.add([bg, icon, name, desc, status]);
+      modal.add(card);
+    });
+
+    const closeBtn = makeButton(this, width / 2, height - 35, '✖ ЗАКРЫТЬ', { fontSize: '15px' });
+    closeBtn.on('pointerdown', () => modal.destroy());
     modal.add(closeBtn);
   }
 }

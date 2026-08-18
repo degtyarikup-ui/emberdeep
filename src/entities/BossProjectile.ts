@@ -10,7 +10,7 @@ export class BossProjectile extends Phaser.GameObjects.Sprite {
   private destroyed = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, targetX: number, targetY: number, speed = 120, damage = 1) {
-    super(scene, x, y, TEXTURE.SKULL);
+    super(scene, x, y, TEXTURE.PROJECTILE_DEMON);
     this.damage = damage;
     this.lifetime = 0;
 
@@ -20,12 +20,9 @@ export class BossProjectile extends Phaser.GameObjects.Sprite {
 
     scene.add.existing(this);
     this.setOrigin(0.5, 0.5);
-    this.setScale(1.1);
+    this.setScale(1.15);
     this.setPipeline('Light2D');
     this.setDepth(DEPTH.YSORT_BASE + y + 50);
-
-    // Glowing red pulse
-    this.setTint(0xff5555);
   }
 
   get isDestroyed(): boolean {

@@ -28,6 +28,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image(TEXTURE.SLASH_WHIRLWIND, asset('slash_whirlwind.png'));
     this.load.spritesheet(TEXTURE.COIN_ANIM, asset('coin-anim.png'), { frameWidth: 8, frameHeight: 8 });
     this.load.spritesheet(TEXTURE.BOSS_DEMON, asset('big_demon.png'), { frameWidth: 32, frameHeight: 36 });
+    this.load.image(TEXTURE.SKULL, asset('skull.png'));
+    this.load.image(TEXTURE.PROJECTILE_DEMON, asset('projectile_demon.png'));
     this.load.spritesheet(TEXTURE.RANGER_IDLE, asset('ranger-idle.png'), { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet(TEXTURE.RANGER_RUN, asset('ranger-run.png'), { frameWidth: 32, frameHeight: 32 });
     this.load.image(TEXTURE.TILES_BIOME, asset('tiles-biome.png'));

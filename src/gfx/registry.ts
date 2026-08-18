@@ -20,6 +20,7 @@ export const TEXTURE = {
   VIGNETTE: 'tex-vignette',
   BOSS_DEMON: 'tex-boss-demon',
   SKULL: 'tex-skull',
+  PROJECTILE_DEMON: 'tex-projectile-demon',
   RANGER_IDLE: 'tex-ranger-idle',
   RANGER_RUN: 'tex-ranger-run',
   TILES_BIOME: 'tex-tiles-biome',

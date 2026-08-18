@@ -441,6 +441,178 @@ class SoundFXManager {
     osc.start(t);
     osc.stop(t + 0.25);
   }
+
+  /** Ominous horn / bass drop for Threat Level Up (Risk of Rain style) */
+  playThreatLevelUp(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(120, t);
+    osc1.frequency.exponentialRampToValueAtTime(45, t + 0.7);
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(124, t);
+    osc2.frequency.exponentialRampToValueAtTime(43, t + 0.7);
+
+    gain.gain.setValueAtTime(0.01, t);
+    gain.gain.linearRampToValueAtTime(0.5, t + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc1.start(t);
+    osc2.start(t);
+    osc1.stop(t + 0.7);
+    osc2.stop(t + 0.7);
+  }
+
+  /** Thunderous gong / spawn roar when Boss appears */
+  playBossSpawn(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+
+    // Deep sub-bass impact
+    const sub = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(90, t);
+    sub.frequency.exponentialRampToValueAtTime(20, t + 1.2);
+    subGain.gain.setValueAtTime(0.8, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+    sub.connect(subGain);
+    subGain.connect(this.masterGain);
+    sub.start(t);
+    sub.stop(t + 1.2);
+
+    // Ominous brass chord
+    [75, 110, 145].forEach((freq) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.linearRampToValueAtTime(freq * 0.9, t + 1.0);
+      g.gain.setValueAtTime(0.25, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+      osc.connect(g);
+      g.connect(this.masterGain!);
+      osc.start(t);
+      osc.stop(t + 1.0);
+    });
+  }
+
+  /** Demonic growl / attack roar */
+  playBossRoar(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(95, t);
+    osc.frequency.linearRampToValueAtTime(140, t + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.45);
+
+    gain.gain.setValueAtTime(0.01, t);
+    gain.gain.linearRampToValueAtTime(0.45, t + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.45);
+  }
+
+  /** Boss death explosion & chime */
+  playBossDeath(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+
+    // Big boom
+    const sub = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    sub.type = 'sawtooth';
+    sub.frequency.setValueAtTime(160, t);
+    sub.frequency.exponentialRampToValueAtTime(20, t + 1.4);
+    subGain.gain.setValueAtTime(0.7, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+    sub.connect(subGain);
+    subGain.connect(this.masterGain);
+    sub.start(t);
+    sub.stop(t + 1.4);
+
+    // Major victory chime
+    [330, 440, 554, 660].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + 0.3 + idx * 0.1);
+      g.gain.setValueAtTime(0, t);
+      g.gain.setValueAtTime(0.28, t + 0.3 + idx * 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 1.5 + idx * 0.1);
+      osc.connect(g);
+      g.connect(this.masterGain!);
+      osc.start(t + 0.3 + idx * 0.1);
+      osc.stop(t + 1.5 + idx * 0.1);
+    });
+  }
+
+  /** Whistling whoosh for fired bone shard / skull projectile */
+  playProjectileLaunch(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(880, t + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(180, t + 0.22);
+
+    gain.gain.setValueAtTime(0.01, t);
+    gain.gain.linearRampToValueAtTime(0.3, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.22);
+  }
+
+  /** Ground slam shockwave */
+  playShockwave(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.masterGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.3);
+
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.3);
+  }
 }
 
 export const SoundFX = new SoundFXManager();
+

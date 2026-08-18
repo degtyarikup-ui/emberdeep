@@ -14,11 +14,15 @@ export const TEXTURE = {
   WEAPON_SWORD: 'tex-weapon-sword',
   SLASH_FX: 'tex-slash-fx',
   VIGNETTE: 'tex-vignette',
+  BOSS_DEMON: 'tex-boss-demon',
+  SKULL: 'tex-skull',
 } as const;
 
 export const ANIM = {
   TORCH_FLICKER: 'anim-torch-flicker',
   COIN_SPIN: 'anim-coin-spin',
+  BOSS_DEMON_IDLE: 'anim-boss-demon-idle',
+  BOSS_DEMON_RUN: 'anim-boss-demon-run',
 } as const;
 
 export const FONT = {

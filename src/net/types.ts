@@ -43,14 +43,29 @@ export interface EnemySnapshot {
   flipX: boolean;
 }
 
+export interface BossSnapshot {
+  active: boolean;
+  x: number;
+  y: number;
+  anim: 'idle' | 'run' | 'dead';
+  flipX: boolean;
+  hp: number;
+  maxHp: number;
+  phase: 1 | 2;
+}
+
 export interface WorldSnapshot {
   depth: number;
   players: PlayerSnapshot[];
   enemies: EnemySnapshot[];
+  boss?: BossSnapshot;
   flasksTaken: number[];
   chestsOpened: number[];
   brokenProps?: number[];
   killCount: number;
+  elapsedRunTime?: number;
+  altarActivated?: boolean;
+  altarCharge?: number;
 }
 
 export interface TransitionMsg {

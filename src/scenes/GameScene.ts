@@ -6,11 +6,21 @@ import { HUD_ICON } from '../gfx/hud';
 import { buildLevel1, TILE_SIZE } from '../world/level1';
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
+import { BossEnemy } from '../entities/BossEnemy';
+import { BossProjectile } from '../entities/BossProjectile';
 import { RoomClient } from '../net/RoomClient';
-import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot } from '../net/types';
+import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot, BossSnapshot } from '../net/types';
 import { SoundFX } from '../audio/SoundFX';
 import { ItemDef } from '../items/types';
 import { ITEMS, getRandomItem } from '../items/registry';
+
+export const THREAT_TIERS = [
+  { name: 'ЛЕГКО', color: '#4ade80', bg: 0x14532d, threshold: 0 },
+  { name: 'ОПАСНО', color: '#facc15', bg: 0x713f12, threshold: 90 }, // 1:30
+  { name: 'КОШМАР', color: '#fb923c', bg: 0x7c2d12, threshold: 210 }, // 3:30
+  { name: 'БЕЗУМИЕ', color: '#ef4444', bg: 0x7f1d1d, threshold: 360 }, // 6:00
+  { name: 'СМЕРТЬ НЕИЗБЕЖНА', color: '#c084fc', bg: 0x581c87, threshold: 540 }, // 9:00
+] as const;
 
 interface TorchLight {
   light: Phaser.GameObjects.Light;
@@ -102,6 +112,28 @@ export class GameScene extends Phaser.Scene {
   private lightningGfx!: Phaser.GameObjects.Graphics;
   private solids!: Phaser.Physics.Arcade.StaticGroup;
 
+  // Altar & Boss
+  private altarSprite!: Phaser.GameObjects.Sprite;
+  private altarPrompt!: Phaser.GameObjects.Text;
+  private altarX = 0;
+  private altarY = 0;
+  private altarActivated = false;
+  private altarCharged = false;
+  private altarLight?: Phaser.GameObjects.Light;
+  private boss?: BossEnemy;
+  private bossProjectiles: BossProjectile[] = [];
+  private bossBarContainer?: Phaser.GameObjects.Container;
+  private bossBarFill?: Phaser.GameObjects.Rectangle;
+  private bossBarText?: Phaser.GameObjects.Text;
+
+  // Threat Meter (Time Scaling)
+  private elapsedRunTime = 0;
+  private currentThreatTier = 0;
+  private timerLabel!: Phaser.GameObjects.Text;
+  private threatContainer!: Phaser.GameObjects.Container;
+  private threatBadgeBg!: Phaser.GameObjects.Rectangle;
+  private threatBadgeText!: Phaser.GameObjects.Text;
+
   // A world camera zoomed in on the action, and a separate 1:1 UI camera for
   // the HUD — scrollFactor(0) alone does NOT exempt objects from the world
   // camera's zoom, so screen-fixed UI needs its own unzoomed camera.
@@ -138,11 +170,12 @@ export class GameScene extends Phaser.Scene {
     super(SCENE.GAME);
   }
 
-  init(data: { depth?: number; net?: NetContext; playerHealth?: Record<number, { hp: number; maxHp: number }> }): void {
+  init(data: { depth?: number; net?: NetContext; playerHealth?: Record<number, { hp: number; maxHp: number }>; elapsedRunTime?: number }): void {
     this.depth = data?.depth ?? 1;
     this.net = data?.net;
     this.role = this.net?.role ?? 'offline';
     this.playerHealth = data?.playerHealth ?? {};
+    this.elapsedRunTime = data?.elapsedRunTime ?? 0;
   }
 
   create(): void {
@@ -248,6 +281,32 @@ export class GameScene extends Phaser.Scene {
 
       this.chests.push({ sprite, prompt, x, y, cost: 10, opened: false });
     }
+
+    // Altar of the Void (Teleporter Event)
+    this.altarX = level.altar.col * TILE_SIZE + TILE_SIZE / 2;
+    this.altarY = level.altar.row * TILE_SIZE + TILE_SIZE;
+    this.altarActivated = false;
+    this.altarCharged = false;
+
+    this.altarSprite = this.add.sprite(this.altarX, this.altarY, TEXTURE.PROPS, 'tombstone');
+    this.altarSprite.setOrigin(0.5, 1);
+    this.altarSprite.setScale(1.5);
+    this.altarSprite.setPipeline('Light2D');
+    this.altarSprite.setDepth(DEPTH.YSORT_BASE + this.altarY);
+    world.add(this.altarSprite);
+
+    this.altarLight = this.lights.addLight(this.altarX, this.altarY - 16, 120, 0xa855f7, 0.7);
+
+    this.altarPrompt = this.add
+      .text(this.altarX, this.altarY - 32, 'E — АКТИВИРОВАТЬ АЛТАРЬ БЕЗДНЫ', {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        color: '#c084fc',
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(DEPTH.YSORT_BASE + this.altarY + 1000)
+      .setVisible(false);
+    world.add(this.altarPrompt);
 
     this.exitX = level.exit.col * TILE_SIZE + TILE_SIZE / 2;
     this.exitY = level.exit.row * TILE_SIZE + TILE_SIZE;
@@ -450,6 +509,32 @@ export class GameScene extends Phaser.Scene {
       .setDepth(DEPTH.UI);
     this.worldCam.ignore(this.depthLabel);
 
+    this.timerLabel = this.add
+      .text(this.scale.width - 16, 36, '⏱️ 00:00', {
+        fontFamily: FONT.UI,
+        fontSize: '11px',
+        fontStyle: '700',
+        color: '#cfc6dd',
+      })
+      .setOrigin(1, 0)
+      .setDepth(DEPTH.UI);
+    this.worldCam.ignore(this.timerLabel);
+
+    this.threatContainer = this.add.container(this.scale.width - 60, 60);
+    this.threatContainer.setDepth(DEPTH.UI);
+    this.worldCam.ignore(this.threatContainer);
+
+    this.threatBadgeBg = this.add.rectangle(0, 0, 90, 17, 0x14532d, 0.9);
+    this.threatBadgeBg.setStrokeStyle(1.5, 0x4ade80);
+
+    this.threatBadgeText = this.add.text(0, 0, 'ЛЕГКО', {
+      fontFamily: FONT.UI,
+      fontSize: '9px',
+      fontStyle: '700',
+      color: '#4ade80',
+    }).setOrigin(0.5, 0.5);
+    this.threatContainer.add([this.threatBadgeBg, this.threatBadgeText]);
+
     this.hint = this.add
       .text(this.scale.width / 2, this.scale.height - 20, 'WASD — ДВИЖЕНИЕ   ПРОБЕЛ — АТАКА   E — ВЗАИМОДЕЙСТВИЕ   ESC — МЕНЮ', {
         fontFamily: FONT.UI,
@@ -474,7 +559,7 @@ export class GameScene extends Phaser.Scene {
       if (this.role === 'guest') {
         this.net.room.onSnapshot((snapshot) => this.applySnapshot(snapshot));
         this.net.room.onTransition((msg) => {
-          this.scene.restart({ depth: msg.nextDepth, net: this.net, playerHealth: msg.playerHealth });
+          this.scene.restart({ depth: msg.nextDepth, net: this.net, playerHealth: msg.playerHealth, elapsedRunTime: this.elapsedRunTime });
         });
       }
     }
@@ -488,6 +573,7 @@ export class GameScene extends Phaser.Scene {
       this.flasks = [];
       this.chests = [];
       this.players = [];
+      this.bossProjectiles = [];
     });
   }
 
@@ -497,6 +583,9 @@ export class GameScene extends Phaser.Scene {
     this.damageFlash.setPosition(width / 2, height / 2).setSize(width, height);
     this.hint.setPosition(width / 2, height - 20);
     this.depthLabel.setPosition(width - 16, 18);
+    this.timerLabel.setPosition(width - 16, 36);
+    this.threatContainer.setPosition(width - 60, 60);
+    if (this.bossBarContainer) this.bossBarContainer.setPosition(width / 2, 28);
   }
 
   update(_time: number, delta: number): void {
@@ -529,6 +618,8 @@ export class GameScene extends Phaser.Scene {
       this.updateHostFrame(delta);
     }
 
+    this.updateThreatMeter(delta);
+    this.updateBossProjectiles(delta);
     this.updateCoins(delta);
     this.updateCamera();
   }
@@ -554,8 +645,30 @@ export class GameScene extends Phaser.Scene {
       if (landedHit) this.handlePlayerHurt(target, enemy);
     }
 
+    if (this.boss && !this.boss.isDead) {
+      const target = this.nearestAlivePlayer(this.boss.x, this.boss.y);
+      if (target) {
+        const action = this.boss.updateBoss(target.x, target.y, delta);
+        if (action.landedMelee) {
+          this.handlePlayerHurt(target, { contactDamage: this.boss.contactDamage, x: this.boss.x, y: this.boss.y } as Enemy);
+        }
+        for (const p of action.projectiles) {
+          this.worldLayer.add(p);
+          this.bossProjectiles.push(p);
+        }
+        for (const m of action.minionSpawns) {
+          const enemy = new Enemy(this, m.x, m.y, m.kind, this.enemies.length + 100);
+          this.physics.add.collider(enemy, this.solids);
+          this.worldLayer.add(enemy);
+          this.enemies.push(enemy);
+        }
+      }
+      this.updateBossHealthBar();
+    }
+
     this.updateFlaskPickups();
     this.updateChestInteractions();
+    this.updateAltarInteraction();
     this.updateExitInteraction();
 
     if (this.net) {
@@ -574,6 +687,7 @@ export class GameScene extends Phaser.Scene {
       player.interpolate(delta);
     }
     for (const enemy of this.enemies) enemy.interpolate(delta);
+    if (this.boss) this.boss.interpolate(delta);
     this.updateLocalPrompts();
 
     this.inputAccum += delta;
@@ -677,6 +791,42 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // Attack Boss
+    if (this.boss && !this.boss.isDead) {
+      const dist = Phaser.Math.Distance.Between(player.x, player.y, this.boss.x, this.boss.y);
+      if (dist <= ATTACK_RANGE + 14) {
+        const isCrit = Math.random() < player.critChance;
+        const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1)));
+
+        const killed = this.boss.takeDamage(dmg, player.x, player.y);
+
+        if (isCrit) {
+          SoundFX.playCritHit();
+          if (player === this.myPlayer) {
+            this.spawnDamageNumber(this.boss.x, this.boss.y - 16, `КРИТ! -${dmg}`, '#f87171');
+            this.worldCam.shake(80, 0.003);
+          }
+        } else {
+          SoundFX.playEnemyHit('demon');
+          if (player === this.myPlayer) this.spawnDamageNumber(this.boss.x, this.boss.y - 16, `-${dmg}`, '#ffe28a');
+          if (player === this.myPlayer) this.worldCam.shake(50, 0.0015);
+        }
+
+        this.hitSpark.setPosition(this.boss.x, this.boss.y - 14);
+        this.hitSpark.explode(10);
+        this.bloodSpark.setPosition(this.boss.x, this.boss.y - 14);
+        this.bloodSpark.explode(killed ? 35 : 14);
+
+        this.updateBossHealthBar();
+
+        if (killed) {
+          this.killCount += 1;
+          this.onBossDefeated();
+        }
+      }
+    }
+
+    // Attack normal enemies
     for (const enemy of this.enemies) {
       if (enemy.isDead) continue;
       const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
@@ -787,6 +937,294 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  private updateThreatMeter(delta: number): void {
+    this.elapsedRunTime += delta;
+    const totalSec = Math.floor(this.elapsedRunTime / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    this.timerLabel.setText(`⏱️ ${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`);
+
+    // Determine current threat tier
+    let newTier = 0;
+    for (let i = THREAT_TIERS.length - 1; i >= 0; i--) {
+      if (totalSec >= THREAT_TIERS[i].threshold) {
+        newTier = i;
+        break;
+      }
+    }
+
+    if (newTier !== this.currentThreatTier) {
+      this.currentThreatTier = newTier;
+      const tier = THREAT_TIERS[newTier];
+      const colorHex = Phaser.Display.Color.HexStringToColor(tier.color).color;
+      this.threatBadgeBg.setFillStyle(tier.bg, 0.9);
+      this.threatBadgeBg.setStrokeStyle(1.5, colorHex);
+      this.threatBadgeText.setText(tier.name);
+      this.threatBadgeText.setColor(tier.color);
+
+      SoundFX.playThreatLevelUp();
+      this.showThreatLevelUpBanner(tier);
+    }
+  }
+
+  private showThreatLevelUpBanner(tier: typeof THREAT_TIERS[number]): void {
+    const banner = this.add.container(this.scale.width / 2, 45);
+    banner.setDepth(DEPTH.UI + 80);
+
+    const bg = this.add.rectangle(0, 0, 320, 36, 0x0f0a17, 0.95);
+    bg.setStrokeStyle(2, Phaser.Display.Color.HexStringToColor(tier.color).color);
+
+    const title = this.add
+      .text(0, -6, `УРОВЕНЬ УГРОЗЫ: ${tier.name}`, {
+        fontFamily: FONT.UI,
+        fontSize: '12px',
+        fontStyle: '700',
+        color: tier.color,
+      })
+      .setOrigin(0.5);
+
+    const sub = this.add
+      .text(0, 8, 'Враги стали сильнее и яростнее!', {
+        fontFamily: FONT.UI,
+        fontSize: '9px',
+        color: '#e2e8f0',
+      })
+      .setOrigin(0.5);
+
+    banner.add([bg, title, sub]);
+    banner.setScale(0.8);
+    banner.setAlpha(0);
+    this.worldCam.ignore(banner);
+
+    this.tweens.add({
+      targets: banner,
+      scale: 1,
+      alpha: 1,
+      y: 55,
+      duration: 250,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(2200, () => {
+          this.tweens.add({
+            targets: banner,
+            alpha: 0,
+            y: 40,
+            duration: 300,
+            onComplete: () => banner.destroy(),
+          });
+        });
+      },
+    });
+  }
+
+  private updateAltarInteraction(): void {
+    if (this.altarCharged) {
+      this.altarPrompt.setVisible(false);
+      return;
+    }
+
+    let anyMineInRange = false;
+    for (const player of this.players) {
+      const dist = Phaser.Math.Distance.Between(player.x, player.y, this.altarX, this.altarY);
+      const inRange = dist < INTERACT_RANGE + 10;
+      if (!inRange) continue;
+      if (player === this.myPlayer) anyMineInRange = true;
+
+      const pressed = player === this.myPlayer ? this.interactPressed : this.consumeRemoteEdge(player.slot, 'interact');
+      if (pressed && !this.altarActivated) {
+        this.triggerAltarEvent();
+        break;
+      }
+    }
+
+    if (!this.altarActivated) {
+      this.altarPrompt.setVisible(anyMineInRange);
+    }
+  }
+
+  private triggerAltarEvent(): void {
+    if (this.altarActivated) return;
+    this.altarActivated = true;
+    this.altarPrompt.setVisible(false);
+
+    SoundFX.playBossSpawn();
+    this.damageFlash.setFillStyle(0x581c87, 0.45);
+    this.damageFlash.setAlpha(0.45);
+    this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 800 });
+    this.worldCam.shake(250, 0.005);
+
+    // Altar glow
+    if (this.altarLight) {
+      this.altarLight.setColor(0xef4444);
+      this.altarLight.setIntensity(1.2);
+    }
+
+    // Spawn Boss: Архидемон Бездны
+    const bossHp = 45 + (this.players.length - 1) * 25 + Math.floor((this.elapsedRunTime / 60000) * 8);
+    this.boss = new BossEnemy(this, this.altarX, this.altarY - 32, bossHp);
+    this.worldLayer.add(this.boss);
+
+    this.createBossHealthBar(this.boss);
+  }
+
+  private createBossHealthBar(boss: BossEnemy): void {
+    if (this.bossBarContainer) this.bossBarContainer.destroy();
+
+    const w = 320;
+    const h = 18;
+    const cx = this.scale.width / 2;
+    const cy = 28;
+
+    const cont = this.add.container(cx, cy);
+    cont.setDepth(DEPTH.UI + 40);
+
+    const title = this.add
+      .text(0, -14, `💀 ${boss.bossName.toUpperCase()} · СТРАЖ БЕЗДНЫ`, {
+        fontFamily: FONT.UI,
+        fontSize: '11px',
+        fontStyle: '700',
+        color: '#f87171',
+      })
+      .setOrigin(0.5);
+    title.setStroke('#000000', 3);
+
+    const bg = this.add.rectangle(0, 2, w, h, 0x1f1726, 0.95);
+    bg.setStrokeStyle(1.5, 0x7f1d1d);
+
+    const fillBg = this.add.rectangle(-w / 2 + 2, 2, w - 4, h - 4, 0x450a0a, 1).setOrigin(0, 0.5);
+    const fill = this.add.rectangle(-w / 2 + 2, 2, w - 4, h - 4, 0xdc2626, 1).setOrigin(0, 0.5);
+
+    const hpText = this.add
+      .text(0, 2, `${boss.currentHp} / ${boss.maxHp} HP`, {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5);
+    hpText.setStroke('#000000', 3);
+
+    cont.add([title, bg, fillBg, fill, hpText]);
+    cont.setScale(0.8);
+    cont.setAlpha(0);
+    this.worldCam.ignore(cont);
+
+    this.tweens.add({
+      targets: cont,
+      scale: 1,
+      alpha: 1,
+      duration: 350,
+      ease: 'Back.easeOut',
+    });
+
+    this.bossBarContainer = cont;
+    this.bossBarFill = fill;
+    this.bossBarText = hpText;
+  }
+
+  private updateBossHealthBar(): void {
+    if (!this.boss || !this.bossBarFill || !this.bossBarText) return;
+    const w = 316;
+    const pct = Phaser.Math.Clamp(this.boss.currentHp / this.boss.maxHp, 0, 1);
+    this.bossBarFill.setSize(w * pct, 14);
+    this.bossBarText.setText(`${this.boss.currentHp} / ${this.boss.maxHp} HP`);
+
+    if (this.boss.currentPhase === 2) {
+      this.bossBarFill.setFillStyle(0xf97316);
+    }
+  }
+
+  private onBossDefeated(): void {
+    this.altarCharged = true;
+
+    if (this.bossBarContainer) {
+      this.bossBarText?.setText('СТРАЖ ПОВЕРЖЕН!');
+      this.time.delayedCall(1500, () => {
+        if (this.bossBarContainer) {
+          this.tweens.add({
+            targets: this.bossBarContainer,
+            alpha: 0,
+            y: 15,
+            duration: 400,
+            onComplete: () => {
+              this.bossBarContainer?.destroy();
+              this.bossBarContainer = undefined;
+            },
+          });
+        }
+      });
+    }
+
+    // Spawn Boss Reward Chest (Free Golden Chest!)
+    const chestSprite = this.add.sprite(this.altarX, this.altarY, TEXTURE.CHEST, 0);
+    chestSprite.setOrigin(0.5, 1);
+    chestSprite.setPipeline('Light2D');
+    chestSprite.setDepth(DEPTH.YSORT_BASE + this.altarY);
+    chestSprite.setTint(0xfacc15);
+    this.worldLayer.add(chestSprite);
+
+    const prompt = this.add
+      .text(this.altarX, this.altarY - 26, 'E — СУНДУК БОССА (БЕСПЛАТНО)', { fontFamily: FONT.UI, fontSize: '10px', color: '#facc15' })
+      .setOrigin(0.5, 1)
+      .setDepth(DEPTH.YSORT_BASE + this.altarY + 1000)
+      .setVisible(false);
+    this.worldLayer.add(prompt);
+
+    this.chests.push({ sprite: chestSprite, prompt, x: this.altarX, y: this.altarY, cost: 0, opened: false });
+
+    // Spawn 20 coins
+    this.spawnCoins(this.altarX, this.altarY, 20);
+
+    // Flash and chime
+    this.hitSpark.setPosition(this.altarX, this.altarY - 20);
+    this.hitSpark.explode(30);
+  }
+
+  private updateBossProjectiles(delta: number): void {
+    for (const proj of this.bossProjectiles) {
+      const active = proj.update(delta);
+      if (!active) continue;
+
+      for (const player of this.players) {
+        if (player.isDowned) continue;
+        const dist = Phaser.Math.Distance.Between(proj.x, proj.y, player.x, player.y - 8);
+        if (dist < 16) {
+          proj.destroyProjectile();
+          const applied = player.takeDamage(proj.damage, proj.x, proj.y);
+          if (applied) {
+            SoundFX.playPlayerHurt();
+            if (player === this.myPlayer) {
+              this.spawnDamageNumber(player.x, player.y, `-${proj.damage}`, '#ff7a7a');
+              this.damageFlash.setAlpha(0.35);
+              this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 260 });
+              this.worldCam.shake(80, 0.0025);
+            }
+            this.buildHeartsUI();
+            if (player.hp <= 0) {
+              if (player.immortalCharges > 0) {
+                player.items['immortal_crown'] -= 1;
+                player.hp = player.maxHp;
+                this.buildHeartsUI();
+                if (player === this.myPlayer) this.updateInventoryHUD();
+                SoundFX.playItemAcquired();
+                this.spawnDamageNumber(player.x, player.y - 16, 'ВОСКРЕШЕНИЕ!', '#facc15');
+                this.hitSpark.setPosition(player.x, player.y - 12);
+                this.hitSpark.explode(20);
+              } else {
+                player.playDeath(() => {
+                  if (this.players.every((p) => p.isDowned)) this.triggerGameOver();
+                });
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    this.bossProjectiles = this.bossProjectiles.filter((p) => !p.isDestroyed);
   }
 
   private breakProp(prop: DestructibleProp): void {
@@ -979,7 +1417,7 @@ export class GameScene extends Phaser.Scene {
       buttonText: 'СПУСТИТЬСЯ ГЛУБЖЕ',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1, playerHealth: nextHealth });
-        this.scene.restart({ depth: this.depth + 1, net: this.net, playerHealth: nextHealth });
+        this.scene.restart({ depth: this.depth + 1, net: this.net, playerHealth: nextHealth, elapsedRunTime: this.elapsedRunTime });
       },
     });
   }
@@ -1231,7 +1669,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateExitInteraction(): void {
-    const cleared = this.enemies.length === 0;
+    const cleared = this.enemies.length === 0 && (!this.boss || this.boss.isDead);
     let anyMineInRange = false;
 
     for (const player of this.players) {
@@ -1241,15 +1679,20 @@ export class GameScene extends Phaser.Scene {
       if (player === this.myPlayer) anyMineInRange = true;
 
       const pressed = player === this.myPlayer ? this.interactPressed : this.consumeRemoteEdge(player.slot, 'interact');
-      if (inRange && cleared && pressed) {
+      if (inRange && cleared && this.altarCharged && pressed) {
         this.triggerLevelComplete();
         return;
       }
     }
 
     if (anyMineInRange) {
-      this.exitPrompt.setText(cleared ? 'E — СПУСТИТЬСЯ ГЛУБЖЕ' : 'СНАЧАЛА ЗАЧИСТИ ПОДЗЕМЕЛЬЕ');
-      this.exitPrompt.setColor(cleared ? '#9ee08a' : '#c94f3d');
+      if (!this.altarCharged) {
+        this.exitPrompt.setText('АКТИВИРУЙ АЛТАРЬ И ПОБЕДИ СТРАЖА БЕЗДНЫ');
+        this.exitPrompt.setColor('#ef4444');
+      } else {
+        this.exitPrompt.setText('E — СПУСТИТЬСЯ ГЛУБЖЕ');
+        this.exitPrompt.setColor('#9ee08a');
+      }
     }
     this.exitPrompt.setVisible(anyMineInRange);
   }
@@ -1264,12 +1707,19 @@ export class GameScene extends Phaser.Scene {
       chest.prompt.setVisible(dist < INTERACT_RANGE);
     }
 
+    const altarDist = Phaser.Math.Distance.Between(this.myPlayer.x, this.myPlayer.y, this.altarX, this.altarY);
+    this.altarPrompt.setVisible(!this.altarActivated && altarDist < INTERACT_RANGE + 10);
+
     const dist = Phaser.Math.Distance.Between(this.myPlayer.x, this.myPlayer.y, this.exitX, this.exitY);
     const inRange = dist < INTERACT_RANGE;
     if (inRange) {
-      const cleared = this.enemies.length === 0;
-      this.exitPrompt.setText(cleared ? 'E — СПУСТИТЬСЯ ГЛУБЖЕ' : 'СНАЧАЛА ЗАЧИСТИ ПОДЗЕМЕЛЬЕ');
-      this.exitPrompt.setColor(cleared ? '#9ee08a' : '#c94f3d');
+      if (!this.altarCharged) {
+        this.exitPrompt.setText('АКТИВИРУЙ АЛТАРЬ И ПОБЕДИ СТРАЖА БЕЗДНЫ');
+        this.exitPrompt.setColor('#ef4444');
+      } else {
+        this.exitPrompt.setText('E — СПУСТИТЬСЯ ГЛУБЖЕ');
+        this.exitPrompt.setColor('#9ee08a');
+      }
     }
     this.exitPrompt.setVisible(inRange);
   }
@@ -1295,19 +1745,52 @@ export class GameScene extends Phaser.Scene {
       anim: e.currentAnim,
       flipX: e.flipX,
     }));
+    const boss: BossSnapshot | undefined = this.boss
+      ? {
+          active: this.boss.active,
+          x: this.boss.x,
+          y: this.boss.y,
+          anim: this.boss.currentAnim,
+          flipX: this.boss.flipX,
+          hp: this.boss.currentHp,
+          maxHp: this.boss.maxHp,
+          phase: this.boss.currentPhase,
+        }
+      : undefined;
+
     return {
       depth: this.depth,
       players,
       enemies,
+      boss,
       flasksTaken: this.flasks.map((f, i) => (f.collected ? i : -1)).filter((i) => i >= 0),
       chestsOpened: this.chests.map((c, i) => (c.opened ? i : -1)).filter((i) => i >= 0),
       brokenProps: this.destructibles.filter((d) => d.broken).map((d) => d.id),
       killCount: this.killCount,
+      elapsedRunTime: this.elapsedRunTime,
+      altarActivated: this.altarActivated,
     };
   }
 
   private applySnapshot(snapshot: WorldSnapshot): void {
     this.killCount = snapshot.killCount;
+    if (snapshot.elapsedRunTime !== undefined) this.elapsedRunTime = snapshot.elapsedRunTime;
+
+    if (snapshot.altarActivated && !this.altarActivated) {
+      this.triggerAltarEvent();
+    }
+
+    if (snapshot.boss && this.boss) {
+      this.boss.applyRemoteState(
+        snapshot.boss.x,
+        snapshot.boss.y,
+        snapshot.boss.anim,
+        snapshot.boss.flipX,
+        snapshot.boss.hp,
+        snapshot.boss.phase
+      );
+      this.updateBossHealthBar();
+    }
 
     for (const ps of snapshot.players) {
       const player = this.players.find((p) => p.slot === ps.slot);
@@ -1390,3 +1873,4 @@ export class GameScene extends Phaser.Scene {
     });
   }
 }
+

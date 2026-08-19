@@ -4,7 +4,7 @@ import { TEXTURE } from './registry';
 export const TILE_SIZE = 32;
 export const TILE_MARGIN = 1;
 export const TILE_SPACING = 2;
-export const TOTAL_TILES = 38;
+export const TOTAL_TILES = 39;
 
 export const TILE_INDEX = {
   GRASS_1: 0,
@@ -47,6 +47,7 @@ export const TILE_INDEX = {
   PATH_TR: 35,
   PATH_BL: 36,
   PATH_BR: 37,
+  WOOD_BRIDGE_BOT: 38,
   // Legacy aliases
   SHORE_CORNER_LC: 18,
   SHORE_CORNER_LI: 26,
@@ -102,6 +103,7 @@ export const FLOOR_INDICES: number[] = [
   TILE_INDEX.PATH_TR,
   TILE_INDEX.PATH_BL,
   TILE_INDEX.PATH_BR,
+  TILE_INDEX.WOOD_BRIDGE_BOT,
 ];
 
 /** Sets up the multi-biome tileset texture with 1px extruded borders to eliminate WebGL tile bleed seams. */

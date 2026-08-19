@@ -45,7 +45,6 @@ const WALL = 1;
 const PATH = 2;
 const RUIN_FLOOR = 3;
 const WATER_DEEP = 5;
-const BRIDGE = 7;
 const SNOW = 8;
 const ICE = 9;
 const CANYON_DIRT = 10;
@@ -84,6 +83,39 @@ function carvePath(grid: number[][], x1: number, y1: number, x2: number, y2: num
   }
 }
 
+const BRIDGE_TOP = 7;
+const BRIDGE_BOT = 8;
+
+function carveRoadH(grid: number[][], x0: number, x1: number, y: number, width = 2): void {
+  const minX = Math.min(x0, x1);
+  const maxX = Math.max(x0, x1);
+  for (let x = minX; x <= maxX; x++) {
+    for (let w = 0; w < width; w++) {
+      if (y + w >= 0 && y + w < ROWS && x >= 0 && x < COLS) {
+        const current = grid[y + w][x];
+        if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP) {
+          grid[y + w][x] = PATH;
+        }
+      }
+    }
+  }
+}
+
+function carveRoadV(grid: number[][], x: number, y0: number, y1: number, width = 2): void {
+  const minY = Math.min(y0, y1);
+  const maxY = Math.max(y0, y1);
+  for (let y = minY; y <= maxY; y++) {
+    for (let w = 0; w < width; w++) {
+      if (y >= 0 && y < ROWS && x + w >= 0 && x + w < COLS) {
+        const current = grid[y][x + w];
+        if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP) {
+          grid[y][x + w] = PATH;
+        }
+      }
+    }
+  }
+}
+
 // =========================================================================
 // LEVEL 1: «Лесной Хутор и Руины» (Meandering River, Bridges, Hamlet, Ruins)
 // =========================================================================
@@ -99,29 +131,34 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
     }
   }
 
-  // Smooth organic meandering river
+  // River with clean straight segments and gentle center bend
+  const riverCenters = new Array(ROWS).fill(29);
+  riverCenters[15] = 29;
+  riverCenters[16] = 28;
+  riverCenters[17] = 28;
+  riverCenters[18] = 27;
+  riverCenters[19] = 27;
+  for (let r = 20; r < ROWS; r++) riverCenters[r] = 26;
+
   for (let r = 0; r < ROWS; r++) {
-    const shift = Math.floor(Math.sin(r * 0.18) * 3.5);
-    const riverCenter = 29 + shift;
-    for (let c = riverCenter - 2; c <= riverCenter + 2; c++) {
+    const rc = riverCenters[r];
+    for (let c = rc - 2; c <= rc + 2; c++) {
       if (c >= 2 && c < COLS - 2) {
         binary[r][c] = WATER_DEEP;
       }
     }
   }
 
-  // 2 Wooden bridges crossing the river
-  // North Bridge (row 11..12)
-  for (let r = 11; r <= 12; r++) {
-    for (let c = 24; c <= 34; c++) {
-      binary[r][c] = BRIDGE;
-    }
+  // 2 Wooden bridges crossing the river — extending firmly into land on both sides
+  // North Bridge (row 11..12): river is at cols 27..31, bridge spans cols 24..34
+  for (let c = 24; c <= 34; c++) {
+    binary[11][c] = BRIDGE_TOP;
+    binary[12][c] = BRIDGE_BOT;
   }
-  // South Bridge (row 25..26)
-  for (let r = 25; r <= 26; r++) {
-    for (let c = 24; c <= 34; c++) {
-      binary[r][c] = BRIDGE;
-    }
+  // South Bridge (row 25..26): river is at cols 24..28, bridge spans cols 21..31
+  for (let c = 21; c <= 31; c++) {
+    binary[25][c] = BRIDGE_TOP;
+    binary[26][c] = BRIDGE_BOT;
   }
 
   // West Bank: Woodcutter's Hamlet Clearings
@@ -134,15 +171,24 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   carveRect(binary, 36, 25, 12, 8, RUIN_FLOOR);  // South-East Graveyard
   carveRect(binary, 46, 12, 11, 14, RUIN_FLOOR); // Grand Altar Dais
 
-  // Winding Dirt Roads connecting all wings
-  carvePath(binary, 8, 19, 14, 9, 2);   // Campsite -> North Cabin
-  carvePath(binary, 8, 19, 14, 29, 2);  // Campsite -> South Cabin
-  carvePath(binary, 14, 9, 24, 11, 2);  // North Cabin -> North Bridge
-  carvePath(binary, 14, 29, 24, 25, 2); // South Cabin -> South Bridge
-  carvePath(binary, 34, 11, 42, 9, 2);  // North Bridge -> Chapel
-  carvePath(binary, 34, 25, 42, 29, 2); // South Bridge -> Graveyard
-  carvePath(binary, 42, 9, 51, 19, 2);  // Chapel -> Dais
-  carvePath(binary, 42, 29, 51, 19, 2); // Graveyard -> Dais
+  // Clean Orthogonal Dirt Roads (no stair-step jagged diagonals)
+  carveRoadV(binary, 14, 8, 18, 2);      // Campsite -> North Cabin (V)
+  carveRoadH(binary, 8, 14, 18, 2);      // Campsite -> North Cabin (H)
+
+  carveRoadV(binary, 14, 20, 28, 2);     // Campsite -> South Cabin (V)
+  carveRoadH(binary, 8, 14, 20, 2);      // Campsite -> South Cabin (H)
+
+  carveRoadH(binary, 14, 24, 11, 2);     // North Cabin -> North Bridge
+  carveRoadH(binary, 14, 21, 25, 2);     // South Cabin -> South Bridge
+
+  carveRoadH(binary, 34, 40, 11, 2);     // North Bridge -> Chapel road (H)
+  carveRoadV(binary, 40, 8, 11, 2);      // North Bridge -> Chapel road (V)
+
+  carveRoadH(binary, 31, 40, 25, 2);     // South Bridge -> Graveyard road (H)
+  carveRoadV(binary, 40, 25, 28, 2);     // South Bridge -> Graveyard road (V)
+
+  carveRoadV(binary, 44, 11, 25, 2);     // Chapel <-> Graveyard connecting avenue
+  carveRoadH(binary, 44, 46, 18, 2);     // Avenue -> Altar Dais
 
   // Chapel Ruin Walls
   for (let c = 36; c <= 47; c++) binary[5][c] = WALL;
@@ -160,8 +206,10 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
       const cell = binary[r][c];
       if (cell === WALL) {
         data[r][c] = TILE_INDEX.WALL_RUIN;
-      } else if (cell === BRIDGE) {
+      } else if (cell === BRIDGE_TOP) {
         data[r][c] = TILE_INDEX.WOOD_BRIDGE;
+      } else if (cell === BRIDGE_BOT) {
+        data[r][c] = TILE_INDEX.WOOD_BRIDGE_BOT;
       } else if (cell === RUIN_FLOOR) {
         data[r][c] = TILE_INDEX.RUIN_STONE;
       } else if (cell === WATER_DEEP) {
@@ -169,7 +217,7 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
         const isWaterCell = (row: number, col: number) => {
           if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return true;
           const k = binary[row][col];
-          return k === WATER_DEEP || k === BRIDGE;
+          return k === WATER_DEEP || k === BRIDGE_TOP || k === BRIDGE_BOT;
         };
 
         const top = isWaterCell(r - 1, c);

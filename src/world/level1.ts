@@ -235,26 +235,8 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
         else if (!bottom) data[r][c] = TILE_INDEX.WATER_SHORE_B;
         else data[r][c] = TILE_INDEX.WATER_DEEP;
       } else if (cell === PATH) {
-        // Autotile path transitions on grass
-        const isGrassCell = (row: number, col: number) => {
-          if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
-          return binary[row][col] === FLOOR;
-        };
-
-        const topGrass = isGrassCell(r - 1, c);
-        const bottomGrass = isGrassCell(r + 1, c);
-        const leftGrass = isGrassCell(r, c - 1);
-        const rightGrass = isGrassCell(r, c + 1);
-
-        if (topGrass && leftGrass) data[r][c] = TILE_INDEX.PATH_TL;
-        else if (topGrass && rightGrass) data[r][c] = TILE_INDEX.PATH_TR;
-        else if (bottomGrass && leftGrass) data[r][c] = TILE_INDEX.PATH_BL;
-        else if (bottomGrass && rightGrass) data[r][c] = TILE_INDEX.PATH_BR;
-        else if (topGrass) data[r][c] = TILE_INDEX.PATH_T;
-        else if (bottomGrass) data[r][c] = TILE_INDEX.PATH_B;
-        else if (leftGrass) data[r][c] = TILE_INDEX.PATH_L;
-        else if (rightGrass) data[r][c] = TILE_INDEX.PATH_R;
-        else data[r][c] = rand() < 0.5 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
+        const v = rand();
+        data[r][c] = v < 0.6 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
       } else {
         const v = rand();
         data[r][c] = v < 0.45 ? TILE_INDEX.GRASS_1 : v < 0.75 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;

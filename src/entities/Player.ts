@@ -136,14 +136,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body.setSize(bodyCfg.size[0], bodyCfg.size[1]);
     body.setOffset(bodyCfg.offset[0], bodyCfg.offset[1]);
     body.setCollideWorldBounds(true);
-    this.setDepth(DEPTH.YSORT_BASE + y);
+    this.setDepth(DEPTH.YSORT_BASE + y + 16);
 
     // Weapon sprite: Sword for Knight, Bow for Ranger
     const weaponTex = isKnight ? TEXTURE.WEAPON_SWORD : TEXTURE.BOW;
     this.sword = scene.add.sprite(x + 6, y - 13, weaponTex);
     this.sword.setOrigin(isKnight ? 0.5 : 0.5, isKnight ? 0.88 : 0.5);
     this.sword.setPipeline('Light2D');
-    this.sword.setDepth(DEPTH.YSORT_BASE + y + 1);
+    this.sword.setDepth(DEPTH.YSORT_BASE + y + 17);
     this.sword.setScale(1.0);
 
     this.label = scene.add
@@ -539,7 +539,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     const dir = this.flipX ? -1 : 1;
     this.sword.setFlipX(this.flipX);
-    this.sword.setDepth(DEPTH.YSORT_BASE + this.y + 1);
+    this.sword.setDepth(DEPTH.YSORT_BASE + this.y + 17);
 
     if (this.heroClass === 'ranger') {
       if (!this.isAttacking) {
@@ -608,7 +608,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.x = Phaser.Math.Linear(this.x, this.netTargetX, t);
     this.y = Phaser.Math.Linear(this.y, this.netTargetY, t);
     this.label.setPosition(this.x, this.y - 34);
-    this.setDepth(DEPTH.YSORT_BASE + this.y);
+    this.setDepth(DEPTH.YSORT_BASE + this.y + 16);
     this.updateSwordTransform(this.animState === 'run');
   }
 
@@ -679,7 +679,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.setAnimState(moving ? 'run' : 'idle');
     this.label.setPosition(this.x, this.y - 34);
-    this.setDepth(DEPTH.YSORT_BASE + this.y);
+    this.setDepth(DEPTH.YSORT_BASE + this.y + 16);
     this.updateSwordTransform(moving);
   }
 

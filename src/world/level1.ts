@@ -44,20 +44,13 @@ const FLOOR = 0;
 const WALL = 1;
 const PATH = 2;
 const RUIN_FLOOR = 3;
-const WATER_SHORE_L = 4;
 const WATER_DEEP = 5;
-const WATER_SHORE_R = 6;
 const BRIDGE = 7;
 const SNOW = 8;
 const ICE = 9;
 const CANYON_DIRT = 10;
 const RAIL = 11;
 const GRATE = 12;
-// Corner bend tiles for smooth river curves
-const SHORE_CORNER_LC = 13; // Left Convex  (shore_l top, water bot)
-const SHORE_CORNER_LI = 14; // Left Concave (water top, shore_l bot)
-const SHORE_CORNER_RC = 15; // Right Convex (shore_r top, water bot)
-const SHORE_CORNER_RI = 16; // Right Concave(water top, shore_r bot)
 
 function carveRect(grid: number[][], x0: number, y0: number, w: number, h: number, type = FLOOR): void {
   for (let y = y0; y < y0 + h; y++) {
@@ -106,62 +99,13 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
     }
   }
 
-  // Organic Meandering River with Genuine Pixel Crawler Shorelines + Corner Bend Tiles
-  const riverCenters: number[] = Array.from({ length: ROWS }, (_, r) =>
-    29 + Math.floor(Math.sin(r * 0.22) * 3)
-  );
-
+  // Smooth organic meandering river
   for (let r = 0; r < ROWS; r++) {
-    const riverCenter = riverCenters[r];
-    const prevCenter = r > 0 ? riverCenters[r - 1] : riverCenter;
-    const shiftNow = riverCenter - prevCenter; // +1 shifted right, -1 shifted left
-
-    const leftC = riverCenter - 2;
-    const rightC = riverCenter + 2;
-
-    // Center Deep Water
-    for (let w = -1; w <= 1; w++) {
-      const c = riverCenter + w;
-      if (c >= 2 && c < COLS - 2) binary[r][c] = WATER_DEEP;
-    }
-
-    // Left Shoreline - check if bending
-    if (leftC >= 2 && leftC < COLS - 2) {
-      if (shiftNow > 0) {
-        // River shifted RIGHT: this column was water before, now is left bank
-        binary[r][leftC] = SHORE_CORNER_LI; // Concave: water top, shore_l bottom
-      } else if (shiftNow < 0) {
-        // River shifted LEFT: this column was left bank, shifting to become water
-        binary[r][leftC] = SHORE_CORNER_LC; // Convex: shore_l top, water bottom
-      } else {
-        binary[r][leftC] = WATER_SHORE_L;
-      }
-    }
-
-    // Right Shoreline - check if bending
-    if (rightC >= 2 && rightC < COLS - 2) {
-      if (shiftNow > 0) {
-        // River shifted RIGHT: right bank also moves right, this col becomes water
-        binary[r][rightC] = SHORE_CORNER_RC; // Convex: shore_r top, water bottom
-      } else if (shiftNow < 0) {
-        // River shifted LEFT: right bank moves left, this col was water, now is shore
-        binary[r][rightC] = SHORE_CORNER_RI; // Concave: water top, shore_r bottom
-      } else {
-        binary[r][rightC] = WATER_SHORE_R;
-      }
-    }
-
-    // Fill exposed extra columns when river shifts (ensure no gaps)
-    if (shiftNow > 0) {
-      // River moved right: the old leftC-1 might still be WATER_DEEP, restore to FLOOR
-      const oldLeft = leftC - 1;
-      if (oldLeft >= 2 && oldLeft < COLS - 2 && binary[r][oldLeft] === WATER_DEEP) {
-        binary[r][oldLeft] = FLOOR;
-      }
-    } else if (shiftNow < 0) {
-      const oldRight = rightC + 1;
-      if (oldRight >= 2 && oldRight < COLS - 2 && binary[r][oldRight] === WATER_DEEP) {
-        binary[r][oldRight] = FLOOR;
+    const shift = Math.floor(Math.sin(r * 0.18) * 3.5);
+    const riverCenter = 29 + shift;
+    for (let c = riverCenter - 2; c <= riverCenter + 2; c++) {
+      if (c >= 2 && c < COLS - 2) {
+        binary[r][c] = WATER_DEEP;
       }
     }
   }
@@ -169,13 +113,13 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   // 2 Wooden bridges crossing the river
   // North Bridge (row 11..12)
   for (let r = 11; r <= 12; r++) {
-    for (let c = 25; c <= 34; c++) {
+    for (let c = 24; c <= 34; c++) {
       binary[r][c] = BRIDGE;
     }
   }
   // South Bridge (row 25..26)
   for (let r = 25; r <= 26; r++) {
-    for (let c = 25; c <= 34; c++) {
+    for (let c = 24; c <= 34; c++) {
       binary[r][c] = BRIDGE;
     }
   }
@@ -194,9 +138,9 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   carvePath(binary, 8, 19, 14, 9, 2);   // Campsite -> North Cabin
   carvePath(binary, 8, 19, 14, 29, 2);  // Campsite -> South Cabin
   carvePath(binary, 14, 9, 24, 11, 2);  // North Cabin -> North Bridge
-  carvePath(binary, 14, 29, 25, 25, 2); // South Cabin -> South Bridge
+  carvePath(binary, 14, 29, 24, 25, 2); // South Cabin -> South Bridge
   carvePath(binary, 34, 11, 42, 9, 2);  // North Bridge -> Chapel
-  carvePath(binary, 35, 25, 42, 29, 2); // South Bridge -> Graveyard
+  carvePath(binary, 34, 25, 42, 29, 2); // South Bridge -> Graveyard
   carvePath(binary, 42, 9, 51, 19, 2);  // Chapel -> Dais
   carvePath(binary, 42, 29, 51, 19, 2); // Graveyard -> Dais
 
@@ -207,25 +151,68 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   binary[12][41] = RUIN_FLOOR;
   binary[12][42] = RUIN_FLOOR; // Entry gap
 
-  // Convert binary to tile IDs
+  // Convert binary to tile IDs with 2D autotiling for paths and river
   const rand = prand(1111 + depth * 17);
-  const data = binary.map((row) =>
-    row.map((cell) => {
-      if (cell === WALL) return TILE_INDEX.WALL_RUIN;
-      if (cell === WATER_SHORE_L) return TILE_INDEX.WATER_SHORE_L;
-      if (cell === WATER_DEEP) return TILE_INDEX.WATER_DEEP;
-      if (cell === WATER_SHORE_R) return TILE_INDEX.WATER_SHORE_R;
-      if (cell === SHORE_CORNER_LC) return TILE_INDEX.SHORE_CORNER_LC;
-      if (cell === SHORE_CORNER_LI) return TILE_INDEX.SHORE_CORNER_LI;
-      if (cell === SHORE_CORNER_RC) return TILE_INDEX.SHORE_CORNER_RC;
-      if (cell === SHORE_CORNER_RI) return TILE_INDEX.SHORE_CORNER_RI;
-      if (cell === BRIDGE) return TILE_INDEX.WOOD_BRIDGE;
-      if (cell === RUIN_FLOOR) return TILE_INDEX.RUIN_STONE;
-      if (cell === PATH) return rand() < 0.5 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
-      const v = rand();
-      return v < 0.45 ? TILE_INDEX.GRASS_1 : v < 0.75 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;
-    })
-  );
+  const data: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(TILE_INDEX.GRASS_1));
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = binary[r][c];
+      if (cell === WALL) {
+        data[r][c] = TILE_INDEX.WALL_RUIN;
+      } else if (cell === BRIDGE) {
+        data[r][c] = TILE_INDEX.WOOD_BRIDGE;
+      } else if (cell === RUIN_FLOOR) {
+        data[r][c] = TILE_INDEX.RUIN_STONE;
+      } else if (cell === WATER_DEEP) {
+        // Autotile water based on neighbors
+        const isWaterCell = (row: number, col: number) => {
+          if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return true;
+          const k = binary[row][col];
+          return k === WATER_DEEP || k === BRIDGE;
+        };
+
+        const top = isWaterCell(r - 1, c);
+        const bottom = isWaterCell(r + 1, c);
+        const left = isWaterCell(r, c - 1);
+        const right = isWaterCell(r, c + 1);
+
+        if (!left && !top) data[r][c] = TILE_INDEX.WATER_SHORE_TL;
+        else if (!right && !top) data[r][c] = TILE_INDEX.WATER_SHORE_TR;
+        else if (!left && !bottom) data[r][c] = TILE_INDEX.WATER_SHORE_BL;
+        else if (!right && !bottom) data[r][c] = TILE_INDEX.WATER_SHORE_BR;
+        else if (!left) data[r][c] = TILE_INDEX.WATER_SHORE_L;
+        else if (!right) data[r][c] = TILE_INDEX.WATER_SHORE_R;
+        else if (!top) data[r][c] = TILE_INDEX.WATER_SHORE_T;
+        else if (!bottom) data[r][c] = TILE_INDEX.WATER_SHORE_B;
+        else data[r][c] = TILE_INDEX.WATER_DEEP;
+      } else if (cell === PATH) {
+        // Autotile path transitions on grass
+        const isGrassCell = (row: number, col: number) => {
+          if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
+          return binary[row][col] === FLOOR;
+        };
+
+        const topGrass = isGrassCell(r - 1, c);
+        const bottomGrass = isGrassCell(r + 1, c);
+        const leftGrass = isGrassCell(r, c - 1);
+        const rightGrass = isGrassCell(r, c + 1);
+
+        if (topGrass && leftGrass) data[r][c] = TILE_INDEX.PATH_TL;
+        else if (topGrass && rightGrass) data[r][c] = TILE_INDEX.PATH_TR;
+        else if (bottomGrass && leftGrass) data[r][c] = TILE_INDEX.PATH_BL;
+        else if (bottomGrass && rightGrass) data[r][c] = TILE_INDEX.PATH_BR;
+        else if (topGrass) data[r][c] = TILE_INDEX.PATH_T;
+        else if (bottomGrass) data[r][c] = TILE_INDEX.PATH_B;
+        else if (leftGrass) data[r][c] = TILE_INDEX.PATH_L;
+        else if (rightGrass) data[r][c] = TILE_INDEX.PATH_R;
+        else data[r][c] = rand() < 0.5 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
+      } else {
+        const v = rand();
+        data[r][c] = v < 0.45 ? TILE_INDEX.GRASS_1 : v < 0.75 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;
+      }
+    }
+  }
 
   const trees: TreeObject[] = [
     // North Forest Grove

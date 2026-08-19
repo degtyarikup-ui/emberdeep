@@ -4,7 +4,7 @@ import { TEXTURE } from './registry';
 export const TILE_SIZE = 32;
 export const TILE_MARGIN = 1;
 export const TILE_SPACING = 2;
-export const TOTAL_TILES = 28;
+export const TOTAL_TILES = 38;
 
 export const TILE_INDEX = {
   GRASS_1: 0,
@@ -31,12 +31,27 @@ export const TILE_INDEX = {
   WOOD_BRIDGE: 21,
   SEWER_GRATE_TILE: 22,
   RAIL_TRACK_TILE: 23,
-  // River bend corner tiles (tiles 24-27)
-  SHORE_CORNER_LC: 24,  // Left-bank Convex (shore top, water bottom) - river bends right
-  SHORE_CORNER_LI: 25,  // Left-bank Concave (water top, shore bottom) - river bends left
-  SHORE_CORNER_RC: 26,  // Right-bank Convex (shore top, water bottom)
-  SHORE_CORNER_RI: 27,  // Right-bank Concave (water top, shore bottom)
-  // Aliases for compatibility
+  // 8-directional River Shore transitions (tiles 24-29)
+  WATER_SHORE_T: 24,
+  WATER_SHORE_B: 25,
+  WATER_SHORE_TL: 26,
+  WATER_SHORE_TR: 27,
+  WATER_SHORE_BL: 28,
+  WATER_SHORE_BR: 29,
+  // Organic Grass-to-Dirt Path transition tiles (tiles 30-37)
+  PATH_T: 30,
+  PATH_B: 31,
+  PATH_L: 32,
+  PATH_R: 33,
+  PATH_TL: 34,
+  PATH_TR: 35,
+  PATH_BL: 36,
+  PATH_BR: 37,
+  // Legacy aliases
+  SHORE_CORNER_LC: 18,
+  SHORE_CORNER_LI: 26,
+  SHORE_CORNER_RC: 20,
+  SHORE_CORNER_RI: 27,
   WATER_1: 19,
   WATER_2: 19,
   ICE_LAKE: 19,
@@ -71,6 +86,22 @@ export const FLOOR_INDICES: number[] = [
   TILE_INDEX.WOOD_BRIDGE,
   TILE_INDEX.SEWER_GRATE_TILE,
   TILE_INDEX.RAIL_TRACK_TILE,
+  TILE_INDEX.WATER_SHORE_L,
+  TILE_INDEX.WATER_SHORE_R,
+  TILE_INDEX.WATER_SHORE_T,
+  TILE_INDEX.WATER_SHORE_B,
+  TILE_INDEX.WATER_SHORE_TL,
+  TILE_INDEX.WATER_SHORE_TR,
+  TILE_INDEX.WATER_SHORE_BL,
+  TILE_INDEX.WATER_SHORE_BR,
+  TILE_INDEX.PATH_T,
+  TILE_INDEX.PATH_B,
+  TILE_INDEX.PATH_L,
+  TILE_INDEX.PATH_R,
+  TILE_INDEX.PATH_TL,
+  TILE_INDEX.PATH_TR,
+  TILE_INDEX.PATH_BL,
+  TILE_INDEX.PATH_BR,
 ];
 
 /** Sets up the multi-biome tileset texture with 1px extruded borders to eliminate WebGL tile bleed seams. */

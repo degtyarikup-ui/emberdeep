@@ -209,7 +209,35 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
     for (let c = 0; c < COLS; c++) {
       const cell = binary[r][c];
       if (cell === WALL) {
-        data[r][c] = TILE_INDEX.WALL_RUIN;
+        // Intelligent wall autotiling: top vs side vs corners vs terminal ends
+        const isWall = (row: number, col: number) => {
+          if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return true;
+          return binary[row][col] === WALL;
+        };
+
+        const topWall = isWall(r - 1, c);
+        const botWall = isWall(r + 1, c);
+        const leftWall = isWall(r, c - 1);
+        const rightWall = isWall(r, c + 1);
+
+        // Chapel wall specific structure
+        if (r === 5 && c === 36) data[r][c] = TILE_INDEX.WALL_CORNER_TL;
+        else if (r === 5 && c === 47) data[r][c] = TILE_INDEX.WALL_CORNER_TR;
+        else if (r === 12 && c === 36) data[r][c] = TILE_INDEX.WALL_END_BL;
+        else if (r === 12 && c === 47) data[r][c] = TILE_INDEX.WALL_END_BR;
+        else if (c === 36 && r > 5 && r < 12) data[r][c] = TILE_INDEX.WALL_SIDE_L;
+        else if (c === 47 && r > 5 && r < 12) data[r][c] = TILE_INDEX.WALL_SIDE_R;
+        // Map outer boundaries
+        else if (r <= 1 && c <= 1) data[r][c] = TILE_INDEX.WALL_CORNER_TL;
+        else if (r <= 1 && c >= COLS - 2) data[r][c] = TILE_INDEX.WALL_CORNER_TR;
+        else if (r >= ROWS - 2 && c <= 1) data[r][c] = TILE_INDEX.WALL_CORNER_BL;
+        else if (r >= ROWS - 2 && c >= COLS - 2) data[r][c] = TILE_INDEX.WALL_CORNER_BR;
+        else if (c <= 1) data[r][c] = TILE_INDEX.WALL_SIDE_L;
+        else if (c >= COLS - 2) data[r][c] = TILE_INDEX.WALL_SIDE_R;
+        else if (leftWall && rightWall && !topWall) data[r][c] = TILE_INDEX.WALL_RUIN;
+        else if (topWall && botWall && !leftWall) data[r][c] = TILE_INDEX.WALL_SIDE_L;
+        else if (topWall && botWall && !rightWall) data[r][c] = TILE_INDEX.WALL_SIDE_R;
+        else data[r][c] = TILE_INDEX.WALL_RUIN;
       } else if (cell === BRIDGE_TOP) {
         data[r][c] = TILE_INDEX.WOOD_BRIDGE;
       } else if (cell === BRIDGE_BOT) {

@@ -4,7 +4,7 @@ import { TEXTURE } from './registry';
 export const TILE_SIZE = 32;
 export const TILE_MARGIN = 1;
 export const TILE_SPACING = 2;
-export const TOTAL_TILES = 43;
+export const TOTAL_TILES = 51;
 
 export const TILE_INDEX = {
   GRASS_1: 0,
@@ -53,6 +53,15 @@ export const TILE_INDEX = {
   PATH_INNER_TR: 40,
   PATH_INNER_BL: 41,
   PATH_INNER_BR: 42,
+  // Directional wall tiles (tiles 43-50)
+  WALL_SIDE_L: 43,
+  WALL_SIDE_R: 44,
+  WALL_CORNER_TL: 45,
+  WALL_CORNER_TR: 46,
+  WALL_CORNER_BL: 47,
+  WALL_CORNER_BR: 48,
+  WALL_END_BL: 49,
+  WALL_END_BR: 50,
   // Legacy aliases
   SHORE_CORNER_LC: 18,
   SHORE_CORNER_LI: 26,

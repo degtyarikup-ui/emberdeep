@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { buildAtlasFromPack, PACK, LEGACY_PACK, Rect } from './pack';
+import { buildAtlasFromPack, PACK, Rect } from './pack';
 
 export const PROP = {
   BARREL: 'barrel',
@@ -25,16 +25,16 @@ export const PROP = {
 export type PropKey = (typeof PROP)[keyof typeof PROP];
 
 const RECTS: Record<PropKey, Rect> = {
-  [PROP.BARREL]: [PACK.RESOURCES.key, 14, 154, 17, 22],
-  [PROP.CRATE]: [LEGACY_PACK.key, 288, 408, 16, 24],
-  [PROP.TOMBSTONE]: [PACK.DUNGEON_PROPS.key, 96, 1, 15, 25],
-  [PROP.BANNER_RED]: [PACK.DUNGEON_PROPS.key, 60, 60, 16, 30],
-  [PROP.BANNER_BLUE]: [PACK.DUNGEON_PROPS.key, 76, 60, 16, 30],
-  [PROP.BANNER_GREEN]: [PACK.DUNGEON_PROPS.key, 92, 60, 16, 30],
-  [PROP.FLASK_RED]: [PACK.RESOURCES.key, 6, 51, 6, 9],
-  [PROP.FLASK_BLUE]: [PACK.RESOURCES.key, 38, 51, 5, 9],
-  [PROP.FLASK_GREEN]: [PACK.RESOURCES.key, 54, 51, 5, 9],
-  [PROP.FLASK_YELLOW]: [PACK.RESOURCES.key, 21, 51, 5, 9],
+  [PROP.BARREL]: [PACK.RESOURCES.key, 48, 32, 16, 32],
+  [PROP.CRATE]: [PACK.RESOURCES.key, 0, 128, 32, 32],
+  [PROP.TOMBSTONE]: [PACK.DUNGEON_PROPS.key, 96, 0, 16, 22],
+  [PROP.BANNER_RED]: [PACK.DUNGEON_PROPS.key, 64, 64, 16, 27],
+  [PROP.BANNER_BLUE]: [PACK.DUNGEON_PROPS.key, 80, 64, 16, 27],
+  [PROP.BANNER_GREEN]: [PACK.DUNGEON_PROPS.key, 96, 64, 16, 27],
+  [PROP.FLASK_RED]: [PACK.RESOURCES.key, 0, 32, 16, 32],
+  [PROP.FLASK_BLUE]: [PACK.RESOURCES.key, 16, 32, 16, 32],
+  [PROP.FLASK_GREEN]: [PACK.RESOURCES.key, 32, 32, 16, 32],
+  [PROP.FLASK_YELLOW]: [PACK.RESOURCES.key, 48, 32, 16, 32],
   [PROP.COIN]: [PACK.RESOURCES.key, 0, 0, 16, 16],
   [PROP.ITEM_WHETSTONE]: [PACK.RESOURCES.key, 0, 64, 16, 16],
   [PROP.ITEM_BOOTS]: [PACK.RESOURCES.key, 64, 80, 16, 16],

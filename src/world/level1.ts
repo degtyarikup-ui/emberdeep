@@ -95,7 +95,7 @@ function carveRoadH(grid: number[][], x0: number, x1: number, yMid: number, widt
       const y = yMid + dy;
       if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
         const current = grid[y][x];
-        if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP) {
+        if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP && current !== RUIN_FLOOR) {
           grid[y][x] = PATH;
         }
       }
@@ -112,7 +112,7 @@ function carveRoadV(grid: number[][], xMid: number, y0: number, y1: number, widt
       const x = xMid + dx;
       if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
         const current = grid[y][x];
-        if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP) {
+        if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP && current !== RUIN_FLOOR) {
           grid[y][x] = PATH;
         }
       }
@@ -170,10 +170,11 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   carveRect(binary, 8, 5, 12, 8, FLOOR);   // North Cabin Glade
   carveRect(binary, 8, 25, 12, 8, FLOOR);  // South Orchard
 
-  // East Bank: Ancient Sunken Chapel & Dais
+  // East Bank: Solid Sunken Chapel, Graveyard & Grand Altar Plazas
   carveRect(binary, 36, 5, 12, 8, RUIN_FLOOR);   // North-East Chapel
-  carveRect(binary, 36, 25, 12, 8, RUIN_FLOOR);  // South-East Graveyard
-  carveRect(binary, 46, 12, 11, 14, RUIN_FLOOR); // Grand Altar Dais
+  carveRect(binary, 36, 24, 12, 9, RUIN_FLOOR);  // South-East Graveyard (solid 12x9 courtyard)
+  carveRect(binary, 46, 12, 11, 14, RUIN_FLOOR); // Grand Altar Dais (solid 11x14 courtyard)
+  carveRect(binary, 42, 12, 5, 13, RUIN_FLOOR);  // Stone avenue connecting Chapel to Graveyard/Dais
 
   // Clean Orthogonal Dirt Roads (3-tile wide roads)
   carveRoadV(binary, 14, 8, 18, 3);      // Campsite -> North Cabin (V)
@@ -185,14 +186,8 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   carveRoadH(binary, 14, 24, 11, 3);     // North Cabin -> North Bridge
   carveRoadH(binary, 14, 21, 25, 3);     // South Cabin -> South Bridge
 
-  carveRoadH(binary, 34, 40, 11, 3);     // North Bridge -> Chapel road (H)
-  carveRoadV(binary, 40, 8, 11, 3);      // North Bridge -> Chapel road (V)
-
-  carveRoadH(binary, 31, 40, 25, 3);     // South Bridge -> Graveyard road (H)
-  carveRoadV(binary, 40, 25, 28, 3);     // South Bridge -> Graveyard road (V)
-
-  carveRoadV(binary, 44, 11, 25, 3);     // Chapel <-> Graveyard connecting avenue
-  carveRoadH(binary, 44, 46, 18, 3);     // Avenue -> Altar Dais
+  carveRoadH(binary, 34, 36, 11, 3);     // North Bridge -> Chapel entrance
+  carveRoadH(binary, 31, 36, 25, 3);     // South Bridge -> Graveyard entrance
 
   // Chapel Ruin Walls
   for (let c = 36; c <= 47; c++) binary[5][c] = WALL;

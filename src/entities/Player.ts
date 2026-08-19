@@ -6,6 +6,8 @@ import { SoundFX, SurfaceType } from '../audio/SoundFX';
 import { ArrowProjectile } from './ArrowProjectile';
 import { MetaManager } from '../meta/MetaManager';
 import { EntityAnimController } from '../gfx/AnimationManager';
+import { ElementalSlotConfig, ElementType, ELEMENT_COLORS } from '../combat/ElementalSystem';
+import { ITEMS } from '../items/registry';
 
 const KNIGHT_SPEED = 130;
 const RANGER_SPEED = 145;
@@ -47,12 +49,14 @@ export interface SpecialResult {
   radius?: number;
   damage?: number;
   projectiles?: ArrowProjectile[];
+  element?: ElementType;
 }
 
 export interface AttackResult {
   kind: 'melee' | 'arrow';
   projectile?: ArrowProjectile;
   aimAngle?: number;
+  element?: ElementType;
 }
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
@@ -61,6 +65,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   hp = 3;
   gold = 0;
   items: Record<string, number> = {};
+  elementalSlots: ElementalSlotConfig = {};
   isSprinting = false;
   specialCooldown = 0;
   specialMaxCooldown = 4000;
@@ -210,6 +215,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   addItem(itemId: string): void {
     this.items[itemId] = (this.items[itemId] || 0) + 1;
+    this.updateElementalSlots();
+  }
+
+  updateElementalSlots(): void {
+    this.elementalSlots = {};
+    for (const [id, count] of Object.entries(this.items)) {
+      if (count <= 0) continue;
+      const def = ITEMS[id];
+      if (def && def.element && def.elementSlot) {
+        this.elementalSlots[def.elementSlot] = def.element;
+      }
+    }
   }
 
   addGold(amount: number): void {
@@ -332,11 +349,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         1,
         360
       );
+      if (this.elementalSlots.attack) {
+        const col = ELEMENT_COLORS[this.elementalSlots.attack];
+        arrow.setTint(Phaser.Display.Color.HexStringToColor(col).color);
+      }
       this.playRangerShootAnimation(angle);
-      return { kind: 'arrow', projectile: arrow, aimAngle: angle };
+      return { kind: 'arrow', projectile: arrow, aimAngle: angle, element: this.elementalSlots.attack };
     } else {
       this.playAttackAnimation(angle);
-      return { kind: 'melee', aimAngle: angle };
+      return { kind: 'melee', aimAngle: angle, element: this.elementalSlots.attack };
     }
   }
 
@@ -373,34 +394,40 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
           2, // pierce 2 targets
           380
         );
+        if (this.elementalSlots.skill) {
+          const col = ELEMENT_COLORS[this.elementalSlots.skill];
+          arrow.setTint(Phaser.Display.Color.HexStringToColor(col).color);
+        }
         projectiles.push(arrow);
       }
       this.playRangerShootAnimation(baseAngle);
-      return { kind: 'volley', x: this.x, y: this.y, projectiles };
+      return { kind: 'volley', x: this.x, y: this.y, projectiles, element: this.elementalSlots.skill };
     } else {
-      SoundFX.playWhirlwind();
+      SoundFX.playSwordSwing();
       this.playWhirlwindAnimation();
-      const mainCam = this.scene.cameras.main;
-      const startZoom = mainCam.zoom;
-      mainCam.setZoom(startZoom - 0.05);
-      this.scene.tweens.add({ targets: mainCam, zoom: startZoom, duration: 400, ease: 'Quad.easeOut' });
       return {
         kind: 'whirlwind',
         x: this.x,
         y: this.y,
-        radius: 65,
-        damage: Math.max(2, Math.round(this.attackDamage * 2.5)),
+        radius: 60,
+        damage: Math.max(2, Math.round(this.attackDamage * 2.0)),
+        element: this.elementalSlots.skill,
       };
     }
   }
 
   private playWhirlwindAnimation(): void {
-    const ring = this.scene.add.sprite(this.x, this.y - 12, TEXTURE.SLASH_WHIRLWIND);
+    const ring = this.scene.add.sprite(this.x, this.y - 14, TEXTURE.SLASH_WHIRLWIND);
     ring.setOrigin(0.5, 0.5);
     ring.setScale(0.8);
     ring.setDepth(DEPTH.YSORT_BASE + this.y + 10);
     ring.setPipeline('Light2D');
-    ring.setTint(0x67e8f9);
+    if (this.elementalSlots.skill) {
+      const col = ELEMENT_COLORS[this.elementalSlots.skill];
+      ring.setTint(Phaser.Display.Color.HexStringToColor(col).color);
+    } else {
+      ring.setTint(0x67e8f9);
+    }
 
     const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
     if (worldLayer) worldLayer.add(ring);
@@ -498,6 +525,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     slash.setScale(0.9);
     slash.setAlpha(0.95);
     slash.setRotation(aimAngle);
+    if (this.elementalSlots.attack) {
+      const col = ELEMENT_COLORS[this.elementalSlots.attack];
+      slash.setTint(Phaser.Display.Color.HexStringToColor(col).color);
+    }
 
     const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
     if (worldLayer) worldLayer.add(slash);

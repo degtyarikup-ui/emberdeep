@@ -22,6 +22,13 @@ import { ScreenShake } from '../gfx/ScreenShake';
 import { HitstopManager } from '../gfx/HitstopManager';
 import { DamageNumberManager } from '../gfx/DamageNumber';
 import { BonfireEntity } from '../world/BonfireEntity';
+import {
+  ElementType,
+  ElementalSlotConfig,
+  ELEMENT_COLORS,
+  ELEMENT_ICONS,
+  ComboResult,
+} from '../combat/ElementalSystem';
 
 export const THREAT_TIERS = [
   { name: 'ЛЕГКО', color: '#4ade80', bg: 0x14532d, threshold: 0 },
@@ -200,6 +207,15 @@ export class GameScene extends Phaser.Scene {
   private goldIcon!: Phaser.GameObjects.Sprite;
   private goldLabel!: Phaser.GameObjects.Text;
   private itemTray: Phaser.GameObjects.Container[] = [];
+  private elementalHudElements: Phaser.GameObjects.GameObject[] = [];
+  private elementalHazards: Array<{
+    x: number;
+    y: number;
+    element: ElementType;
+    duration: number;
+    circle: Phaser.GameObjects.Arc;
+  }> = [];
+  private dashHazardTimer = 0;
   private bannerContainer?: Phaser.GameObjects.Container;
   private depthLabel!: Phaser.GameObjects.Text;
   private vignette!: Phaser.GameObjects.Image;
@@ -1302,6 +1318,7 @@ export class GameScene extends Phaser.Scene {
     this.updateShrineInteractions();
     this.updateAltarInteraction();
     this.updateExitInteraction();
+    this.updateElementalHazards(delta);
 
     if (this.net) {
       this.snapshotAccum += delta;
@@ -1492,6 +1509,13 @@ export class GameScene extends Phaser.Scene {
 
         const killed = enemy.takeDamage(dmg, player.x, player.y);
 
+        if (player.elementalSlots.attack) {
+          const combo = enemy.applyElement(player.elementalSlots.attack);
+          if (combo) {
+            this.triggerElementalComboEffect(enemy.x, enemy.y, combo);
+          }
+        }
+
         if (isCrit) {
           SoundFX.playCritHit();
           if (player === this.myPlayer) {
@@ -1524,6 +1548,18 @@ export class GameScene extends Phaser.Scene {
 
           AchievementManager.get().enemiesKilled += 1;
           AchievementManager.get().unlock('first_blood', this);
+
+          // Elemental on-kill trigger
+          if (player.elementalSlots.onKill === 'fire') {
+            this.triggerOilExplosion(enemy.x, enemy.y);
+          } else if (player.elementalSlots.onKill === 'poison') {
+            for (const other of this.enemies) {
+              if (other === enemy || other.isDead) continue;
+              if (Phaser.Math.Distance.Between(enemy.x, enemy.y, other.x, other.y) < 64) {
+                other.applyElement('poison', 3500, 2);
+              }
+            }
+          }
 
           // Enemy drops coins
           const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
@@ -1606,6 +1642,14 @@ export class GameScene extends Phaser.Scene {
         const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
         if (dist <= radius) {
           const killed = enemy.takeDamage(dmg, player.x, player.y);
+
+          if (res.element) {
+            const combo = enemy.applyElement(res.element, 3500, 2);
+            if (combo) {
+              this.triggerElementalComboEffect(enemy.x, enemy.y, combo);
+            }
+          }
+
           if (player === this.myPlayer) this.spawnDamageNumber(enemy.x, enemy.y, `-${dmg}`, '#67e8f9');
           this.hitSpark.setPosition(enemy.x, enemy.y);
           this.hitSpark.explode(8);
@@ -1723,6 +1767,13 @@ export class GameScene extends Phaser.Scene {
           const isCrit = Math.random() < this.myPlayer.critChance;
           const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1)));
           const killed = enemy.takeDamage(dmg, arrow.x, arrow.y);
+
+          if (this.myPlayer.elementalSlots.attack) {
+            const combo = enemy.applyElement(this.myPlayer.elementalSlots.attack);
+            if (combo) {
+              this.triggerElementalComboEffect(enemy.x, enemy.y, combo);
+            }
+          }
 
           if (isCrit) {
             SoundFX.playCritHit();
@@ -2893,6 +2944,176 @@ export class GameScene extends Phaser.Scene {
       this.worldCam.ignore(cont);
       this.itemTray.push(cont);
     });
+
+    this.updateElementalHUD();
+  }
+
+  private updateElementalHUD(): void {
+    for (const el of this.elementalHudElements) el.destroy();
+    this.elementalHudElements = [];
+    if (!this.myPlayer) return;
+
+    const slots = this.myPlayer.elementalSlots;
+    const startX = 20;
+    const startY = 100;
+
+    const slotDefs: Array<{ label: string; icon: string; key: keyof ElementalSlotConfig }> = [
+      { label: 'АТАКА', icon: '🗡️', key: 'attack' },
+      { label: 'ВИХРЬ', icon: '🌀', key: 'skill' },
+      { label: 'РЫВОК', icon: '💨', key: 'dash' },
+      { label: 'ГИБЕЛЬ', icon: '☠️', key: 'onKill' },
+    ];
+
+    slotDefs.forEach((s, idx) => {
+      const activeEl = slots[s.key];
+      const elColor = activeEl ? ELEMENT_COLORS[activeEl] : '#475569';
+      const elIcon = activeEl ? ELEMENT_ICONS[activeEl] : '—';
+
+      const x = startX + idx * 56;
+      const y = startY;
+
+      const bg = this.add.rectangle(x + 24, y, 50, 20, 0x0f0b1a, 0.88).setDepth(DEPTH.UI + 5);
+      bg.setStrokeStyle(1.5, Phaser.Display.Color.HexStringToColor(elColor).color);
+      this.worldCam.ignore(bg);
+      this.elementalHudElements.push(bg);
+
+      const txt = this.add
+        .text(x + 24, y, `${s.icon} ${elIcon}`, {
+          fontFamily: FONT.UI,
+          fontSize: '11px',
+          fontStyle: '700',
+          color: elColor,
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH.UI + 6);
+      txt.setStroke('#000000', 3);
+      this.worldCam.ignore(txt);
+      this.elementalHudElements.push(txt);
+    });
+  }
+
+  private triggerElementalComboEffect(x: number, y: number, combo: ComboResult): void {
+    SoundFX.playCritHit();
+    this.worldCam.shake(90, 0.0035);
+
+    // Floating Combo Banner Tag
+    const tag = this.add
+      .text(x, y - 26, combo.name, {
+        fontFamily: FONT.UI,
+        fontSize: '14px',
+        fontStyle: '700',
+        color: combo.color,
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.UI + 10);
+    tag.setStroke('#000000', 4);
+    tag.setShadow(0, 2, '#000000', 6, true, true);
+    this.tweens.add({
+      targets: tag,
+      y: y - 56,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      alpha: 0,
+      duration: 1100,
+      ease: 'Back.easeOut',
+      onComplete: () => tag.destroy(),
+    });
+
+    // Particle Burst & AoE Spreading
+    if (combo.effect === 'toxic_burst') {
+      for (let i = 0; i < 16; i++) {
+        const p = this.add.circle(x, y - 10, 4, 0x22c55e, 0.9).setDepth(DEPTH.YSORT_BASE + y + 20);
+        this.worldLayer.add(p);
+        this.tweens.add({
+          targets: p,
+          x: x + (Math.random() - 0.5) * 80,
+          y: y - 10 + (Math.random() - 0.5) * 80,
+          scale: 0.2,
+          alpha: 0,
+          duration: 400,
+          onComplete: () => p.destroy(),
+        });
+      }
+      for (const e of this.enemies) {
+        if (e.isDead) continue;
+        const d = Phaser.Math.Distance.Between(x, y, e.x, e.y);
+        if (d <= (combo.aoeRadius || 60)) {
+          e.takeDamage(12, x, y);
+        }
+      }
+    } else if (combo.effect === 'shatter') {
+      for (let i = 0; i < 14; i++) {
+        const p = this.add.rectangle(x, y - 10, 5, 5, 0x38bdf8, 0.95).setDepth(DEPTH.YSORT_BASE + y + 20);
+        this.worldLayer.add(p);
+        this.tweens.add({
+          targets: p,
+          x: x + (Math.random() - 0.5) * 70,
+          y: y - 10 + (Math.random() - 0.5) * 70,
+          rotation: Math.random() * 6,
+          scale: 0.2,
+          alpha: 0,
+          duration: 350,
+          onComplete: () => p.destroy(),
+        });
+      }
+    } else if (combo.effect === 'static_plague') {
+      for (const e of this.enemies) {
+        if (e.isDead) continue;
+        const d = Phaser.Math.Distance.Between(x, y, e.x, e.y);
+        if (d <= (combo.aoeRadius || 80)) {
+          e.applyElement('poison', 4000, 2);
+        }
+      }
+    }
+  }
+
+  private updateElementalHazards(delta: number): void {
+    // 1. Spawn dash hazard while sprinting
+    if (this.myPlayer && this.myPlayer.isSprinting && this.myPlayer.elementalSlots.dash) {
+      this.dashHazardTimer += delta;
+      if (this.dashHazardTimer >= 110) {
+        this.dashHazardTimer = 0;
+        const el = this.myPlayer.elementalSlots.dash;
+        const colHex = ELEMENT_COLORS[el];
+        const color = Phaser.Display.Color.HexStringToColor(colHex).color;
+
+        const circle = this.add.circle(this.myPlayer.x, this.myPlayer.y, 14, color, 0.45);
+        circle.setDepth(DEPTH.YSORT_BASE - 100);
+        this.worldLayer.add(circle);
+
+        this.elementalHazards.push({
+          x: this.myPlayer.x,
+          y: this.myPlayer.y,
+          element: el,
+          duration: 1800,
+          circle,
+        });
+      }
+    }
+
+    // 2. Process active hazards
+    for (let i = this.elementalHazards.length - 1; i >= 0; i--) {
+      const h = this.elementalHazards[i];
+      h.duration -= delta;
+      h.circle.setAlpha((h.duration / 1800) * 0.5);
+
+      // Check overlap with enemies
+      for (const enemy of this.enemies) {
+        if (enemy.isDead) continue;
+        const dist = Phaser.Math.Distance.Between(h.x, h.y, enemy.x, enemy.y);
+        if (dist <= 22) {
+          const combo = enemy.applyElement(h.element, 2000, 1.2);
+          if (combo) {
+            this.triggerElementalComboEffect(enemy.x, enemy.y, combo);
+          }
+        }
+      }
+
+      if (h.duration <= 0) {
+        h.circle.destroy();
+        this.elementalHazards.splice(i, 1);
+      }
+    }
   }
 
   private updateExitInteraction(): void {

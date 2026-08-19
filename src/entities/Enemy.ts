@@ -2,6 +2,12 @@ import Phaser from 'phaser';
 import { DEPTH } from '../gfx/registry';
 import { ACTORS, ActorClips } from '../gfx/actors';
 import { TEXTURE } from '../gfx/registry';
+import {
+  StatusState,
+  ElementType,
+  checkElementalCombo,
+  ComboResult,
+} from '../combat/ElementalSystem';
 
 export type EnemyKind = 'imp' | 'skeleton';
 
@@ -94,6 +100,50 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private netTargetX = 0;
   private netTargetY = 0;
   private hasNetTarget = false;
+
+  public statusState: StatusState = {
+    burningDuration: 0,
+    burningDps: 0,
+    slowDuration: 0,
+    slowFactor: 1,
+    frozenDuration: 0,
+    poisonDuration: 0,
+    poisonDps: 0,
+    shockDuration: 0,
+  };
+  private burnTickTimer = 0;
+  private poisonTickTimer = 0;
+
+  public applyElement(element: ElementType, duration = 3000, power = 1): ComboResult | null {
+    if (this.aiState === 'dead') return null;
+    const combo = checkElementalCombo(element, this.statusState);
+    if (combo) {
+      this.takeDamage(combo.bonusDamage, this.x, this.y);
+      return combo;
+    }
+
+    switch (element) {
+      case 'fire':
+        this.statusState.burningDuration = Math.max(this.statusState.burningDuration, duration);
+        this.statusState.burningDps = 2 * power;
+        break;
+      case 'frost':
+        this.statusState.slowDuration = Math.max(this.statusState.slowDuration, duration);
+        this.statusState.slowFactor = 0.55;
+        if (power > 1.5) {
+          this.statusState.frozenDuration = Math.max(this.statusState.frozenDuration, 1500);
+        }
+        break;
+      case 'lightning':
+        this.statusState.shockDuration = Math.max(this.statusState.shockDuration, duration);
+        break;
+      case 'poison':
+        this.statusState.poisonDuration = Math.max(this.statusState.poisonDuration, duration);
+        this.statusState.poisonDps = 1.5 * power;
+        break;
+    }
+    return null;
+  }
 
   constructor(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind = 'imp', id = 0) {
     const stats = STATS[kind];
@@ -227,12 +277,55 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (this.hitLock > 0) {
       this.hitLock -= delta;
       this.setDepth(DEPTH.YSORT_BASE + this.y);
-    if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
+      if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
       return false;
+    }
+
+    // Process Status Effects (Burning, Poison, Frost, Shock)
+    if (this.statusState.burningDuration > 0) {
+      this.statusState.burningDuration -= delta;
+      this.burnTickTimer += delta;
+      if (this.burnTickTimer >= 600) {
+        this.burnTickTimer = 0;
+        this.takeDamage(1, this.x, this.y);
+        if (this.hp <= 0) return false;
+      }
+    }
+    if (this.statusState.poisonDuration > 0) {
+      this.statusState.poisonDuration -= delta;
+      this.poisonTickTimer += delta;
+      if (this.poisonTickTimer >= 750) {
+        this.poisonTickTimer = 0;
+        this.takeDamage(1, this.x, this.y);
+        if (this.hp <= 0) return false;
+      }
+    }
+    if (this.statusState.frozenDuration > 0) {
+      this.statusState.frozenDuration -= delta;
+      const body = this.body as Phaser.Physics.Arcade.Body;
+      if (body) body.setVelocity(0, 0);
+      this.setTint(0x38bdf8);
+      return false;
+    }
+    if (this.statusState.slowDuration > 0) {
+      this.statusState.slowDuration -= delta;
+      this.setTint(0xa5f3fc);
+    } else if (this.statusState.burningDuration > 0) {
+      this.setTint(0xf97316);
+    } else if (this.statusState.poisonDuration > 0) {
+      this.setTint(0x22c55e);
+    } else if (this.statusState.shockDuration > 0) {
+      this.statusState.shockDuration -= delta;
+      this.setTint(0xfacc15);
+    } else {
+      if (this.hitLock <= 0 && this.aiState !== 'windup') {
+        this.clearTint();
+      }
     }
 
     if (this.backstepCooldown > 0) this.backstepCooldown -= delta;
 
+    const speedMult = this.statusState.slowDuration > 0 ? this.statusState.slowFactor : 1.0;
     const dx = playerX - this.x;
     const dy = playerY - this.y;
     const distToPlayer = Math.hypot(dx, dy);
@@ -281,7 +374,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             const px = this.patrolTargetX - this.x;
             const py = this.patrolTargetY - this.y;
             const plen = Math.hypot(px, py) || 1;
-            body.setVelocity((px / plen) * this.stats.patrolSpeed, (py / plen) * this.stats.patrolSpeed);
+            body.setVelocity((px / plen) * this.stats.patrolSpeed * speedMult, (py / plen) * this.stats.patrolSpeed * speedMult);
             this.setFlipX(px < 0);
           }
         }
@@ -312,7 +405,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             this.stateTimer = 160;
             this.backstepCooldown = 2200;
             const backAngle = Math.atan2(this.y - playerY, this.x - playerX);
-            body.setVelocity(Math.cos(backAngle) * 140, Math.sin(backAngle) * 140);
+            body.setVelocity(Math.cos(backAngle) * 140 * speedMult, Math.sin(backAngle) * 140 * speedMult);
             break;
           }
         }
@@ -326,12 +419,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
           // Visual Telegraph: Imp crouches & flashes red; Skeleton gleams white
           if (this.kind === 'imp') {
-            this.setTint(0xff4422);
-            this.setScale(this.stats.scale * 1.18, this.stats.scale * 0.82);
-              this.scene.tweens.add({ targets: this, x: this.x + (Math.random()-0.5)*2, y: this.y + (Math.random()-0.5)*2, duration: 50, yoyo: true, repeat: 3 });
+            this.setTint(0xff3333);
+            this.setScale(this.stats.scale * 1.15, this.stats.scale * 0.85);
           } else {
-            this.setTintFill(0xffffff);
-            this.scene.time.delayedCall(150, () => { if (this.active) this.clearTint(); });
+            this.setTint(0xffffff);
+            this.setScale(this.stats.scale * 0.9, this.stats.scale * 1.15);
           }
           break;
         }
@@ -372,7 +464,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         }
 
         const totalLen = Math.hypot(moveDirX, moveDirY) || 1;
-        body.setVelocity((moveDirX / totalLen) * this.stats.chaseSpeed, (moveDirY / totalLen) * this.stats.chaseSpeed);
+        body.setVelocity((moveDirX / totalLen) * this.stats.chaseSpeed * speedMult, (moveDirY / totalLen) * this.stats.chaseSpeed * speedMult);
         this.setFlipX(dx < 0);
         break;
       }

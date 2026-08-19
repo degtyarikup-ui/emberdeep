@@ -1,3 +1,5 @@
+import { ElementType } from '../combat/ElementalSystem';
+
 export type ItemTier = 'common' | 'uncommon' | 'legendary';
 
 export interface ItemDef {
@@ -7,6 +9,8 @@ export interface ItemDef {
   tier: ItemTier;
   icon: string;
   color: string;
+  element?: ElementType;
+  elementSlot?: 'attack' | 'skill' | 'dash' | 'onKill';
 }
 
 export interface PlayerInventory {

@@ -900,7 +900,16 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private isDebugAllowed(): boolean {
+    return Boolean(
+      import.meta.env.DEV ||
+      (typeof window !== 'undefined' && window.location.search.includes('debug=1'))
+    );
+  }
+
   private buildDebugUI(): void {
+    if (!this.isDebugAllowed()) return;
+
     const x = this.scale.width - 55;
     const y = 92;
 
@@ -930,6 +939,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleDebugMenu(): void {
+    if (!this.isDebugAllowed()) return;
     if (this.debugOpen) {
       this.closeDebugMenu();
     } else {
@@ -946,6 +956,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openDebugMenu(): void {
+    if (!this.isDebugAllowed()) return;
     if (this.debugContainer) this.debugContainer.destroy();
     this.debugOpen = true;
 

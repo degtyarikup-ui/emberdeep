@@ -29,6 +29,8 @@ export const TEXTURE = {
   BONFIRE: 'tex-bonfire',
   PROP_ROCK: 'tex-prop-rock',
   PROP_BUSH: 'tex-prop-bush',
+  PROP_CRATE: 'tex-prop-crate',
+  PROP_BARREL: 'tex-prop-barrel',
   PROP_CABIN: 'tex-prop-cabin',
   PROP_FENCE: 'tex-prop-fence',
   PROP_WORKBENCH: 'tex-prop-workbench',

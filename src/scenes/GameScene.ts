@@ -404,7 +404,11 @@ export class GameScene extends Phaser.Scene {
         body.setOffset((sprite.width - bw) / 2, sprite.height - bh);
         this.solids.add(sprite);
 
-        const isDestructible = d.key === PROP.CRATE || d.key === PROP.BARREL;
+        const isDestructible =
+          d.key === TEXTURE.PROP_CRATE ||
+          d.key === TEXTURE.PROP_BARREL ||
+          d.key === PROP.CRATE ||
+          d.key === PROP.BARREL;
         if (isDestructible) {
           this.destructibles.push({
             id: i,

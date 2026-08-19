@@ -371,9 +371,9 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 14, row: 8, key: TEXTURE.PROP_WORKBENCH, solid: true },
     { col: 14, row: 28, key: TEXTURE.PROP_WORKBENCH, solid: true },
     // Campsite Crates & Barrels
-    { col: 6, row: 16, key: PROP.CRATE, solid: true },
-    { col: 7, row: 16, key: PROP.BARREL, solid: true },
-    { col: 15, row: 19, key: PROP.CRATE, solid: true },
+    { col: 6, row: 16, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 7, row: 16, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 15, row: 19, key: TEXTURE.PROP_CRATE, solid: true },
     // Chapel & Graveyard Tombstones
     { col: 38, row: 7, key: PROP.TOMBSTONE, solid: true },
     { col: 44, row: 7, key: PROP.TOMBSTONE, solid: true },
@@ -545,10 +545,10 @@ function buildPrisonDungeonLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 14, row: 6, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
     { col: 44, row: 30, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
     // Barrels and Crates
-    { col: 6, row: 17, key: PROP.BARREL, solid: true },
-    { col: 6, row: 18, key: PROP.CRATE, solid: true },
-    { col: 25, row: 23, key: PROP.BARREL, solid: true },
-    { col: 33, row: 23, key: PROP.BARREL, solid: true },
+    { col: 6, row: 17, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 6, row: 18, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 25, row: 23, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 33, row: 23, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 50, row: 14, key: PROP.BANNER_RED, solid: false },
     { col: 54, row: 14, key: PROP.BANNER_RED, solid: false },
   ];
@@ -683,8 +683,8 @@ function buildCanyonMinesLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 28, row: 26, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
     { col: 48, row: 8, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
     // Mining Crates and Boulders
-    { col: 8, row: 17, key: PROP.CRATE, solid: true },
-    { col: 9, row: 17, key: PROP.BARREL, solid: true },
+    { col: 8, row: 17, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 9, row: 17, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 25, row: 8, key: TEXTURE.PROP_ROCK, solid: true },
     { col: 25, row: 29, key: TEXTURE.PROP_ROCK, solid: true },
   ];

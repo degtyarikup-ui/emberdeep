@@ -98,7 +98,7 @@ export class AchievementManager {
     icon.setScale(1.1);
 
     // Header badge
-    const header = scene.add.text(-w / 2 + 46, -15, '🏆 ДОСТИЖЕНИЕ ПОЛУЧЕНО', {
+    const header = scene.add.text(-w / 2 + 46, -15, 'ДОСТИЖЕНИЕ ПОЛУЧЕНО', {
       fontFamily: FONT.UI,
       fontSize: '8px',
       fontStyle: '700',

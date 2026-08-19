@@ -26,7 +26,7 @@ import {
   ElementType,
   ElementalSlotConfig,
   ELEMENT_COLORS,
-  ELEMENT_ICONS,
+  ELEMENT_NAMES,
   ComboResult,
 } from '../combat/ElementalSystem';
 
@@ -460,7 +460,7 @@ export class GameScene extends Phaser.Scene {
       world.add(sprite);
 
       const prompt = this.add
-        .text(x, y - 26, 'E — СУНДУК (10 🪙)', { fontFamily: FONT.UI, fontSize: '10px', color: '#fbbf24' })
+        .text(x, y - 26, 'E — СУНДУК (10 ЗОЛОТА)', { fontFamily: FONT.UI, fontSize: '10px', color: '#fbbf24' })
         .setOrigin(0.5, 1)
         .setDepth(DEPTH.YSORT_BASE + y + 1000)
         .setVisible(false);
@@ -490,7 +490,7 @@ export class GameScene extends Phaser.Scene {
 
       const light = this.lights.addLight(x, y - 12, 100, isBlood ? 0xef4444 : 0x38bdf8, 0.8);
 
-      const promptText = isBlood ? 'E — СВЯТИЛИЩЕ КРОВИ (1 HP -> 22 🪙)' : 'E — СВЯТИЛИЩЕ СЛУЧАЯ (15 🪙)';
+      const promptText = isBlood ? 'E — СВЯТИЛИЩЕ КРОВИ (1 HP -> 22 ЗОЛОТА)' : 'E — СВЯТИЛИЩЕ СЛУЧАЯ (15 ЗОЛОТА)';
       const promptColor = isBlood ? '#f87171' : '#38bdf8';
 
       const prompt = this.add
@@ -827,7 +827,7 @@ export class GameScene extends Phaser.Scene {
     this.worldCam.ignore(this.depthLabel);
 
     this.timerLabel = this.add
-      .text(this.scale.width - 16, 36, '⏱️ 00:00', {
+      .text(this.scale.width - 16, 36, 'ВРЕМЯ: 00:00', {
         fontFamily: FONT.UI,
         fontSize: '11px',
         fontStyle: '700',
@@ -912,7 +912,7 @@ export class GameScene extends Phaser.Scene {
     bg.setStrokeStyle(1.5, 0x818cf8);
 
     const txt = this.add
-      .text(0, 0, '🛠️ ДЕБАГ [F1]', {
+      .text(0, 0, '[F1] ДЕБАГ', {
         fontFamily: FONT.UI,
         fontSize: '8px',
         fontStyle: '700',
@@ -962,7 +962,7 @@ export class GameScene extends Phaser.Scene {
     bg.setInteractive();
 
     const title = this.add
-      .text(0, -modalH / 2 + 20, '🛠️ МЕНЮ РАЗРАБОТЧИКА (DEBUG)', {
+      .text(0, -modalH / 2 + 20, 'МЕНЮ РАЗРАБОТЧИКА (DEBUG)', {
         fontFamily: FONT.TITLE,
         fontSize: '16px',
         fontStyle: '700',
@@ -979,9 +979,9 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const closeBtn = this.add
-      .text(modalW / 2 - 18, -modalH / 2 + 18, '✖', {
+      .text(modalW / 2 - 18, -modalH / 2 + 18, 'ЗАКРЫТЬ', {
         fontFamily: FONT.UI,
-        fontSize: '14px',
+        fontSize: '10px',
         fontStyle: '700',
         color: '#ef4444',
       })
@@ -993,7 +993,7 @@ export class GameScene extends Phaser.Scene {
 
     // Section 1: Teleport to Levels
     const sec1Title = this.add
-      .text(-modalW / 2 + 20, -85, '⏩ ПЕРЕХОД МЕЖДУ УРОВНЯМИ:', {
+      .text(-modalW / 2 + 20, -85, 'ПЕРЕХОД МЕЖДУ УРОВНЯМИ:', {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '700',
@@ -1003,10 +1003,10 @@ export class GameScene extends Phaser.Scene {
     modal.add(sec1Title);
 
     const levels = [
-      { depth: 1, name: '🌲 УР. 1: РУИНЫ', color: 0x22c55e, hex: '#86efac' },
-      { depth: 2, name: '🏰 УР. 2: КАТАКОМБЫ', color: 0xa855f7, hex: '#d8b4fe' },
-      { depth: 3, name: '🔥 УР. 3: НЕДРА', color: 0xef4444, hex: '#fca5a5' },
-      { depth: 4, name: '🌌 УР. 4: БЕЗДНА', color: 0x6366f1, hex: '#a5b4fc' },
+      { depth: 1, name: '[1] РУИНЫ', color: 0x22c55e, hex: '#86efac' },
+      { depth: 2, name: '[2] КАТАКОМБЫ', color: 0xa855f7, hex: '#d8b4fe' },
+      { depth: 3, name: '[3] НЕДРА', color: 0xef4444, hex: '#fca5a5' },
+      { depth: 4, name: '[4] БЕЗДНА', color: 0x6366f1, hex: '#a5b4fc' },
     ];
 
     levels.forEach((lvl, i) => {
@@ -1042,7 +1042,7 @@ export class GameScene extends Phaser.Scene {
 
     // Section 2: Cheats & Testing Tools
     const sec2Title = this.add
-      .text(-modalW / 2 + 20, 20, '⚡ ТЕСТОВЫЕ КОМАНДЫ И ЧИТЫ:', {
+      .text(-modalW / 2 + 20, 20, 'ТЕСТОВЫЕ КОМАНДЫ И ЧИТЫ:', {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '700',
@@ -1054,7 +1054,7 @@ export class GameScene extends Phaser.Scene {
     const cheats = [
       {
         id: 'god',
-        label: () => `⚡ БЕССМЕРТИЕ: ${this.godMode ? 'ВКЛ' : 'ВЫКЛ'}`,
+        label: () => `БЕССМЕРТИЕ: ${this.godMode ? 'ВКЛ' : 'ВЫКЛ'}`,
         active: () => this.godMode,
         onClick: () => {
           this.godMode = !this.godMode;
@@ -1067,7 +1067,7 @@ export class GameScene extends Phaser.Scene {
       },
       {
         id: 'speed',
-        label: () => `💨 СКОРОСТЬ x2: ${this.speedHack ? 'ВКЛ' : 'ВЫКЛ'}`,
+        label: () => `СКОРОСТЬ x2: ${this.speedHack ? 'ВКЛ' : 'ВЫКЛ'}`,
         active: () => this.speedHack,
         onClick: () => {
           this.speedHack = !this.speedHack;
@@ -1076,7 +1076,7 @@ export class GameScene extends Phaser.Scene {
       },
       {
         id: 'light',
-        label: () => `💡 ПОЛНЫЙ СВЕТ: ${this.fullBright ? 'ВКЛ' : 'ВЫКЛ'}`,
+        label: () => `ПОЛНЫЙ СВЕТ: ${this.fullBright ? 'ВКЛ' : 'ВЫКЛ'}`,
         active: () => this.fullBright,
         onClick: () => {
           this.fullBright = !this.fullBright;
@@ -1090,7 +1090,7 @@ export class GameScene extends Phaser.Scene {
       },
       {
         id: 'kill_all',
-        label: () => '💀 УБИТЬ ВСЕХ ВРАГОВ',
+        label: () => 'УБИТЬ ВСЕХ ВРАГОВ',
         active: () => false,
         onClick: () => {
           this.enemies.forEach((e) => {
@@ -1103,7 +1103,7 @@ export class GameScene extends Phaser.Scene {
       },
       {
         id: 'coins',
-        label: () => '🪙 +100 МОНЕТ',
+        label: () => '+100 ЗОЛОТА',
         active: () => false,
         onClick: () => {
           this.myPlayer.gold += 100;
@@ -1113,7 +1113,7 @@ export class GameScene extends Phaser.Scene {
       },
       {
         id: 'altar',
-        label: () => '🚪 АКТИВИРОВАТЬ АЛТАРЬ',
+        label: () => 'АКТИВИРОВАТЬ АЛТАРЬ',
         active: () => this.altarCharged,
         onClick: () => {
           this.altarCharged = true;
@@ -1567,7 +1567,7 @@ export class GameScene extends Phaser.Scene {
 
           if (Math.random() < 0.2) {
             MetaManager.get().addEmbers(1);
-            this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 🔥', '#f97316');
+            this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 УГОЛЬ', '#f97316');
           }
 
           // Leech Fang life steal
@@ -1673,7 +1673,7 @@ export class GameScene extends Phaser.Scene {
 
             if (Math.random() < 0.2) {
               MetaManager.get().addEmbers(1);
-              this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 🔥', '#f97316');
+              this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 УГОЛЬ', '#f97316');
             }
 
             if (player.leechChance > 0 && Math.random() < player.leechChance) {
@@ -1807,7 +1807,7 @@ export class GameScene extends Phaser.Scene {
 
             if (Math.random() < 0.2) {
               MetaManager.get().addEmbers(1);
-              this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 🔥', '#f97316');
+              this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 УГОЛЬ', '#f97316');
             }
 
             if (this.myPlayer.leechChance > 0 && Math.random() < this.myPlayer.leechChance) {
@@ -1854,7 +1854,7 @@ export class GameScene extends Phaser.Scene {
       this.lightningGfx.strokePath();
 
       const dead = target.takeDamage(dmg, sourceEnemy.x, sourceEnemy.y);
-      this.spawnDamageNumber(target.x, target.y, `⚡ -${dmg}`, '#38bdf8');
+      this.spawnDamageNumber(target.x, target.y, `ШОК -${dmg}`, '#38bdf8');
       this.hitSpark.setPosition(target.x, target.y - 8);
       this.hitSpark.explode(8);
       if (dead) {
@@ -1876,7 +1876,7 @@ export class GameScene extends Phaser.Scene {
       const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
       if (dist < 48) {
         const dead = enemy.takeDamage(2, x, y);
-        this.spawnDamageNumber(enemy.x, enemy.y, '🔥 -2', '#fb923c');
+        this.spawnDamageNumber(enemy.x, enemy.y, 'ОГОНЬ -2', '#fb923c');
         if (dead) {
           SoundFX.playEnemyDeath(enemy.kind);
           this.killCount += 1;
@@ -1890,7 +1890,7 @@ export class GameScene extends Phaser.Scene {
     const totalSec = Math.floor(this.elapsedRunTime / 1000);
     const mins = Math.floor(totalSec / 60);
     const secs = totalSec % 60;
-    this.timerLabel.setText(`⏱️ ${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`);
+    this.timerLabel.setText(`ВРЕМЯ: ${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`);
 
     // Determine current threat tier
     let newTier = 0;
@@ -1922,13 +1922,12 @@ export class GameScene extends Phaser.Scene {
     const bg = this.add.rectangle(0, 0, 360, 42, 0x090514, 0.92);
     bg.setStrokeStyle(2, biome.depth === 1 ? 0x22c55e : biome.depth === 2 ? 0xa855f7 : 0xef4444);
 
-    const icon = biome.depth === 1 ? '🌲' : biome.depth === 2 ? '🏰' : '🔥';
     const title = this.add
-      .text(0, -7, `${icon} ${biome.name.toUpperCase()}`, {
+      .text(0, -7, biome.name.toUpperCase(), {
         fontFamily: FONT.TITLE,
         fontSize: '15px',
         fontStyle: '700',
-        color: biome.depth === 1 ? '#86efac' : biome.depth === 2 ? '#d8b4fe' : '#fca5a5',
+        color: '#f0e2b8',
       })
       .setOrigin(0.5);
 
@@ -2119,7 +2118,7 @@ export class GameScene extends Phaser.Scene {
     cont.setDepth(DEPTH.UI + 40);
 
     const title = this.add
-      .text(0, -14, `💀 ${boss.bossName.toUpperCase()} · СТРАЖ БЕЗДНЫ`, {
+      .text(0, -14, `${boss.bossName.toUpperCase()} · СТРАЖ БЕЗДНЫ`, {
         fontFamily: FONT.UI,
         fontSize: '11px',
         fontStyle: '700',
@@ -2448,7 +2447,7 @@ export class GameScene extends Phaser.Scene {
               AchievementManager.get().unlock('gold_rush', this);
             }
             SoundFX.playCoinPickup();
-            this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 16, '+1 🪙', '#fbbf24');
+            this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 16, '+1 ЗОЛОТО', '#fbbf24');
             this.goldLabel.setText(`${this.myPlayer.gold}`);
           }
         }
@@ -2507,7 +2506,7 @@ export class GameScene extends Phaser.Scene {
     this.showEndScreen({
       title: 'ВЫ ПОГИБЛИ',
       titleColor: '#c94f3d',
-      stats: `Повержено врагов: ${this.killCount}   ·   Получено Углей: +${embersEarned} 🔥`,
+      stats: `Повержено врагов: ${this.killCount}   ·   Получено Углей: +${embersEarned}`,
       buttonText: 'ИГРАТЬ СНОВА',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'gameover', nextDepth: 1 });
@@ -2537,7 +2536,7 @@ export class GameScene extends Phaser.Scene {
     this.showEndScreen({
       title: 'ПОДЗЕМЕЛЬЕ ПРОЙДЕНО',
       titleColor: '#9ee08a',
-      stats: `Повержено врагов: ${this.killCount}   ·   Глубина: ${this.depth}   ·   +${embersEarned} 🔥 Углей`,
+      stats: `Повержено врагов: ${this.killCount}   ·   Глубина: ${this.depth}   ·   Угли: +${embersEarned}`,
       buttonText: 'СПУСТИТЬСЯ ГЛУБЖЕ',
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1, playerHealth: nextHealth });
@@ -2684,7 +2683,7 @@ export class GameScene extends Phaser.Scene {
         if (player === this.myPlayer) {
           anyMineInRange = true;
           const canAfford = player.gold >= chest.cost;
-          chest.prompt.setText(canAfford ? `E — СУНДУК (${chest.cost} 🪙)` : `НУЖНО ${chest.cost} 🪙`);
+          chest.prompt.setText(canAfford ? `E — СУНДУК (${chest.cost} ЗОЛОТА)` : `НУЖНО ${chest.cost} ЗОЛОТА`);
           chest.prompt.setColor(canAfford ? '#fbbf24' : '#ef4444');
         }
 
@@ -2756,11 +2755,11 @@ export class GameScene extends Phaser.Scene {
           anyMineInRange = true;
           if (shrine.kind === 'blood') {
             const canAfford = player.hp > 1;
-            shrine.prompt.setText(canAfford ? 'E — СВЯТИЛИЩЕ КРОВИ (1 HP -> 22 🪙)' : 'СЛИШКОМ МАЛО HP (НУЖНО > 1)');
+            shrine.prompt.setText(canAfford ? 'E — СВЯТИЛИЩЕ КРОВИ (1 HP -> 22 ЗОЛОТА)' : 'СЛИШКОМ МАЛО HP (НУЖНО > 1)');
             shrine.prompt.setColor(canAfford ? '#f87171' : '#94a3b8');
           } else {
             const canAfford = player.gold >= shrine.cost;
-            shrine.prompt.setText(canAfford ? `E — СВЯТИЛИЩЕ СЛУЧАЯ (${shrine.cost} 🪙)` : `НУЖНО ${shrine.cost} 🪙`);
+            shrine.prompt.setText(canAfford ? `E — СВЯТИЛИЩЕ СЛУЧАЯ (${shrine.cost} ЗОЛОТА)` : `НУЖНО ${shrine.cost} ЗОЛОТА`);
             shrine.prompt.setColor(canAfford ? '#38bdf8' : '#ef4444');
           }
         }
@@ -2781,7 +2780,7 @@ export class GameScene extends Phaser.Scene {
                 this.damageFlash.setAlpha(0.3);
                 this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 240 });
                 this.worldCam.shake(70, 0.002);
-                this.spawnDamageNumber(shrine.x, shrine.y - 16, '-1 HP  +22 🪙', '#f87171');
+                this.spawnDamageNumber(shrine.x, shrine.y - 16, '-1 HP  +22 ЗОЛОТА', '#f87171');
               }
 
               shrine.usesLeft -= 1;
@@ -2955,40 +2954,58 @@ export class GameScene extends Phaser.Scene {
 
     const slots = this.myPlayer.elementalSlots;
     const startX = 20;
-    const startY = 100;
+    const startY = 102;
+    const slotW = 66;
+    const slotH = 22;
+    const gap = 6;
 
-    const slotDefs: Array<{ label: string; icon: string; key: keyof ElementalSlotConfig }> = [
-      { label: 'АТАКА', icon: '🗡️', key: 'attack' },
-      { label: 'ВИХРЬ', icon: '🌀', key: 'skill' },
-      { label: 'РЫВОК', icon: '💨', key: 'dash' },
-      { label: 'ГИБЕЛЬ', icon: '☠️', key: 'onKill' },
+    const slotDefs: Array<{ label: string; key: keyof ElementalSlotConfig }> = [
+      { label: 'АТАКА', key: 'attack' },
+      { label: 'ВИХРЬ', key: 'skill' },
+      { label: 'РЫВОК', key: 'dash' },
+      { label: 'ГИБЕЛЬ', key: 'onKill' },
     ];
 
     slotDefs.forEach((s, idx) => {
       const activeEl = slots[s.key];
       const elColor = activeEl ? ELEMENT_COLORS[activeEl] : '#475569';
-      const elIcon = activeEl ? ELEMENT_ICONS[activeEl] : '—';
+      const elText = activeEl ? ELEMENT_NAMES[activeEl] : '—';
 
-      const x = startX + idx * 56;
+      const x = startX + idx * (slotW + gap);
       const y = startY;
 
-      const bg = this.add.rectangle(x + 24, y, 50, 20, 0x0f0b1a, 0.88).setDepth(DEPTH.UI + 5);
-      bg.setStrokeStyle(1.5, Phaser.Display.Color.HexStringToColor(elColor).color);
+      const bg = this.add.rectangle(x + slotW / 2, y, slotW, slotH, 0x0f0b1a, 0.92).setDepth(DEPTH.UI + 5);
+      bg.setStrokeStyle(1.5, activeEl ? Phaser.Display.Color.HexStringToColor(elColor).color : 0x334155);
       this.worldCam.ignore(bg);
       this.elementalHudElements.push(bg);
 
-      const txt = this.add
-        .text(x + 24, y, `${s.icon} ${elIcon}`, {
+      // Slot type label (left)
+      const labelTxt = this.add
+        .text(x + 4, y, s.label, {
           fontFamily: FONT.UI,
-          fontSize: '11px',
+          fontSize: '8px',
+          fontStyle: '700',
+          color: '#94a3b8',
+        })
+        .setOrigin(0, 0.5)
+        .setDepth(DEPTH.UI + 6);
+      labelTxt.setStroke('#000000', 3);
+      this.worldCam.ignore(labelTxt);
+      this.elementalHudElements.push(labelTxt);
+
+      // Element text badge (right)
+      const valTxt = this.add
+        .text(x + slotW - 4, y, elText, {
+          fontFamily: FONT.UI,
+          fontSize: '8px',
           fontStyle: '700',
           color: elColor,
         })
-        .setOrigin(0.5)
+        .setOrigin(1, 0.5)
         .setDepth(DEPTH.UI + 6);
-      txt.setStroke('#000000', 3);
-      this.worldCam.ignore(txt);
-      this.elementalHudElements.push(txt);
+      valTxt.setStroke('#000000', 3);
+      this.worldCam.ignore(valTxt);
+      this.elementalHudElements.push(valTxt);
     });
   }
 

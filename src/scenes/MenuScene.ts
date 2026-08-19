@@ -7,6 +7,7 @@ import { MetaManager, META_UPGRADES } from '../meta/MetaManager';
 import { SoundFX } from '../audio/SoundFX';
 import { ACHIEVEMENTS } from '../achievements/registry';
 import { AchievementManager } from '../achievements/AchievementManager';
+import { I18n, t } from '../i18n';
 
 function makeButton(
   scene: Phaser.Scene,
@@ -113,7 +114,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Title & Subtitle
     this.add
-      .text(width / 2, height * 0.28, 'EMBERDEEP', {
+      .text(width / 2, height * 0.28, t().gameTitle, {
         fontFamily: FONT.TITLE,
         fontSize: '54px',
         fontStyle: '700',
@@ -125,7 +126,7 @@ export class MenuScene extends Phaser.Scene {
       .setShadow(0, 4, '#000000', 10, true, true);
 
     this.add
-      .text(width / 2, height * 0.28 + 42, 'тёмное фэнтези · кооп-рогалик · до 4 игроков', {
+      .text(width / 2, height * 0.28 + 42, t().gameSubtitle, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '500',
@@ -135,6 +136,13 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(DEPTH.UI);
 
     let selectedHero: 'knight' | 'ranger' = 'knight';
+
+    // Language Toggle Button (Top-Left)
+    const langBtn = makeButton(this, 60, 30, t().langBtn, { fontSize: '13px' });
+    langBtn.on('pointerdown', () => {
+      I18n.get().toggleLanguage();
+      this.scene.restart();
+    });
 
     // Hero Selection Showcase Cards with Animated Sprites
     const heroY = height * 0.47;
@@ -156,7 +164,7 @@ export class MenuScene extends Phaser.Scene {
     knightSword.setAngle(20);
 
     const knightText = this.add
-      .text(-cardW / 2 + 56, -20, '🗡️ РЫЦАРЬ', {
+      .text(-cardW / 2 + 56, -20, t().knightTitle, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '700',
@@ -165,7 +173,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0, 0);
 
     const knightSub = this.add
-      .text(-cardW / 2 + 56, -3, '3 HP · Меч (2x Урон)', {
+      .text(-cardW / 2 + 56, -3, t().knightStats, {
         fontFamily: FONT.UI,
         fontSize: '9px',
         color: '#fcd34d',
@@ -173,7 +181,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0, 0);
 
     const knightSkill = this.add
-      .text(-cardW / 2 + 56, 12, 'ПКМ · Круговой Вихрь', {
+      .text(-cardW / 2 + 56, 12, t().knightSkill, {
         fontFamily: FONT.UI,
         fontSize: '8px',
         color: '#94a3b8',
@@ -197,7 +205,7 @@ export class MenuScene extends Phaser.Scene {
     rangerBow.setScale(1.1);
 
     const rangerText = this.add
-      .text(-cardW / 2 + 56, -20, '🏹 СЛЕДОПЫТ', {
+      .text(-cardW / 2 + 56, -20, t().rangerTitle, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '700',
@@ -206,7 +214,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0, 0);
 
     const rangerSub = this.add
-      .text(-cardW / 2 + 56, -3, '2 HP · Дальний бой', {
+      .text(-cardW / 2 + 56, -3, t().rangerStats, {
         fontFamily: FONT.UI,
         fontSize: '9px',
         color: '#4ade80',
@@ -214,7 +222,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0, 0);
 
     const rangerSkill = this.add
-      .text(-cardW / 2 + 56, 12, 'ПКМ · Залп из 5 стрел', {
+      .text(-cardW / 2 + 56, 12, t().rangerSkill, {
         fontFamily: FONT.UI,
         fontSize: '8px',
         color: '#64748b',
@@ -272,7 +280,7 @@ export class MenuScene extends Phaser.Scene {
       this.tweens.add({ targets: rangerBtn, scale: 1.05, duration: 80, yoyo: true });
     });
 
-    const playBtn = makeButton(this, width / 2, height * 0.60 + 8, 'ИГРАТЬ');
+    const playBtn = makeButton(this, width / 2, height * 0.60 + 8, t().playSolo);
     playBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -280,17 +288,17 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    const altarBtn = makeButton(this, width / 2 - 110, height * 0.60 + 50, '🔥 АЛТАРЬ ДУШ', { fontSize: '15px' });
+    const altarBtn = makeButton(this, width / 2 - 110, height * 0.60 + 50, t().upgradesBtn, { fontSize: '14px' });
     altarBtn.on('pointerdown', () => {
       this.openSoulAltar();
     });
 
-    const achBtn = makeButton(this, width / 2 + 110, height * 0.60 + 50, '🏆 ДОСТИЖЕНИЯ', { fontSize: '15px' });
+    const achBtn = makeButton(this, width / 2 + 110, height * 0.60 + 50, t().achievementsBtn, { fontSize: '14px' });
     achBtn.on('pointerdown', () => {
       this.openAchievementsModal();
     });
 
-    const coopBtn = makeButton(this, width / 2, height * 0.60 + 88, 'СЕТЕВОЙ КООПЕРАТИВ', { fontSize: '14px', muted: true });
+    const coopBtn = makeButton(this, width / 2, height * 0.60 + 88, t().playCoop, { fontSize: '13px', muted: true });
     coopBtn.on('pointerdown', () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -300,9 +308,9 @@ export class MenuScene extends Phaser.Scene {
 
     // Top Embers counter
     const embersCounter = this.add
-      .text(width - 24, 24, `🔥 ${MetaManager.get().embers}`, {
+      .text(width - 24, 24, `УГЛИ: ${MetaManager.get().embers}`, {
         fontFamily: FONT.UI,
-        fontSize: '15px',
+        fontSize: '14px',
         fontStyle: '700',
         color: '#f97316',
       })
@@ -329,7 +337,7 @@ export class MenuScene extends Phaser.Scene {
     backdrop.setInteractive();
 
     const title = this.add
-      .text(width / 2, 45, '🔥 АЛТАРЬ ДУШ · ВЕЧНАЯ ПРОКАЧКА', {
+      .text(width / 2, 45, 'АЛТАРЬ ДУШ · ВЕЧНАЯ ПРОКАЧКА', {
         fontFamily: FONT.TITLE,
         fontSize: '22px',
         fontStyle: '700',
@@ -339,7 +347,7 @@ export class MenuScene extends Phaser.Scene {
       .setStroke('#000000', 5);
 
     const embersLabel = this.add
-      .text(width / 2, 75, `Доступно Углей: ${MetaManager.get().embers} 🔥`, {
+      .text(width / 2, 75, `Доступно Углей: ${MetaManager.get().embers}`, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '600',
@@ -359,7 +367,7 @@ export class MenuScene extends Phaser.Scene {
         if ((child as { isCard?: boolean }).isCard) child.destroy();
       });
 
-      embersLabel.setText(`Доступно Углей: ${meta.embers} 🔥`);
+      embersLabel.setText(`Доступно Углей: ${meta.embers}`);
 
       META_UPGRADES.forEach((upg, idx) => {
         const y = startY + idx * (cardH + 8);
@@ -420,7 +428,7 @@ export class MenuScene extends Phaser.Scene {
         btnBg.setStrokeStyle(1, isMax ? 0x52525b : canAfford ? 0xf97316 : 0x71717a);
 
         const btnText = this.add
-          .text(150, 0, isMax ? 'МАКС.' : `+ КУПИТЬ (${cost} 🔥)`, {
+          .text(150, 0, isMax ? 'МАКС.' : `КУПИТЬ (${cost})`, {
             fontFamily: FONT.UI,
             fontSize: '9px',
             fontStyle: '700',
@@ -466,7 +474,7 @@ export class MenuScene extends Phaser.Scene {
     const totalCount = achList.length;
 
     const title = this.add
-      .text(width / 2, 40, '🏆 ЗАЛ СЛАВЫ · ДОСТИЖЕНИЯ', {
+      .text(width / 2, 40, 'ЗАЛ СЛАВЫ · ДОСТИЖЕНИЯ', {
         fontFamily: FONT.TITLE,
         fontSize: '22px',
         fontStyle: '700',
@@ -534,8 +542,11 @@ export class MenuScene extends Phaser.Scene {
         .setOrigin(0, 0);
 
       const status = this.add
-        .text(cardW / 2 - 8, -12, unlocked ? '✅' : '🔒', {
-          fontSize: '11px',
+        .text(cardW / 2 - 8, -12, unlocked ? '[OK]' : '[X]', {
+          fontFamily: FONT.UI,
+          fontSize: '9px',
+          fontStyle: '700',
+          color: unlocked ? '#4ade80' : '#64748b',
         })
         .setOrigin(1, 0);
 
@@ -543,7 +554,7 @@ export class MenuScene extends Phaser.Scene {
       modal.add(card);
     });
 
-    const closeBtn = makeButton(this, width / 2, height - 35, '✖ ЗАКРЫТЬ', { fontSize: '15px' });
+    const closeBtn = makeButton(this, width / 2, height - 35, 'ЗАКРЫТЬ', { fontSize: '15px' });
     closeBtn.on('pointerdown', () => modal.destroy());
     modal.add(closeBtn);
   }

@@ -26,11 +26,11 @@ export const ITEMS: Record<string, ItemDef> = {
     icon: PROP.ITEM_CRIT_DAGGER,
     color: '#f87171',
   },
-  // 🔥 ОГОНЬ
+  // ОГОНЬ
   fire_blade: {
     id: 'fire_blade',
     name: 'Руна Пламени',
-    desc: '🔥 Атака: поджигает цели волнами огня',
+    desc: '[ОГОНЬ] Атака: поджигает цели волнами огня',
     tier: 'uncommon',
     icon: PROP.ITEM_OIL_LAMP,
     color: '#f97316',
@@ -40,7 +40,7 @@ export const ITEMS: Record<string, ItemDef> = {
   fire_dash: {
     id: 'fire_dash',
     name: 'Огненная поступь',
-    desc: '🔥 Рывок: оставляет горящий лавовый след',
+    desc: '[ОГОНЬ] Рывок: оставляет горящий лавовый след',
     tier: 'uncommon',
     icon: PROP.ITEM_BOOTS,
     color: '#ea580c',
@@ -50,18 +50,18 @@ export const ITEMS: Record<string, ItemDef> = {
   oil_lamp: {
     id: 'oil_lamp',
     name: 'Масляная лампа',
-    desc: '🔥 Гибель: поверженные враги детонируют пламенем',
+    desc: '[ОГОНЬ] Гибель: поверженные враги детонируют пламенем',
     tier: 'uncommon',
     icon: PROP.ITEM_OIL_LAMP,
     color: '#fbbf24',
     element: 'fire',
     elementSlot: 'onKill',
   },
-  // ❄️ МОРОЗ
+  // МОРОЗ
   frost_edge: {
     id: 'frost_edge',
     name: 'Сердце Ледника',
-    desc: '❄️ Атака: замедляет на 40% и морозит врагов',
+    desc: '[МОРОЗ] Атака: замедляет на 40% и морозит врагов',
     tier: 'uncommon',
     icon: PROP.ITEM_CRIT_DAGGER,
     color: '#38bdf8',
@@ -71,18 +71,18 @@ export const ITEMS: Record<string, ItemDef> = {
   frost_dash: {
     id: 'frost_dash',
     name: 'Ледяной вихрь',
-    desc: '❄️ Рывок: замораживает задетых врагов',
+    desc: '[МОРОЗ] Рывок: замораживает задетых врагов',
     tier: 'uncommon',
     icon: PROP.ITEM_BOOTS,
     color: '#0284c7',
     element: 'frost',
     elementSlot: 'dash',
   },
-  // ⚡ МОЛНИЯ
+  // МОЛНИЯ
   storm_earring: {
     id: 'storm_earring',
     name: 'Серьга бури',
-    desc: '⚡ Атака: бьет цепной молнией по 2 врагам',
+    desc: '[МОЛНИЯ] Атака: бьет цепной молнией по 2 врагам',
     tier: 'uncommon',
     icon: PROP.ITEM_STORM_EARRING,
     color: '#facc15',
@@ -92,18 +92,18 @@ export const ITEMS: Record<string, ItemDef> = {
   lightning_dash: {
     id: 'lightning_dash',
     name: 'Шаг молнии',
-    desc: '⚡ Рывок: электризует и шокирует врагов',
+    desc: '[МОЛНИЯ] Рывок: электризует и шокирует врагов',
     tier: 'uncommon',
     icon: PROP.ITEM_STORM_EARRING,
     color: '#eab308',
     element: 'lightning',
     elementSlot: 'dash',
   },
-  // ☠️ ЯД
+  // ЯД
   venom_vial: {
     id: 'venom_vial',
     name: 'Склянка Яда',
-    desc: '☠️ Атака: отравляет врагов едким ядом',
+    desc: '[ЯД] Атака: отравляет врагов едким ядом',
     tier: 'uncommon',
     icon: PROP.ITEM_LEECH_FANG,
     color: '#22c55e',
@@ -113,7 +113,7 @@ export const ITEMS: Record<string, ItemDef> = {
   leech_fang: {
     id: 'leech_fang',
     name: 'Клык вампира',
-    desc: '☠️ Гибель: шанс отхила 1 HP и токсичное облако',
+    desc: '[ЯД] Гибель: шанс отхила 1 HP и токсичное облако',
     tier: 'uncommon',
     icon: PROP.ITEM_LEECH_FANG,
     color: '#16a34a',
@@ -123,7 +123,7 @@ export const ITEMS: Record<string, ItemDef> = {
   immortal_crown: {
     id: 'immortal_crown',
     name: 'Корона Бессмертного',
-    desc: '👑 Спасает от смерти с полным HP',
+    desc: '[ЛЕГЕНДА] Спасает от смерти с полным HP',
     tier: 'legendary',
     icon: PROP.ITEM_IMMORTAL_CROWN,
     color: '#facc15',

@@ -33,18 +33,11 @@ export const ELEMENT_COLORS: Record<ElementType, string> = {
   poison: '#22c55e',
 };
 
-export const ELEMENT_ICONS: Record<ElementType, string> = {
-  fire: '🔥',
-  frost: '❄️',
-  lightning: '⚡',
-  poison: '☠️',
-};
-
 export const ELEMENT_NAMES: Record<ElementType, string> = {
-  fire: 'Огонь',
-  frost: 'Мороз',
-  lightning: 'Молния',
-  poison: 'Яд',
+  fire: 'ОГОНЬ',
+  frost: 'МОРОЗ',
+  lightning: 'МОЛНИЯ',
+  poison: 'ЯД',
 };
 
 /**
@@ -58,7 +51,7 @@ export function checkElementalCombo(
   if (incoming === 'fire' && status.poisonDuration > 0) {
     status.poisonDuration = 0;
     return {
-      name: '🔥 ВЗРЫВ ЯДА!',
+      name: 'ВЗРЫВ ЯДА!',
       color: '#f97316',
       bonusDamage: 24,
       aoeRadius: 64,
@@ -68,7 +61,7 @@ export function checkElementalCombo(
   if (incoming === 'poison' && status.burningDuration > 0) {
     status.burningDuration = 0;
     return {
-      name: '🔥 ВЗРЫВ ЯДА!',
+      name: 'ВЗРЫВ ЯДА!',
       color: '#22c55e',
       bonusDamage: 24,
       aoeRadius: 64,
@@ -85,7 +78,7 @@ export function checkElementalCombo(
     status.slowDuration = 0;
     status.shockDuration = 0;
     return {
-      name: '⚡ РАСКОЛ ЛЬДА!',
+      name: 'РАСКОЛ ЛЬДА!',
       color: '#38bdf8',
       bonusDamage: 28,
       aoeRadius: 52,
@@ -102,7 +95,7 @@ export function checkElementalCombo(
     status.frozenDuration = 0;
     status.slowDuration = 0;
     return {
-      name: '💨 ТЕРМОШОК!',
+      name: 'ТЕРМОШОК!',
       color: '#fbbf24',
       bonusDamage: 32,
       effect: 'thermal_shock',
@@ -115,7 +108,7 @@ export function checkElementalCombo(
     (incoming === 'poison' && status.shockDuration > 0)
   ) {
     return {
-      name: '☠️ ЦЕПНАЯ ЧУМА!',
+      name: 'ЦЕПНАЯ ЧУМА!',
       color: '#a855f7',
       bonusDamage: 16,
       aoeRadius: 80,

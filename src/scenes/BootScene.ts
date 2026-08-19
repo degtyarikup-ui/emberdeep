@@ -8,6 +8,7 @@ import { buildHudAtlas } from '../gfx/hud';
 import { PACK, LEGACY_PACK, asset } from '../gfx/pack';
 import { ANIM, TEXTURE } from '../gfx/registry';
 import { SCENE } from './keys';
+import { YandexSDK } from '../yandex/yandexSdk';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -15,6 +16,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // Non-blocking init Yandex Games SDK
+    YandexSDK.get().init().catch(() => {});
     this.load.image(PACK.DUNGEON_TILES.key, PACK.DUNGEON_TILES.url);
     this.load.image(PACK.RESOURCES.key, PACK.RESOURCES.url);
     this.load.image(PACK.DUNGEON_PROPS.key, PACK.DUNGEON_PROPS.url);

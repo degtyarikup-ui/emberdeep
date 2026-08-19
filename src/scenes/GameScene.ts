@@ -17,6 +17,11 @@ import { ItemDef } from '../items/types';
 import { ITEMS, getRandomItem } from '../items/registry';
 import { AchievementManager } from '../achievements/AchievementManager';
 import { MetaManager } from '../meta/MetaManager';
+import { ParticleFactory } from '../gfx/ParticleFactory';
+import { ScreenShake } from '../gfx/ScreenShake';
+import { HitstopManager } from '../gfx/HitstopManager';
+import { DamageNumberManager } from '../gfx/DamageNumber';
+import { BonfireEntity } from '../world/BonfireEntity';
 
 export const THREAT_TIERS = [
   { name: 'ЛЕГКО', color: '#4ade80', bg: 0x14532d, threshold: 0 },
@@ -135,6 +140,13 @@ export class GameScene extends Phaser.Scene {
   private coins: CoinItem[] = [];
   private destructibles: DestructibleProp[] = [];
   private destructibleTrees: DestructibleTree[] = [];
+  public particles!: ParticleFactory;
+  public screenShake!: ScreenShake;
+  public hitstop!: HitstopManager;
+  public damageNumbers!: DamageNumberManager;
+  public bonfires: BonfireEntity[] = [];
+  public bushes: Phaser.GameObjects.Sprite[] = [];
+  public giantMushrooms: Phaser.GameObjects.Sprite[] = [];
   private hitSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private bloodSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private boneSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -707,6 +719,11 @@ export class GameScene extends Phaser.Scene {
     this.worldCam.centerOn(this.camCenterX, this.camCenterY);
     this.worldCam.setRoundPixels(true);
 
+    this.screenShake = new ScreenShake(this.worldCam);
+    this.hitstop = new HitstopManager(this);
+    this.damageNumbers = new DamageNumberManager(this, this.worldLayer);
+    this.particles = new ParticleFactory(this, this.worldLayer, worldH);
+
     // UI camera: unzoomed, fixed, sits on top — only ever shows HUD elements.
     this.uiCam = this.cameras.add(0, 0, this.scale.width, this.scale.height);
     this.uiCam.setScroll(0, 0);
@@ -1175,6 +1192,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    if (this.hitstop) this.hitstop.update(this.game.loop.delta);
+    if (this.screenShake) this.screenShake.update(delta);
+
     if (this.frozen) return;
 
     const localInput = {

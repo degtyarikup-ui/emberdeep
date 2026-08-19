@@ -71,15 +71,32 @@ export class MenuScene extends Phaser.Scene {
 
     this.add.rectangle(0, 0, width, height, 0x0a0710, 0.55).setOrigin(0, 0).setDepth(1);
 
-    // flanking torches
-    const torchY = height * 0.36;
-    for (const tx of [width * 0.28, width * 0.72]) {
+    // Centered Emberdeep Animated Emblem Crest
+    const emblemY = height * 0.16;
+    const emblemSprite = this.add
+      .sprite(width / 2, emblemY, TEXTURE.GAME_EMBLEM)
+      .setOrigin(0.5)
+      .setDepth(DEPTH.UI)
+      .setScale(0.72);
+    this.tweens.add({
+      targets: emblemSprite,
+      y: emblemY - 6,
+      duration: 1800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Flanking wall torches
+    const torchY = height * 0.27;
+    for (const tx of [width * 0.26, width * 0.74]) {
       const sprite = this.add.sprite(tx, torchY, TEXTURE.TORCH, 0).setDepth(DEPTH.DECOR).setPipeline('Light2D').setScale(2.4);
       sprite.play(ANIM.TORCH_FLICKER);
       this.lights.addLight(tx, torchY, 220, 0xff9a4d, 1.6);
     }
 
-    this.lights.addLight(width / 2, height * 0.3, 260, 0xcbb3ff, 0.35);
+    this.lights.addLight(width / 2, emblemY, 220, 0xff8822, 1.8);
+    this.lights.addLight(width / 2, height * 0.29, 260, 0xcbb3ff, 0.45);
 
     const dust = this.add.particles(width / 2, height, TEXTURE.PARTICLE_SPARK, {
       x: { min: 0, max: width },
@@ -94,10 +111,11 @@ export class MenuScene extends Phaser.Scene {
     });
     dust.setDepth(DEPTH.DUST);
 
+    // Title & Subtitle
     this.add
-      .text(width / 2, height * 0.32, 'EMBERDEEP', {
+      .text(width / 2, height * 0.28, 'EMBERDEEP', {
         fontFamily: FONT.TITLE,
-        fontSize: '58px',
+        fontSize: '54px',
         fontStyle: '700',
         color: '#f0e2b8',
       })
@@ -107,7 +125,7 @@ export class MenuScene extends Phaser.Scene {
       .setShadow(0, 4, '#000000', 10, true, true);
 
     this.add
-      .text(width / 2, height * 0.32 + 46, 'тёмное фэнтези · кооп-рогалик · до 4 игроков', {
+      .text(width / 2, height * 0.28 + 42, 'тёмное фэнтези · кооп-рогалик · до 4 игроков', {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '500',

@@ -5,6 +5,7 @@ import { ActorAnim } from '../net/types';
 import { SoundFX, SurfaceType } from '../audio/SoundFX';
 import { ArrowProjectile } from './ArrowProjectile';
 import { MetaManager } from '../meta/MetaManager';
+import { EntityAnimController } from '../gfx/AnimationManager';
 
 const KNIGHT_SPEED = 130;
 const RANGER_SPEED = 145;
@@ -72,7 +73,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private attackLock = 0;
   private knockbackLock = 0;
   private baseScale = 1;
-  private animState: AnimState = 'idle';
+  private animController!: EntityAnimController;
+  private shadow!: Phaser.GameObjects.Sprite;
   private dying = false;
   public isAttacking = false;
   private swordOffset = { x: 6, y: -13 };
@@ -145,6 +147,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.sword.setPipeline('Light2D');
     this.sword.setDepth(DEPTH.YSORT_BASE + y + 17);
     this.sword.setScale(1.0);
+
+    this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.35).setDepth(DEPTH.SHADOW);
+    this.animController = new EntityAnimController(this);
+    // Setup states onController
+    this.animController.registerState('idle', { priority: 10, interruptible: true });
+    this.animController.registerState('run', { priority: 20, interruptible: true });
+    this.animController.registerState('death', { priority: 100, interruptible: false });
+    this.animController.registerState('hit', { priority: 80, interruptible: false, duration: 150 });
 
     this.label = scene.add
       .text(x, y - 34, `${slot + 1}`, {
@@ -219,7 +229,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   get currentAnim(): ActorAnim {
-    return this.animState;
+    const s = this.animController ? this.animController.current : 'idle';
+    return (s === 'idle' || s === 'run' || s === 'death') ? s : 'idle';
   }
 
   setLabelVisible(visible: boolean): void {
@@ -232,6 +243,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.hp = Math.max(0, this.hp - amount);
     this.invuln = INVULN_DURATION;
     this.knockbackLock = KNOCKBACK_LOCK;
+    
+    // Hit reaction
+    if (this.heroClass === 'knight') {
+      this.setTint(0xff4422);
+      this.scene.time.delayedCall(100, () => this.clearTint());
+      this.scene.tweens.add({
+        targets: this,
+        scaleX: this.baseScale * 1.15,
+        scaleY: this.baseScale * 0.85,
+        duration: 80,
+        yoyo: true,
+      });
+      this.setAnimState('hit');
+    }
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     const dx = this.x - fromX;
@@ -255,7 +280,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   playDeath(onComplete: () => void): void {
     this.dying = true;
     (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
-    this.animState = 'death';
+    this.animController.forceTransition('death');
     this.setOrigin(0.5, 1.0);
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (body) {
@@ -329,6 +354,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
 
       const projectiles: ArrowProjectile[] = [];
+      // Charge pulse before fan fire
+      const pulse = this.scene.add.circle(this.x, this.y - 14, 12, 0x4ade80, 0.6);
+      this.scene.tweens.add({ targets: pulse, scale: 2.5, alpha: 0, duration: 250, onComplete: () => pulse.destroy() });
       const spread = 0.45; // ~26 degrees fan
       const count = 5;
       for (let i = 0; i < count; i++) {
@@ -352,6 +380,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     } else {
       SoundFX.playWhirlwind();
       this.playWhirlwindAnimation();
+      const mainCam = this.scene.cameras.main;
+      const startZoom = mainCam.zoom;
+      mainCam.setZoom(startZoom - 0.05);
+      this.scene.tweens.add({ targets: mainCam, zoom: startZoom, duration: 400, ease: 'Quad.easeOut' });
       return {
         kind: 'whirlwind',
         x: this.x,
@@ -377,9 +409,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       targets: ring,
       scaleX: 2.2,
       scaleY: 2.2,
-      angle: 360,
+      angle: 720,
       alpha: 0,
-      duration: 250,
+      duration: 350,
       ease: 'Cubic.easeOut',
       onComplete: () => ring.destroy(),
     });
@@ -510,14 +542,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
-  private setAnimState(next: AnimState): void {
-    if (this.animState === next) return;
-    this.animState = next;
+  private setAnimState(next: AnimState | 'hit'): void {
+    if (next === 'hit') {
+       this.animController.tryTransition('hit');
+       return;
+    }
+    if (!this.animController || !this.animController.tryTransition(next as any)) return;
     this.setOrigin(0.5, 1.0);
 
     const isKnight = this.heroClass === 'knight';
-    if (isKnight) {
-      this.play(ACTORS.HERO[next].key, true);
+    if (next === 'death') {
+      this.play(ACTORS.HERO.death.key, true);
+    } else if (isKnight) {
+      this.play(ACTORS.HERO[next as AnimState].key, true);
     } else {
       if (next === 'run') {
         this.play(ANIM.RANGER_RUN, true);
@@ -527,8 +564,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    if (body) {
-      const cfg = isKnight ? BODY_CONFIG[next] : RANGER_BODY_CONFIG[next];
+    if (body && BODY_CONFIG[next as AnimState]) {
+      const cfg = isKnight ? BODY_CONFIG[next as AnimState] : RANGER_BODY_CONFIG[next as AnimState];
       body.setSize(cfg.size[0], cfg.size[1]);
       body.setOffset(cfg.offset[0], cfg.offset[1]);
     }
@@ -608,12 +645,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.x = Phaser.Math.Linear(this.x, this.netTargetX, t);
     this.y = Phaser.Math.Linear(this.y, this.netTargetY, t);
     this.label.setPosition(this.x, this.y - 34);
+    if (this.shadow) { this.shadow.setPosition(this.x, this.y + 2); }
+    if (this.shadow) { this.shadow.setPosition(this.x, this.y + 2); }
+    if (this.shadow) { this.shadow.setPosition(this.x, this.y + 2); }
     this.setDepth(DEPTH.YSORT_BASE + this.y + 16);
-    this.updateSwordTransform(this.animState === 'run');
+    this.updateSwordTransform(this.animController?.current === 'run');
   }
 
   override destroy(fromScene?: boolean): void {
     this.sword.destroy(fromScene);
+    if (this.shadow) this.shadow.destroy(fromScene);
     this.label.destroy(fromScene);
     super.destroy(fromScene);
   }
@@ -621,6 +662,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   update(input: PlayerInput, delta: number): void {
     if (this.dying) return;
 
+    if (this.animController) this.animController.update(delta);
     if (this.invuln > 0) this.invuln -= delta;
     if (this.attackCooldown > 0) this.attackCooldown -= delta;
     if (this.specialCooldown > 0) this.specialCooldown -= delta;
@@ -645,6 +687,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (this.isSprinting && !this.wasSprinting) {
       SoundFX.playDash();
+      this.spawnDustBurst();
     }
     this.wasSprinting = this.isSprinting;
 
@@ -721,5 +764,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       ease: 'Quad.easeOut',
       onComplete: () => ghost.destroy(),
     });
+  }
+
+  private spawnDustBurst(): void {
+    if (!this.scene) return;
+    for (let i=0; i<4; i++) {
+      const dust = this.scene.add.rectangle(this.x + (Math.random()-0.5)*10, this.y + (Math.random()*4), 3, 3, 0xffffff, 0.6);
+      this.scene.tweens.add({
+        targets: dust,
+        y: dust.y - 10 - Math.random()*10,
+        x: dust.x + (Math.random()-0.5)*15,
+        alpha: 0,
+        duration: 300 + Math.random()*200,
+        onComplete: () => dust.destroy()
+      });
+    }
   }
 }

@@ -25,7 +25,8 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   private isLeaping = false;
   private isSpawning = true;
   private hitFlashTimer = 0;
-
+  private shadow!: Phaser.GameObjects.Sprite;
+  
   private light?: Phaser.GameObjects.Light;
 
   // Net puppet interpolation
@@ -54,6 +55,15 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
     this.setDepth(DEPTH.YSORT_BASE + y);
 
     this.light = scene.lights.addLight(x, y - 16, 180, 0xef4444, 0.85);
+    this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.35).setScale(2.2).setDepth(DEPTH.SHADOW);
+    scene.tweens.add({
+        targets: this,
+        scaleY: 1.5,
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+    });
 
     // Intro summon tween
     scene.tweens.add({
@@ -62,6 +72,11 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
       scaleX: 1.45,
       scaleY: 1.45,
       duration: 1100,
+      onStart: () => {
+         const aura = scene.add.circle(x, y, 40, 0x000000, 0.7);
+         scene.tweens.add({ targets: aura, scale: 3, alpha: 0, duration: 1000, onComplete: () => aura.destroy() });
+         scene.cameras.main.shake(400, 0.005);
+      },
       ease: 'Back.easeOut',
       onComplete: () => {
         this.isSpawning = false;
@@ -122,6 +137,9 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
       this.phase = 2;
       SoundFX.playBossRoar();
       this.setTint(0xff7777);
+      this.scene.cameras.main.shake(500, 0.008);
+      const aura = this.scene.add.circle(this.x, this.y, 60, 0xff0000, 0.5);
+      this.scene.tweens.add({ targets: aura, scale: 4, alpha: 0, duration: 800, onComplete: () => aura.destroy() });
       if (this.light) this.light.setColor(0xff2222);
 
       // Enrage spawn minion wave
@@ -149,6 +167,8 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.setDepth(DEPTH.YSORT_BASE + this.y);
+    if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
+    if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
 
     // 1. Melee attack check
     if (this.meleeCooldown > 0) this.meleeCooldown -= delta;
@@ -192,6 +212,9 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
 
   private executeLeapAttack(targetX: number, targetY: number, result: BossActionOutput): void {
     this.isLeaping = true;
+    if (this.shadow) {
+        this.scene.tweens.add({ targets: this.shadow, scale: 1.0, alpha: 0.1, duration: 500, ease: 'Quad.easeOut' });
+    }
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(0, 0);
     SoundFX.playBossRoar();
@@ -208,6 +231,10 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
       onComplete: () => {
         // Slam down at player's target position
         this.setPosition(targetX, targetY - 45);
+        if (this.shadow) {
+            this.shadow.setPosition(targetX, targetY + 2);
+            this.scene.tweens.add({ targets: this.shadow, scale: 2.2, alpha: 0.35, duration: 350, ease: 'Quad.easeIn' });
+        }
         this.scene.tweens.add({
           targets: this,
           y: targetY,
@@ -219,7 +246,7 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
           onComplete: () => {
             this.isLeaping = false;
             SoundFX.playShockwave();
-            this.scene.cameras.main.shake(120, 0.004);
+            this.scene.cameras.main.shake(400, 0.012);
 
             // Ring of 6 skulls in all directions
             for (let i = 0; i < 6; i++) {
@@ -259,13 +286,35 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
       SoundFX.playBossDeath();
       if (this.light) this.light.setVisible(false);
 
-      this.scene.tweens.add({
-        targets: this,
-        alpha: 0,
-        scale: 2.2,
-        duration: 900,
-        ease: 'Quad.easeOut',
-        onComplete: () => this.destroy(),
+      this.setTintFill(0xffffff);
+      this.scene.cameras.main.shake(1000, 0.005);
+      
+      this.scene.time.delayedCall(150, () => {
+         this.clearTint();
+         let burstCount = 0;
+         this.scene.time.addEvent({
+             delay: 200,
+             repeat: 4,
+             callback: () => {
+                 burstCount++;
+                 const bx = this.x + (Math.random()-0.5)*40;
+                 const by = this.y - 20 + (Math.random()-0.5)*40;
+                 const burst = this.scene.add.circle(bx, by, 10, 0xffffff, 0.8);
+                 this.scene.tweens.add({ targets: burst, scale: 3, alpha: 0, duration: 300, onComplete:()=>burst.destroy() });
+             }
+         });
+         
+         this.scene.tweens.add({
+             targets: this,
+             scale: 0.5,
+             alpha: 0,
+             duration: 1200,
+             ease: 'Back.easeIn',
+             onComplete: () => {
+                 if (this.shadow) this.shadow.destroy();
+                 this.destroy();
+             }
+         });
       });
 
       return true;

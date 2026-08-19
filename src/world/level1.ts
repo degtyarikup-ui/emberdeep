@@ -530,6 +530,15 @@ function buildPrisonDungeonLevel(biome: BiomeConfig, depth: number): LevelData {
     // Torture Benches
     { col: 26, row: 15, key: TEXTURE.PROP_WORKBENCH, solid: true },
     { col: 32, row: 15, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    // Spikes in corridors
+    { col: 14, row: 17, key: TEXTURE.PROP_SPIKES, solid: false },
+    { col: 15, row: 17, key: TEXTURE.PROP_SPIKES, solid: false },
+    { col: 44, row: 17, key: TEXTURE.PROP_SPIKES, solid: false },
+    { col: 45, row: 17, key: TEXTURE.PROP_SPIKES, solid: false },
+    { col: 29, row: 20, key: TEXTURE.PROP_SPIKES, solid: false },
+    // Wall Fountains
+    { col: 28, row: 13, key: TEXTURE.FOUNTAIN_RED, solid: true },
+    { col: 30, row: 13, key: TEXTURE.FOUNTAIN_RED, solid: true },
     // Blood Spills around drainage
     { col: 28, row: 16, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
     { col: 30, row: 22, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },

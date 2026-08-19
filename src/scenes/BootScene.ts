@@ -49,6 +49,19 @@ export class BootScene extends Phaser.Scene {
     this.load.image(TEXTURE.PROP_MUSHROOM_GIANT, asset('prop_mushroom_giant.png'));
     this.load.image(TEXTURE.PROP_ICE_CRYSTAL, asset('prop_ice_crystal.png'));
     this.load.image(TEXTURE.PROP_VOID_OBELISK, asset('prop_void_obelisk.png'));
+    this.load.image(TEXTURE.GAME_EMBLEM, asset('emblem.png'));
+
+    // Phase 3 Prop Animations
+    const f0x72 = 'vendor/0x72-dungeon-tileset-ii/source/0x72_DungeonTilesetII_v1.7/frames';
+    for (let i = 0; i <= 3; i++) {
+      this.load.image(`${TEXTURE.PROP_SPIKES}_f${i}`, `${f0x72}/floor_spikes_anim_f${i}.png`);
+    }
+    for (let i = 0; i <= 2; i++) {
+      this.load.image(`${TEXTURE.FOUNTAIN_BLUE}_f${i}`, `${f0x72}/wall_fountain_mid_blue_anim_f${i}.png`);
+      this.load.image(`${TEXTURE.FOUNTAIN_RED}_f${i}`, `${f0x72}/wall_fountain_mid_red_anim_f${i}.png`);
+      this.load.image(`${TEXTURE.CHEST_ANIM}_f${i}`, `${f0x72}/chest_full_open_anim_f${i}.png`);
+    }
+    this.load.spritesheet(TEXTURE.WATER_WAVES, 'vendor/32rogues/source/32rogues/animated-tiles.png', { frameWidth: 32, frameHeight: 32 });
 
     preloadActor(this, ACTORS.HERO);
     preloadActor(this, ACTORS.ORC);
@@ -68,6 +81,10 @@ export class BootScene extends Phaser.Scene {
     this.buildWoodDebrisTexture();
     this.buildSlashFxTexture();
     this.buildVignetteTexture();
+    this.buildDustParticleTexture();
+    this.buildSmokeParticleTexture();
+    this.buildLeafParticleTexture();
+    this.buildShadowTexture();
 
     this.anims.create({
       key: ANIM.TORCH_FLICKER,
@@ -115,6 +132,40 @@ export class BootScene extends Phaser.Scene {
       key: ANIM.BONFIRE_FLICKER,
       frames: this.anims.generateFrameNumbers(TEXTURE.BONFIRE, { start: 0, end: 3 }),
       frameRate: 8,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.SPIKES_CYCLE,
+      frames: [0, 1, 2, 3].map(i => ({ key: `${TEXTURE.PROP_SPIKES}_f${i}` })),
+      frameRate: 8,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.FOUNTAIN_BLUE_FLOW,
+      frames: [0, 1, 2].map(i => ({ key: `${TEXTURE.FOUNTAIN_BLUE}_f${i}` })),
+      frameRate: 8,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.FOUNTAIN_RED_FLOW,
+      frames: [0, 1, 2].map(i => ({ key: `${TEXTURE.FOUNTAIN_RED}_f${i}` })),
+      frameRate: 8,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.CHEST_OPENING,
+      frames: [0, 1, 2].map(i => ({ key: `${TEXTURE.CHEST_ANIM}_f${i}` })),
+      frameRate: 10,
+    });
+
+    this.anims.create({
+      key: ANIM.WATER_WAVE_CYCLE,
+      frames: this.anims.generateFrameNumbers(TEXTURE.WATER_WAVES, { start: 0, end: 3 }),
+      frameRate: 6,
       repeat: -1,
     });
 
@@ -277,5 +328,59 @@ export class BootScene extends Phaser.Scene {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
     this.textures.addCanvas(TEXTURE.VIGNETTE, canvas);
+  }
+
+  private buildDustParticleTexture(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 3;
+    canvas.height = 3;
+    const ctx = canvas.getContext('2d')!;
+    const g = ctx.createRadialGradient(1.5, 1.5, 0, 1.5, 1.5, 1.5);
+    g.addColorStop(0, 'rgba(180,160,130,0.8)');
+    g.addColorStop(1, 'rgba(180,160,130,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 3, 3);
+    this.textures.addCanvas(TEXTURE.PARTICLE_DUST, canvas);
+  }
+
+  private buildSmokeParticleTexture(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 5;
+    canvas.height = 5;
+    const ctx = canvas.getContext('2d')!;
+    const g = ctx.createRadialGradient(2.5, 2.5, 0, 2.5, 2.5, 2.5);
+    g.addColorStop(0, 'rgba(120,115,110,0.25)');
+    g.addColorStop(0.6, 'rgba(100,95,90,0.12)');
+    g.addColorStop(1, 'rgba(80,75,70,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 5, 5);
+    this.textures.addCanvas(TEXTURE.PARTICLE_SMOKE, canvas);
+  }
+
+  private buildLeafParticleTexture(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = 3;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#5a8a3c';
+    ctx.fillRect(1, 0, 2, 1);
+    ctx.fillRect(0, 1, 4, 1);
+    ctx.fillRect(1, 2, 2, 1);
+    ctx.fillStyle = '#78b44e';
+    ctx.fillRect(2, 0, 1, 1);
+    ctx.fillRect(1, 1, 2, 1);
+    this.textures.addCanvas(TEXTURE.PARTICLE_LEAF, canvas);
+  }
+
+  private buildShadowTexture(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 16;
+    canvas.height = 8;
+    const ctx = canvas.getContext('2d')!;
+    ctx.beginPath();
+    ctx.ellipse(8, 4, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fill();
+    this.textures.addCanvas(TEXTURE.SHADOW, canvas);
   }
 }

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH } from '../gfx/registry';
 import { ACTORS, ActorClips } from '../gfx/actors';
+import { TEXTURE } from '../gfx/registry';
 
 export type EnemyKind = 'imp' | 'skeleton';
 
@@ -76,6 +77,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private aiState: AIState = 'patrol';
   private hp: number;
   private hitLock = 0;
+  private shadow!: Phaser.GameObjects.Sprite;
 
   // Timers & AI Variables
   private stateTimer = 0;
@@ -119,6 +121,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     body.setSize(16, 12);
     body.setOffset(8, 20);
     this.setDepth(DEPTH.YSORT_BASE + y);
+    this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.35).setDepth(DEPTH.SHADOW);
   }
 
   get isDead(): boolean {
@@ -187,7 +190,22 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setOrigin(0.5, 1.0);
     this.play(this.stats.clips.death.key);
     this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-      this.scene.tweens.add({ targets: this, alpha: 0, duration: 200, onComplete: () => this.destroy() });
+      this.scene.tweens.add({ targets: this, alpha: 0, duration: 200, onComplete: () => {
+        // spawn blood/bone explosion
+        for(let i=0; i<5; i++) {
+            const part = this.scene.add.rectangle(this.x, this.y - 10, 3, 3, this.kind === 'imp' ? 0xcc0000 : 0xdddddd);
+            this.scene.tweens.add({
+                targets: part,
+                x: this.x + (Math.random()-0.5)*30,
+                y: this.y - 10 + (Math.random()-0.5)*30,
+                alpha: 0,
+                duration: 400,
+                onComplete: () => part.destroy()
+            });
+        }
+        if (this.shadow) this.shadow.destroy();
+        this.destroy(); 
+      } });
     });
   }
 
@@ -209,6 +227,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (this.hitLock > 0) {
       this.hitLock -= delta;
       this.setDepth(DEPTH.YSORT_BASE + this.y);
+    if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
       return false;
     }
 
@@ -226,9 +245,17 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     // ==========================================
     switch (this.aiState) {
       case 'patrol': {
+        // sway
+        if (body.velocity.lengthSq() > 10) {
+            this.angle = Math.sin(this.scene.time.now / 150) * 2;
+        } else {
+            this.angle = 0;
+        }
         // Check if player is detected
         if (distToPlayer < this.stats.detectRadius) {
           this.aiState = 'alert';
+          const alertText = this.scene.add.text(this.x, this.y - 30, '!', { font: 'bold 16px Arial', color: '#ff0000' }).setOrigin(0.5);
+          this.scene.tweens.add({ targets: alertText, y: this.y - 45, alpha: 0, duration: 600, onComplete: () => alertText.destroy() });
           this.stateTimer = 160; // brief reaction freeze
           body.setVelocity(0, 0);
           this.setFlipX(dx < 0);
@@ -300,9 +327,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           // Visual Telegraph: Imp crouches & flashes red; Skeleton gleams white
           if (this.kind === 'imp') {
             this.setTint(0xff4422);
-            this.setScale(this.stats.scale * 1.15, this.stats.scale * 0.85);
+            this.setScale(this.stats.scale * 1.18, this.stats.scale * 0.82);
+              this.scene.tweens.add({ targets: this, x: this.x + (Math.random()-0.5)*2, y: this.y + (Math.random()-0.5)*2, duration: 50, yoyo: true, repeat: 3 });
           } else {
-            this.setTint(0xe2e8f0);
+            this.setTintFill(0xffffff);
+            this.scene.time.delayedCall(150, () => { if (this.active) this.clearTint(); });
           }
           break;
         }
@@ -370,6 +399,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       }
 
       case 'lunge': {
+        if (this.stateTimer === this.stats.lungeDuration) {
+           // just started lunge
+           const dust = this.scene.add.circle(this.x, this.y, 4, 0xaaaaaa, 0.5);
+           this.scene.tweens.add({ targets: dust, scale: 2, alpha: 0, duration: 300, onComplete: () => dust.destroy() });
+           const trail = this.scene.add.sprite(this.x, this.y, this.texture.key, this.frame.name).setAlpha(0.4).setTint(0xff0000);
+           this.scene.tweens.add({ targets: trail, alpha: 0, duration: 200, onComplete: () => trail.destroy() });
+        }
         this.stateTimer -= delta;
 
         // Check if hit lands on player
@@ -413,6 +449,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setAnimState(moving ? 'run' : 'idle');
     this.setDepth(DEPTH.YSORT_BASE + this.y);
 
+    if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
     return landedHit;
   }
 

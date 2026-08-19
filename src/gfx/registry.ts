@@ -41,6 +41,17 @@ export const TEXTURE = {
   PROP_MUSHROOM_GIANT: 'tex-prop-mushroom-giant',
   PROP_ICE_CRYSTAL: 'tex-prop-ice-crystal',
   PROP_VOID_OBELISK: 'tex-prop-void-obelisk',
+  PARTICLE_DUST: 'tex-particle-dust',
+  PARTICLE_SMOKE: 'tex-particle-smoke', 
+  PARTICLE_LEAF: 'tex-particle-leaf',
+  SHADOW: 'tex-shadow',
+  PROP_SPIKES: 'tex-prop-spikes',
+  FOUNTAIN_BLUE: 'tex-fountain-blue',
+  FOUNTAIN_RED: 'tex-fountain-red',
+  GAME_EMBLEM: 'tex-game-emblem',
+  CHEST_ANIM: 'tex-chest-anim',
+  WATER_WAVES: 'tex-water-waves',
+  BONFIRE_STAGE: 'tex-bonfire-stage',
 } as const;
 
 export const ANIM = {
@@ -51,6 +62,12 @@ export const ANIM = {
   RANGER_IDLE: 'anim-ranger-idle',
   RANGER_RUN: 'anim-ranger-run',
   BONFIRE_FLICKER: 'anim-bonfire-flicker',
+  SPIKES_CYCLE: 'anim-spikes-cycle',
+  FOUNTAIN_BLUE_FLOW: 'anim-fountain-blue-flow',
+  FOUNTAIN_RED_FLOW: 'anim-fountain-red-flow',
+  CHEST_OPENING: 'anim-chest-opening',
+  WATER_WAVE_CYCLE: 'anim-water-wave-cycle',
+  // These will be used later when we load vendor spritesheets
 } as const;
 
 export const FONT = {
@@ -66,8 +83,10 @@ export const PLAYER_LABEL_COLORS = ['#f0e2b8', '#8fd0ff', '#8fffb0', '#ffe08f'] 
 
 export const DEPTH = {
   FLOOR: 0,
+  BLOOD_DECAL: 5,
   DUST: 25,
   DECOR: 15, // static decor outside the y-sorted world (menu torches)
+  SHADOW: 95,
   YSORT_BASE: 100, // GameScene world objects: depth = YSORT_BASE + y, so front/back sorts by position
   OVERLAY: 1000,
   UI: 1001,

@@ -1,7 +1,5 @@
 import Phaser from 'phaser';
-import { defineSpritesheet } from '../gfx/PixelArtFactory';
 import { buildDungeonTileset } from '../gfx/tiles';
-import { buildTorchFrames, TORCH_LEGEND } from '../gfx/decor';
 import { buildPropsAtlas } from '../gfx/props';
 import { buildChestTexture } from '../gfx/chest';
 import { buildStairsTexture } from '../gfx/stairs';
@@ -38,6 +36,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(TEXTURE.PROP_ROCK, asset('prop_rock.png'));
     this.load.image(TEXTURE.PROP_BUSH, asset('prop_bush.png'));
     this.load.spritesheet(TEXTURE.BONFIRE, asset('bonfire-sheet.png'), { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet(TEXTURE.TORCH, asset('torch-sheet.png'), { frameWidth: 16, frameHeight: 16 });
     this.load.image(TEXTURE.PROP_CABIN, asset('prop_cabin.png'));
     this.load.image(TEXTURE.PROP_FENCE, asset('prop_fence.png'));
     this.load.image(TEXTURE.PROP_WORKBENCH, asset('prop_workbench.png'));
@@ -62,7 +61,6 @@ export class BootScene extends Phaser.Scene {
     buildChestTexture(this, TEXTURE.CHEST);
     buildStairsTexture(this, TEXTURE.STAIRS);
     buildHudAtlas(this, TEXTURE.HUD_ICONS);
-    defineSpritesheet(this, TEXTURE.TORCH, buildTorchFrames(), TORCH_LEGEND);
     this.buildParticleTexture();
     this.buildBloodParticleTexture();
     this.buildBoneParticleTexture();

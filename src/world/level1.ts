@@ -86,30 +86,34 @@ function carvePath(grid: number[][], x1: number, y1: number, x2: number, y2: num
 const BRIDGE_TOP = 7;
 const BRIDGE_BOT = 8;
 
-function carveRoadH(grid: number[][], x0: number, x1: number, y: number, width = 2): void {
+function carveRoadH(grid: number[][], x0: number, x1: number, yMid: number, width = 3): void {
   const minX = Math.min(x0, x1);
   const maxX = Math.max(x0, x1);
+  const half = Math.floor(width / 2);
   for (let x = minX; x <= maxX; x++) {
-    for (let w = 0; w < width; w++) {
-      if (y + w >= 0 && y + w < ROWS && x >= 0 && x < COLS) {
-        const current = grid[y + w][x];
+    for (let dy = -half; dy <= half; dy++) {
+      const y = yMid + dy;
+      if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
+        const current = grid[y][x];
         if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP) {
-          grid[y + w][x] = PATH;
+          grid[y][x] = PATH;
         }
       }
     }
   }
 }
 
-function carveRoadV(grid: number[][], x: number, y0: number, y1: number, width = 2): void {
+function carveRoadV(grid: number[][], xMid: number, y0: number, y1: number, width = 3): void {
   const minY = Math.min(y0, y1);
   const maxY = Math.max(y0, y1);
+  const half = Math.floor(width / 2);
   for (let y = minY; y <= maxY; y++) {
-    for (let w = 0; w < width; w++) {
-      if (y >= 0 && y < ROWS && x + w >= 0 && x + w < COLS) {
-        const current = grid[y][x + w];
+    for (let dx = -half; dx <= half; dx++) {
+      const x = xMid + dx;
+      if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
+        const current = grid[y][x];
         if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP) {
-          grid[y][x + w] = PATH;
+          grid[y][x] = PATH;
         }
       }
     }
@@ -162,7 +166,7 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   }
 
   // West Bank: Woodcutter's Hamlet Clearings
-  carveRect(binary, 4, 14, 12, 10, FLOOR); // Village Green & Campfire
+  carveRect(binary, 4, 14, 12, 10, PATH); // Village Green & Campfire (dirt clearing)
   carveRect(binary, 8, 5, 12, 8, FLOOR);   // North Cabin Glade
   carveRect(binary, 8, 25, 12, 8, FLOOR);  // South Orchard
 
@@ -171,24 +175,24 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
   carveRect(binary, 36, 25, 12, 8, RUIN_FLOOR);  // South-East Graveyard
   carveRect(binary, 46, 12, 11, 14, RUIN_FLOOR); // Grand Altar Dais
 
-  // Clean Orthogonal Dirt Roads (no stair-step jagged diagonals)
-  carveRoadV(binary, 14, 8, 18, 2);      // Campsite -> North Cabin (V)
-  carveRoadH(binary, 8, 14, 18, 2);      // Campsite -> North Cabin (H)
+  // Clean Orthogonal Dirt Roads (3-tile wide roads)
+  carveRoadV(binary, 14, 8, 18, 3);      // Campsite -> North Cabin (V)
+  carveRoadH(binary, 8, 14, 18, 3);      // Campsite -> North Cabin (H)
 
-  carveRoadV(binary, 14, 20, 28, 2);     // Campsite -> South Cabin (V)
-  carveRoadH(binary, 8, 14, 20, 2);      // Campsite -> South Cabin (H)
+  carveRoadV(binary, 14, 20, 28, 3);     // Campsite -> South Cabin (V)
+  carveRoadH(binary, 8, 14, 20, 3);      // Campsite -> South Cabin (H)
 
-  carveRoadH(binary, 14, 24, 11, 2);     // North Cabin -> North Bridge
-  carveRoadH(binary, 14, 21, 25, 2);     // South Cabin -> South Bridge
+  carveRoadH(binary, 14, 24, 11, 3);     // North Cabin -> North Bridge
+  carveRoadH(binary, 14, 21, 25, 3);     // South Cabin -> South Bridge
 
-  carveRoadH(binary, 34, 40, 11, 2);     // North Bridge -> Chapel road (H)
-  carveRoadV(binary, 40, 8, 11, 2);      // North Bridge -> Chapel road (V)
+  carveRoadH(binary, 34, 40, 11, 3);     // North Bridge -> Chapel road (H)
+  carveRoadV(binary, 40, 8, 11, 3);      // North Bridge -> Chapel road (V)
 
-  carveRoadH(binary, 31, 40, 25, 2);     // South Bridge -> Graveyard road (H)
-  carveRoadV(binary, 40, 25, 28, 2);     // South Bridge -> Graveyard road (V)
+  carveRoadH(binary, 31, 40, 25, 3);     // South Bridge -> Graveyard road (H)
+  carveRoadV(binary, 40, 25, 28, 3);     // South Bridge -> Graveyard road (V)
 
-  carveRoadV(binary, 44, 11, 25, 2);     // Chapel <-> Graveyard connecting avenue
-  carveRoadH(binary, 44, 46, 18, 2);     // Avenue -> Altar Dais
+  carveRoadV(binary, 44, 11, 25, 3);     // Chapel <-> Graveyard connecting avenue
+  carveRoadH(binary, 44, 46, 18, 3);     // Avenue -> Altar Dais
 
   // Chapel Ruin Walls
   for (let c = 36; c <= 47; c++) binary[5][c] = WALL;
@@ -235,8 +239,41 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
         else if (!bottom) data[r][c] = TILE_INDEX.WATER_SHORE_B;
         else data[r][c] = TILE_INDEX.WATER_DEEP;
       } else if (cell === PATH) {
-        const v = rand();
-        data[r][c] = v < 0.6 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
+        // Full 8-neighbor autotiling for paths and clearings
+        const isGrassCell = (row: number, col: number) => {
+          if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
+          return binary[row][col] === FLOOR;
+        };
+
+        const topGrass = isGrassCell(r - 1, c);
+        const bottomGrass = isGrassCell(r + 1, c);
+        const leftGrass = isGrassCell(r, c - 1);
+        const rightGrass = isGrassCell(r, c + 1);
+        const tlGrass = isGrassCell(r - 1, c - 1);
+        const trGrass = isGrassCell(r - 1, c + 1);
+        const blGrass = isGrassCell(r + 1, c - 1);
+        const brGrass = isGrassCell(r + 1, c + 1);
+
+        // Outer corners (2 adjacent cardinal directions are grass)
+        if (topGrass && leftGrass) data[r][c] = TILE_INDEX.PATH_TL;
+        else if (topGrass && rightGrass) data[r][c] = TILE_INDEX.PATH_TR;
+        else if (bottomGrass && leftGrass) data[r][c] = TILE_INDEX.PATH_BL;
+        else if (bottomGrass && rightGrass) data[r][c] = TILE_INDEX.PATH_BR;
+        // Cardinal edges (1 cardinal direction is grass)
+        else if (topGrass) data[r][c] = TILE_INDEX.PATH_T;
+        else if (bottomGrass) data[r][c] = TILE_INDEX.PATH_B;
+        else if (leftGrass) data[r][c] = TILE_INDEX.PATH_L;
+        else if (rightGrass) data[r][c] = TILE_INDEX.PATH_R;
+        // Inner corners (no cardinal grass, but diagonal is grass)
+        else if (tlGrass) data[r][c] = TILE_INDEX.PATH_INNER_TL;
+        else if (trGrass) data[r][c] = TILE_INDEX.PATH_INNER_TR;
+        else if (blGrass) data[r][c] = TILE_INDEX.PATH_INNER_BL;
+        else if (brGrass) data[r][c] = TILE_INDEX.PATH_INNER_BR;
+        // Solid dirt interior
+        else {
+          const v = rand();
+          data[r][c] = v < 0.6 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
+        }
       } else {
         const v = rand();
         data[r][c] = v < 0.45 ? TILE_INDEX.GRASS_1 : v < 0.75 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;

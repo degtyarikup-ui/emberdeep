@@ -4,7 +4,7 @@ import { TEXTURE } from './registry';
 export const TILE_SIZE = 32;
 export const TILE_MARGIN = 1;
 export const TILE_SPACING = 2;
-export const TOTAL_TILES = 51;
+export const TOTAL_TILES = 63;
 
 export const TILE_INDEX = {
   GRASS_1: 0,
@@ -62,6 +62,20 @@ export const TILE_INDEX = {
   WALL_CORNER_BR: 48,
   WALL_END_BL: 49,
   WALL_END_BR: 50,
+  // Cobblestone / Ruin Stone autotile transition tiles (tiles 51-58)
+  COBBLE_T: 51,
+  COBBLE_B: 52,
+  COBBLE_L: 53,
+  COBBLE_R: 54,
+  COBBLE_TL: 55,
+  COBBLE_TR: 56,
+  COBBLE_BL: 57,
+  COBBLE_BR: 58,
+  // Cobblestone inner corners (tiles 59-62)
+  COBBLE_INNER_TL: 59,
+  COBBLE_INNER_TR: 60,
+  COBBLE_INNER_BL: 61,
+  COBBLE_INNER_BR: 62,
   // Legacy aliases
   SHORE_CORNER_LC: 18,
   SHORE_CORNER_LI: 26,
@@ -122,6 +136,18 @@ export const FLOOR_INDICES: number[] = [
   TILE_INDEX.PATH_INNER_TR,
   TILE_INDEX.PATH_INNER_BL,
   TILE_INDEX.PATH_INNER_BR,
+  TILE_INDEX.COBBLE_T,
+  TILE_INDEX.COBBLE_B,
+  TILE_INDEX.COBBLE_L,
+  TILE_INDEX.COBBLE_R,
+  TILE_INDEX.COBBLE_TL,
+  TILE_INDEX.COBBLE_TR,
+  TILE_INDEX.COBBLE_BL,
+  TILE_INDEX.COBBLE_BR,
+  TILE_INDEX.COBBLE_INNER_TL,
+  TILE_INDEX.COBBLE_INNER_TR,
+  TILE_INDEX.COBBLE_INNER_BL,
+  TILE_INDEX.COBBLE_INNER_BR,
 ];
 
 /** Sets up the multi-biome tileset texture with 1px extruded borders to eliminate WebGL tile bleed seams. */

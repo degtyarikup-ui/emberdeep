@@ -243,7 +243,34 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
       } else if (cell === BRIDGE_BOT) {
         data[r][c] = TILE_INDEX.WOOD_BRIDGE_BOT;
       } else if (cell === RUIN_FLOOR) {
-        data[r][c] = TILE_INDEX.RUIN_STONE;
+        // Autotile cobblestone against dirt, path, or grass
+        const isNotCobble = (row: number, col: number) => {
+          if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
+          return binary[row][col] !== RUIN_FLOOR && binary[row][col] !== WALL;
+        };
+
+        const topNC = isNotCobble(r - 1, c);
+        const botNC = isNotCobble(r + 1, c);
+        const leftNC = isNotCobble(r, c - 1);
+        const rightNC = isNotCobble(r, c + 1);
+        const tlNC = isNotCobble(r - 1, c - 1);
+        const trNC = isNotCobble(r - 1, c + 1);
+        const blNC = isNotCobble(r + 1, c - 1);
+        const brNC = isNotCobble(r + 1, c + 1);
+
+        if (topNC && leftNC) data[r][c] = TILE_INDEX.COBBLE_TL;
+        else if (topNC && rightNC) data[r][c] = TILE_INDEX.COBBLE_TR;
+        else if (botNC && leftNC) data[r][c] = TILE_INDEX.COBBLE_BL;
+        else if (botNC && rightNC) data[r][c] = TILE_INDEX.COBBLE_BR;
+        else if (topNC) data[r][c] = TILE_INDEX.COBBLE_T;
+        else if (botNC) data[r][c] = TILE_INDEX.COBBLE_B;
+        else if (leftNC) data[r][c] = TILE_INDEX.COBBLE_L;
+        else if (rightNC) data[r][c] = TILE_INDEX.COBBLE_R;
+        else if (tlNC) data[r][c] = TILE_INDEX.COBBLE_INNER_TL;
+        else if (trNC) data[r][c] = TILE_INDEX.COBBLE_INNER_TR;
+        else if (blNC) data[r][c] = TILE_INDEX.COBBLE_INNER_BL;
+        else if (brNC) data[r][c] = TILE_INDEX.COBBLE_INNER_BR;
+        else data[r][c] = TILE_INDEX.RUIN_STONE;
       } else if (cell === WATER_DEEP) {
         // Autotile water based on neighbors
         const isWaterCell = (row: number, col: number) => {

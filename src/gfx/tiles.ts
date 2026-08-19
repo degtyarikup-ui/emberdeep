@@ -4,7 +4,7 @@ import { TEXTURE } from './registry';
 export const TILE_SIZE = 32;
 export const TILE_MARGIN = 1;
 export const TILE_SPACING = 2;
-export const TOTAL_TILES = 24;
+export const TOTAL_TILES = 28;
 
 export const TILE_INDEX = {
   GRASS_1: 0,
@@ -31,6 +31,11 @@ export const TILE_INDEX = {
   WOOD_BRIDGE: 21,
   SEWER_GRATE_TILE: 22,
   RAIL_TRACK_TILE: 23,
+  // River bend corner tiles (tiles 24-27)
+  SHORE_CORNER_LC: 24,  // Left-bank Convex (shore top, water bottom) - river bends right
+  SHORE_CORNER_LI: 25,  // Left-bank Concave (water top, shore bottom) - river bends left
+  SHORE_CORNER_RC: 26,  // Right-bank Convex (shore top, water bottom)
+  SHORE_CORNER_RI: 27,  // Right-bank Concave (water top, shore bottom)
   // Aliases for compatibility
   WATER_1: 19,
   WATER_2: 19,

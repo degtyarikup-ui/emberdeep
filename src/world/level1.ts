@@ -53,6 +53,11 @@ const ICE = 9;
 const CANYON_DIRT = 10;
 const RAIL = 11;
 const GRATE = 12;
+// Corner bend tiles for smooth river curves
+const SHORE_CORNER_LC = 13; // Left Convex  (shore_l top, water bot)
+const SHORE_CORNER_LI = 14; // Left Concave (water top, shore_l bot)
+const SHORE_CORNER_RC = 15; // Right Convex (shore_r top, water bot)
+const SHORE_CORNER_RI = 16; // Right Concave(water top, shore_r bot)
 
 function carveRect(grid: number[][], x0: number, y0: number, w: number, h: number, type = FLOOR): void {
   for (let y = y0; y < y0 + h; y++) {
@@ -101,21 +106,64 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
     }
   }
 
-  // Organic Meandering River with Genuine Pixel Crawler Shorelines
+  // Organic Meandering River with Genuine Pixel Crawler Shorelines + Corner Bend Tiles
+  const riverCenters: number[] = Array.from({ length: ROWS }, (_, r) =>
+    29 + Math.floor(Math.sin(r * 0.22) * 3)
+  );
+
   for (let r = 0; r < ROWS; r++) {
-    const shift = Math.floor(Math.sin(r * 0.22) * 3);
-    const riverCenter = 29 + shift;
-    // Left Shoreline
+    const riverCenter = riverCenters[r];
+    const prevCenter = r > 0 ? riverCenters[r - 1] : riverCenter;
+    const shiftNow = riverCenter - prevCenter; // +1 shifted right, -1 shifted left
+
     const leftC = riverCenter - 2;
-    if (leftC >= 2 && leftC < COLS - 2) binary[r][leftC] = WATER_SHORE_L;
+    const rightC = riverCenter + 2;
+
     // Center Deep Water
     for (let w = -1; w <= 1; w++) {
       const c = riverCenter + w;
       if (c >= 2 && c < COLS - 2) binary[r][c] = WATER_DEEP;
     }
-    // Right Shoreline
-    const rightC = riverCenter + 2;
-    if (rightC >= 2 && rightC < COLS - 2) binary[r][rightC] = WATER_SHORE_R;
+
+    // Left Shoreline - check if bending
+    if (leftC >= 2 && leftC < COLS - 2) {
+      if (shiftNow > 0) {
+        // River shifted RIGHT: this column was water before, now is left bank
+        binary[r][leftC] = SHORE_CORNER_LI; // Concave: water top, shore_l bottom
+      } else if (shiftNow < 0) {
+        // River shifted LEFT: this column was left bank, shifting to become water
+        binary[r][leftC] = SHORE_CORNER_LC; // Convex: shore_l top, water bottom
+      } else {
+        binary[r][leftC] = WATER_SHORE_L;
+      }
+    }
+
+    // Right Shoreline - check if bending
+    if (rightC >= 2 && rightC < COLS - 2) {
+      if (shiftNow > 0) {
+        // River shifted RIGHT: right bank also moves right, this col becomes water
+        binary[r][rightC] = SHORE_CORNER_RC; // Convex: shore_r top, water bottom
+      } else if (shiftNow < 0) {
+        // River shifted LEFT: right bank moves left, this col was water, now is shore
+        binary[r][rightC] = SHORE_CORNER_RI; // Concave: water top, shore_r bottom
+      } else {
+        binary[r][rightC] = WATER_SHORE_R;
+      }
+    }
+
+    // Fill exposed extra columns when river shifts (ensure no gaps)
+    if (shiftNow > 0) {
+      // River moved right: the old leftC-1 might still be WATER_DEEP, restore to FLOOR
+      const oldLeft = leftC - 1;
+      if (oldLeft >= 2 && oldLeft < COLS - 2 && binary[r][oldLeft] === WATER_DEEP) {
+        binary[r][oldLeft] = FLOOR;
+      }
+    } else if (shiftNow < 0) {
+      const oldRight = rightC + 1;
+      if (oldRight >= 2 && oldRight < COLS - 2 && binary[r][oldRight] === WATER_DEEP) {
+        binary[r][oldRight] = FLOOR;
+      }
+    }
   }
 
   // 2 Wooden bridges crossing the river
@@ -167,6 +215,10 @@ function buildForestHamletLevel(biome: BiomeConfig, depth: number): LevelData {
       if (cell === WATER_SHORE_L) return TILE_INDEX.WATER_SHORE_L;
       if (cell === WATER_DEEP) return TILE_INDEX.WATER_DEEP;
       if (cell === WATER_SHORE_R) return TILE_INDEX.WATER_SHORE_R;
+      if (cell === SHORE_CORNER_LC) return TILE_INDEX.SHORE_CORNER_LC;
+      if (cell === SHORE_CORNER_LI) return TILE_INDEX.SHORE_CORNER_LI;
+      if (cell === SHORE_CORNER_RC) return TILE_INDEX.SHORE_CORNER_RC;
+      if (cell === SHORE_CORNER_RI) return TILE_INDEX.SHORE_CORNER_RI;
       if (cell === BRIDGE) return TILE_INDEX.WOOD_BRIDGE;
       if (cell === RUIN_FLOOR) return TILE_INDEX.RUIN_STONE;
       if (cell === PATH) return rand() < 0.5 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;

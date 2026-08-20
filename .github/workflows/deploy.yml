@@ -3,19 +3,52 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Pushes made with a GitHub App token (Antigravity, Jules, and other cloud
+  # agents) deliberately do NOT fire the `push` event above — GitHub suppresses
+  # it to stop workflows retriggering themselves. Without this poll such
+  # commits sit on main undeployed, and a broken build goes unnoticed.
+  schedule:
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: read
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  # Scheduled runs fire whether or not main moved, so skip the ones with
+  # nothing new to ship. push/dispatch runs always proceed.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          deployed=$(gh api "repos/${{ github.repository }}/deployments?environment=github-pages&per_page=1" \
+            --jq '.[0].sha // ""')
+          echo "main is at ${{ github.sha }}, Pages last deployed $deployed"
+          if [ "$deployed" = "${{ github.sha }}" ]; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: check
+    if: needs.check.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

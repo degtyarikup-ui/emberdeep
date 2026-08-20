@@ -1,7 +1,11 @@
-import { TILE_INDEX } from '../gfx/tiles';
-import { PROP, PropKey } from '../gfx/props';
+// Imported from the Phaser-free data modules on purpose: level generation is
+// pure logic, and keeping it out of the renderer's import graph is what lets
+// it be unit-tested (see tests/level.test.ts).
+import { TILE_INDEX } from '../gfx/tileIndex';
+import { PROP } from '../gfx/propKeys';
+import type { PropKey } from '../gfx/propKeys';
 import { TEXTURE } from '../gfx/registry';
-import { EnemyKind } from '../entities/Enemy';
+import type { EnemyKind } from '../entities/Enemy';
 import { prand } from '../gfx/shapes';
 import { BiomeConfig, getBiomeForDepth } from './biomes';
 
@@ -849,15 +853,17 @@ function buildGlacialAbyssLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 15, row: 18, kind: 'imp' },
     { col: 22, row: 18, kind: 'skeleton' },
     { col: 30, row: 18, kind: 'imp' },
-    // North Plateau Sentinels
-    { col: 17, row: 8, kind: 'skeleton' },
-    { col: 21, row: 8, kind: 'imp' },
+    // North Plateau Sentinels. Row 8 is frozen lake here (ICE_LAKE collides),
+    // so these two spawned stuck inside it — moved onto the snow shelf below.
+    { col: 17, row: 10, kind: 'skeleton' },
+    { col: 21, row: 10, kind: 'imp' },
     // South Plateau Sentinels
     { col: 17, row: 28, kind: 'skeleton' },
     { col: 21, row: 28, kind: 'imp' },
     // East Spire Squad
     { col: 41, row: 8, kind: 'skeleton' },
-    { col: 41, row: 28, kind: 'skeleton' },
+    // row 28 is frozen lake at this column; snow starts at row 26.
+    { col: 41, row: 26, kind: 'skeleton' },
     // Void Citadel Final Sentinels
     { col: 49, row: 14, kind: 'skeleton' },
     { col: 53, row: 14, kind: 'imp' },

@@ -844,7 +844,7 @@ export class GameScene extends Phaser.Scene {
 
     // Timer Badge
     this.timerLabel = this.add
-      .text(0, -4, '⏱️ ВРЕМЯ: 00:00', {
+      .text(0, -4, '[T] ВРЕМЯ: 00:00', {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '700',
@@ -1963,7 +1963,7 @@ export class GameScene extends Phaser.Scene {
     const totalSec = Math.floor(this.elapsedRunTime / 1000);
     const mins = Math.floor(totalSec / 60);
     const secs = totalSec % 60;
-    this.timerLabel.setText(`⏱️ ВРЕМЯ: ${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`);
+    this.timerLabel.setText(`[T] ВРЕМЯ: ${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`);
 
     // Determine current threat tier
     let newTier = 0;
@@ -2718,7 +2718,7 @@ export class GameScene extends Phaser.Scene {
       doubleBtnBg.setAlpha(0);
 
       const doubleBtnText = this.add
-        .text(w / 2, h / 2 + 10, `🔥 УДВОИТЬ УГЛИ (+${opts.embersEarned} ВИДЕО)`, {
+        .text(w / 2, h / 2 + 10, `[x2] УДВОИТЬ УГЛИ (+${opts.embersEarned} ВИДЕО)`, {
           fontFamily: FONT.UI,
           fontSize: '11px',
           fontStyle: '700',
@@ -2737,7 +2737,7 @@ export class GameScene extends Phaser.Scene {
             MetaManager.get().addEmbers(opts.embersEarned!);
             doubleBtnBg.setFillStyle(0x166534, 0.95);
             doubleBtnBg.setStrokeStyle(1.5, 0x4ade80);
-            doubleBtnText.setText('✓ УГЛИ УДВОЕНЫ!');
+            doubleBtnText.setText('[OK] УГЛИ УДВОЕНЫ!');
             doubleBtnText.setColor('#86efac');
             SoundFX.playItemAcquired();
           },

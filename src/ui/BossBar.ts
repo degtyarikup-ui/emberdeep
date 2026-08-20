@@ -155,7 +155,7 @@ export class BossBar {
     if (boss.currentPhase !== this.lastPhase) {
       this.lastPhase = boss.currentPhase;
       if (this.lastPhase === 2) {
-        this.phaseText.setText('⚡ ФАЗА II: ЯРОСТЬ БЕЗДНЫ ⚡');
+        this.phaseText.setText('[!] ФАЗА II: ЯРОСТЬ БЕЗДНЫ [!]');
         this.phaseText.setColor('#ef4444');
         this.titleText.setColor('#fb923c');
 

@@ -1,28 +1,12 @@
 import Phaser from 'phaser';
 import { buildAtlasFromPack, PACK, Rect } from './pack';
 
-export const PROP = {
-  BARREL: 'barrel',
-  CRATE: 'crate',
-  TOMBSTONE: 'tombstone',
-  BANNER_RED: 'banner_red',
-  BANNER_BLUE: 'banner_blue',
-  BANNER_GREEN: 'banner_green',
-  FLASK_RED: 'flask_red',
-  FLASK_BLUE: 'flask_blue',
-  FLASK_GREEN: 'flask_green',
-  FLASK_YELLOW: 'flask_yellow',
-  COIN: 'coin',
-  ITEM_WHETSTONE: 'item_whetstone',
-  ITEM_BOOTS: 'item_boots',
-  ITEM_CRIT_DAGGER: 'item_crit_dagger',
-  ITEM_LEECH_FANG: 'item_leech_fang',
-  ITEM_STORM_EARRING: 'item_storm_earring',
-  ITEM_OIL_LAMP: 'item_oil_lamp',
-  ITEM_IMMORTAL_CROWN: 'item_immortal_crown',
-} as const;
+// Re-exported for existing importers; data lives in a Phaser-free module.
+export { PROP } from './propKeys';
+export type { PropKey } from './propKeys';
+import { PROP } from './propKeys';
+import type { PropKey } from './propKeys';
 
-export type PropKey = (typeof PROP)[keyof typeof PROP];
 
 const RECTS: Record<PropKey, Rect> = {
   [PROP.BARREL]: [PACK.RESOURCES.key, 48, 32, 16, 32],

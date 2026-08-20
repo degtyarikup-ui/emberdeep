@@ -435,7 +435,7 @@ export class MenuScene extends Phaser.Scene {
     freeAdBtnBg.setInteractive({ useHandCursor: true });
 
     const freeAdBtnText = this.add
-      .text(width / 2 + 100, 75, '🎁 +15 УГЛЕЙ (ВИДЕО)', {
+      .text(width / 2 + 100, 75, '[+] +15 УГЛЕЙ (ВИДЕО)', {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '700',
@@ -451,10 +451,10 @@ export class MenuScene extends Phaser.Scene {
           meta.addEmbers(15);
           SoundFX.playItemAcquired();
           renderUpgrades();
-          freeAdBtnText.setText('✓ ПОЛУЧЕНО (+15)!');
+          freeAdBtnText.setText('[OK] ПОЛУЧЕНО (+15)!');
           freeAdBtnText.setColor('#86efac');
           this.time.delayedCall(3000, () => {
-            freeAdBtnText.setText('🎁 +15 УГЛЕЙ (ВИДЕО)');
+            freeAdBtnText.setText('[+] +15 УГЛЕЙ (ВИДЕО)');
             freeAdBtnText.setColor('#fef08a');
             freeAdBtnBg.setInteractive({ useHandCursor: true });
           });

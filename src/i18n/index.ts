@@ -185,11 +185,11 @@ const RU: TranslationDict = {
   locked: 'Заблокировано',
 
   // Monetization keys
-  resurrectAdBtn: '⚡ ВОСКРЕСНУТЬ (РЕКЛАМА)',
-  doubleEmbersBtn: '🔥 УДВОИТЬ УГЛИ (ВИДЕО)',
-  embersDoubled: '✓ УГЛИ УДВОЕНЫ!',
-  freeEmbersAdBtn: '🎁 +15 УГЛЕЙ (ВИДЕО)',
-  freeEmbersClaimed: '✓ ПОЛУЧЕНО!',
+  resurrectAdBtn: '[!] ВОСКРЕСНУТЬ (РЕКЛАМА)',
+  doubleEmbersBtn: '[x2] УДВОИТЬ УГЛИ (ВИДЕО)',
+  embersDoubled: '[OK] УГЛИ УДВОЕНЫ!',
+  freeEmbersAdBtn: '[+] +15 УГЛЕЙ (ВИДЕО)',
+  freeEmbersClaimed: '[OK] ПОЛУЧЕНО!',
   buyEmbersSmall: '100 Углей (49 ЯН)',
   buyEmbersMedium: '300 Углей (129 ЯН)',
   buyEmbersLarge: '1000 Углей (299 ЯН)',
@@ -283,11 +283,11 @@ const EN: TranslationDict = {
   locked: 'Locked',
 
   // Monetization keys
-  resurrectAdBtn: '⚡ RESURRECT (WATCH AD)',
-  doubleEmbersBtn: '🔥 DOUBLE EMBERS (WATCH AD)',
-  embersDoubled: '✓ EMBERS DOUBLED!',
-  freeEmbersAdBtn: '🎁 +15 EMBERS (WATCH AD)',
-  freeEmbersClaimed: '✓ CLAIMED!',
+  resurrectAdBtn: '[!] RESURRECT (WATCH AD)',
+  doubleEmbersBtn: '[x2] DOUBLE EMBERS (WATCH AD)',
+  embersDoubled: '[OK] EMBERS DOUBLED!',
+  freeEmbersAdBtn: '[+] +15 EMBERS (WATCH AD)',
+  freeEmbersClaimed: '[OK] CLAIMED!',
   buyEmbersSmall: '100 Embers (49 YAN)',
   buyEmbersMedium: '300 Embers (129 YAN)',
   buyEmbersLarge: '1000 Embers (299 YAN)',

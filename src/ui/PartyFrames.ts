@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH, FONT, PLAYER_LABEL_COLORS } from '../gfx/registry';
 import { Player } from '../entities/Player';
+import { PixelUI } from '../gfx/PixelUI';
 
 export class PartyFrames {
   private scene: Phaser.Scene;
@@ -9,7 +10,7 @@ export class PartyFrames {
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
-    this.container = scene.add.container(20, 84);
+    this.container = scene.add.container(20, 104);
     this.container.setDepth(DEPTH.UI);
     this.container.setScrollFactor(0);
 
@@ -19,14 +20,12 @@ export class PartyFrames {
   public update(players: Player[], myPlayer: Player): void {
     const allies = players.filter((p) => p.slot !== myPlayer.slot).sort((a, b) => a.slot - b.slot);
 
-    // If no allies, hide
     if (allies.length === 0) {
       this.container.setVisible(false);
       return;
     }
     this.container.setVisible(true);
 
-    // Keep frames synced
     const currentSlots = new Set(allies.map((a) => a.slot));
     for (const [slot, frame] of this.frames) {
       if (!currentSlots.has(slot)) {
@@ -43,7 +42,7 @@ export class PartyFrames {
         this.frames.set(ally.slot, frame);
       }
 
-      frame.setY(index * 26);
+      frame.setY(index * 32);
       this.updateAllyFrame(frame, ally);
     });
   }
@@ -54,28 +53,29 @@ export class PartyFrames {
     const tintHex = PLAYER_LABEL_COLORS[player.slot] ?? '#ffffff';
     const strokeColor = Phaser.Display.Color.HexStringToColor(tintHex).color;
 
-    // Background
-    const bg = this.scene.add.rectangle(0, 0, 140, 22, 0x0f172a, 0.9);
-    bg.setOrigin(0, 0);
-    bg.setStrokeStyle(1.5, strokeColor, 0.9);
+    // 9-slice stone panel
+    const bg = PixelUI.createPanel(this.scene, 75, 14, 150, 28);
+    bg.setTint(strokeColor);
+    frame.add(bg);
 
     // Player Number Tag
-    const tag = this.scene.add.text(6, 4, `P${player.slot + 1}`, {
+    const tag = this.scene.add.text(8, 7, `P${player.slot + 1}`, {
       fontFamily: FONT.UI,
-      fontSize: '9px',
+      fontSize: '11px',
       fontStyle: '700',
       color: tintHex,
     });
     tag.setStroke('#000000', 3);
 
     // Mini HP Bar
-    const barX = 26;
-    const barY = 5;
+    const barX = 30;
+    const barY = 8;
     const barW = 75;
     const barH = 12;
 
-    const hpCavity = this.scene.add.rectangle(barX, barY, barW, barH, 0x020617);
+    const hpCavity = this.scene.add.rectangle(barX, barY, barW, barH, 0x050811);
     hpCavity.setOrigin(0, 0);
+    hpCavity.setStrokeStyle(1, 0x334155);
 
     const hpFill = this.scene.add.rectangle(barX, barY, barW, barH, 0xdc2626);
     hpFill.setOrigin(0, 0);
@@ -83,7 +83,7 @@ export class PartyFrames {
 
     const hpText = this.scene.add.text(barX + barW / 2, barY + barH / 2, '3/3', {
       fontFamily: FONT.UI,
-      fontSize: '8px',
+      fontSize: '9px',
       fontStyle: '700',
       color: '#ffffff',
     });
@@ -92,15 +92,16 @@ export class PartyFrames {
     hpText.setName('hpText');
 
     // Status Label
-    const status = this.scene.add.text(108, 4, 'ЖИВ', {
+    const status = this.scene.add.text(112, 7, 'ЖИВ', {
       fontFamily: FONT.UI,
-      fontSize: '8px',
+      fontSize: '10px',
       fontStyle: '700',
       color: '#4ade80',
     });
+    status.setStroke('#000000', 3);
     status.setName('status');
 
-    frame.add([bg, tag, hpCavity, hpFill, hpText, status]);
+    frame.add([tag, hpCavity, hpFill, hpText, status]);
     return frame;
   }
 
@@ -128,7 +129,7 @@ export class PartyFrames {
   }
 
   public handleResize(): void {
-    this.container.setPosition(20, 84);
+    this.container.setPosition(20, 104);
   }
 
   public destroy(): void {

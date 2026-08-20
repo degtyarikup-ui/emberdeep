@@ -8,6 +8,7 @@ import { buildHudAtlas } from '../gfx/hud';
 import { PACK, LEGACY_PACK, asset } from '../gfx/pack';
 import { ANIM, TEXTURE } from '../gfx/registry';
 import { UIAtlas } from '../gfx/UIAtlas';
+import { PixelUI } from '../gfx/PixelUI';
 import { SCENE } from './keys';
 import { YandexSDK } from '../yandex/yandexSdk';
 
@@ -80,6 +81,7 @@ export class BootScene extends Phaser.Scene {
     buildStairsTexture(this, TEXTURE.STAIRS);
     buildHudAtlas(this, TEXTURE.HUD_ICONS);
     UIAtlas.buildAtlas(this);
+    PixelUI.buildTextures(this);
     this.buildParticleTexture();
     this.buildBloodParticleTexture();
     this.buildBoneParticleTexture();

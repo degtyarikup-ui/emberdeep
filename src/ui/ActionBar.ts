@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, FONT, TEXTURE } from '../gfx/registry';
 import { HeroClass, Player } from '../entities/Player';
 import { ITEM_SPRITE_MAP } from '../gfx/UIAtlas';
+import { PixelUI, PIXEL_UI_TEXTURE } from '../gfx/PixelUI';
 import { Tooltip } from './Tooltip';
 
 export class ActionBar {
@@ -10,14 +11,21 @@ export class ActionBar {
 
   // Slot Containers
   private attackSlot!: Phaser.GameObjects.Container;
-  private specialSlot!: Phaser.GameObjects.Container;
-  private dashSlot!: Phaser.GameObjects.Container;
-  private interactSlot!: Phaser.GameObjects.Container;
+  private attackElementRune!: Phaser.GameObjects.Sprite;
+  private attackSlotBg!: Phaser.GameObjects.NineSlice;
 
-  // Cooldown & Contextual Elements
+  private specialSlot!: Phaser.GameObjects.Container;
+  private specialSlotBg!: Phaser.GameObjects.NineSlice;
   private specialCooldownSweep!: Phaser.GameObjects.Graphics;
   private specialCooldownText!: Phaser.GameObjects.Text;
+
+  private dashSlot!: Phaser.GameObjects.Container;
+  private dashElementRune!: Phaser.GameObjects.Sprite;
+  private dashSlotBg!: Phaser.GameObjects.NineSlice;
+
+  private interactSlot!: Phaser.GameObjects.Container;
   private interactGlow!: Phaser.GameObjects.Rectangle;
+  private interactPromptText!: Phaser.GameObjects.Text;
 
   private heroClass: HeroClass;
 
@@ -28,126 +36,184 @@ export class ActionBar {
     const w = scene.scale.width;
     const h = scene.scale.height;
 
-    this.container = scene.add.container(w / 2, h - 34);
+    this.container = scene.add.container(w / 2, h - 42);
     this.container.setDepth(DEPTH.UI);
     this.container.setScrollFactor(0);
 
-    this.createSlots();
+    this.createActionBar();
 
     scene.cameras.main.ignore(this.container);
   }
 
-  private createSlots(): void {
-    const slotSize = 40;
+  private createActionBar(): void {
+    const slotSize = 46;
     const spacing = 12;
-    const totalW = 4 * slotSize + 3 * spacing;
-    const startX = -totalW / 2 + slotSize / 2;
+    const totalSlots = 4;
+    const barW = totalSlots * slotSize + (totalSlots - 1) * spacing + 28;
+    const barH = 58;
 
-    // 1. Attack Slot (LMB)
-    this.attackSlot = this.createAbilitySlot(
-      startX,
-      'ЛКМ',
-      this.heroClass === 'ranger' ? 'ВЫСТРЕЛ ИЗ ЛУКА' : 'УДАР МЕЧОМ',
-      this.heroClass === 'ranger' ? ITEM_SPRITE_MAP.ranger_bow : ITEM_SPRITE_MAP.knight_sword,
-      'Базовая атака оружием'
+    // 1. Console Stone Backing Plate
+    const backing = PixelUI.createPanel(this.scene, 0, 0, barW, barH);
+    this.container.add(backing);
+
+    const startX = -((totalSlots * slotSize + (totalSlots - 1) * spacing) / 2) + slotSize / 2;
+
+    // 2. Slot 1: Attack (LMB)
+    const attackX = startX;
+    this.attackSlot = this.scene.add.container(attackX, 0);
+    this.attackSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'common');
+    this.attackSlot.add(this.attackSlotBg);
+
+    const attackIconCoord = this.heroClass === 'ranger' ? ITEM_SPRITE_MAP.ranger_bow : ITEM_SPRITE_MAP.knight_sword;
+    const attackFrame = attackIconCoord.row * 11 + attackIconCoord.col;
+    const attackIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, attackFrame);
+    attackIcon.setScale(1.0);
+    this.attackSlot.add(attackIcon);
+
+    // Elemental Rune indicator on Attack
+    this.attackElementRune = this.scene.add.sprite(14, -14, PIXEL_UI_TEXTURE.ICONS_SHEET, 9);
+    this.attackElementRune.setScale(0.85);
+    this.attackElementRune.setVisible(false);
+    this.attackSlot.add(this.attackElementRune);
+
+    // Hotkey Button Badge
+    const btn1 = this.createButtonBadge('ЛКМ');
+    this.attackSlot.add(btn1);
+
+    this.setupHoverTooltip(
+      this.attackSlotBg,
+      '[ ЛКМ ] ОСНОВНАЯ АТАКА',
+      this.heroClass === 'ranger'
+        ? 'Выстрел стрелой во врага. Урон масштабируется от силы атаки и стихийных рун.'
+        : 'Размашистый удар мечом по дуге. Наносит физический урон и отбрасывает врагов.'
     );
     this.container.add(this.attackSlot);
 
-    // 2. Special Slot (ПКМ / Q)
-    const specialPos = startX + (slotSize + spacing);
-    this.specialSlot = this.createAbilitySlot(
-      specialPos,
-      'ПКМ / Q',
-      this.heroClass === 'ranger' ? 'ВЕЕРНЫЙ ЗАЛП' : 'ВИХРЬ КЛИНКОВ',
-      this.heroClass === 'ranger' ? { col: 1, row: 9 } : { col: 6, row: 1 },
-      this.heroClass === 'ranger'
-        ? 'Выпускает 5 пробивающих стрел веером (Кулдаун: 4.0с)'
-        : 'Круговой вихревой удар вокруг рыцаря (Кулдаун: 3.5с)'
-    );
+    // 3. Slot 2: Special Ability (RMB / Q)
+    const specialX = startX + (slotSize + spacing);
+    this.specialSlot = this.scene.add.container(specialX, 0);
+    this.specialSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'uncommon');
+    this.specialSlot.add(this.specialSlotBg);
 
-    // Cooldown overlay graphics
+    const specIconCoord = this.heroClass === 'ranger' ? { col: 1, row: 9 } : { col: 6, row: 1 };
+    const specFrame = specIconCoord.row * 11 + specIconCoord.col;
+    const specIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, specFrame);
+    specIcon.setScale(1.0);
+    this.specialSlot.add(specIcon);
+
+    // Cooldown Radial Sweep
     this.specialCooldownSweep = this.scene.add.graphics();
     this.specialSlot.add(this.specialCooldownSweep);
 
-    this.specialCooldownText = this.scene.add.text(0, 0, '', {
+    this.specialCooldownText = this.scene.add.text(0, -2, '', {
       fontFamily: FONT.UI,
-      fontSize: '13px',
+      fontSize: '14px',
       fontStyle: '700',
-      color: '#facc15',
+      color: '#fde047',
     });
     this.specialCooldownText.setOrigin(0.5, 0.5);
     this.specialCooldownText.setStroke('#000000', 4);
+    this.specialCooldownText.setShadow(0, 2, '#000000', 3, true, true);
     this.specialSlot.add(this.specialCooldownText);
 
+    const btn2 = this.createButtonBadge('ПКМ');
+    this.specialSlot.add(btn2);
+
+    this.setupHoverTooltip(
+      this.specialSlotBg,
+      '[ ПКМ / Q ] СПЕЦУМЕНИЕ',
+      this.heroClass === 'ranger'
+        ? 'Веерный залп: выпускает 5 пробивающих стрел веером.'
+        : 'Вихрь стали: круговой сокрушительный удар вокруг рыцаря.'
+    );
     this.container.add(this.specialSlot);
 
-    // 3. Dash Slot (Shift)
-    const dashPos = startX + 2 * (slotSize + spacing);
-    this.dashSlot = this.createAbilitySlot(
-      dashPos,
-      'SHIFT',
-      'СПРИНТ / РЫВОК',
-      ITEM_SPRITE_MAP.dash_icon,
-      'Увеличение скорости бега и уклонение от врагов'
+    // 4. Slot 3: Dash / Sprint (Shift)
+    const dashX = startX + 2 * (slotSize + spacing);
+    this.dashSlot = this.scene.add.container(dashX, 0);
+    this.dashSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'common');
+    this.dashSlot.add(this.dashSlotBg);
+
+    const dashFrame = ITEM_SPRITE_MAP.dash_icon.row * 11 + ITEM_SPRITE_MAP.dash_icon.col;
+    const dashIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, dashFrame);
+    dashIcon.setScale(1.0);
+    this.dashSlot.add(dashIcon);
+
+    this.dashElementRune = this.scene.add.sprite(14, -14, PIXEL_UI_TEXTURE.ICONS_SHEET, 10);
+    this.dashElementRune.setScale(0.85);
+    this.dashElementRune.setVisible(false);
+    this.dashSlot.add(this.dashElementRune);
+
+    const btn3 = this.createButtonBadge('SHIFT');
+    this.dashSlot.add(btn3);
+
+    this.setupHoverTooltip(
+      this.dashSlotBg,
+      '[ SHIFT ] РЫВОК И СПРИНТ',
+      'Резкое ускорение героя. Позволяет уклоняться от ударов и снарядов.'
     );
     this.container.add(this.dashSlot);
 
-    // 4. Interact Slot (E)
-    const interactPos = startX + 3 * (slotSize + spacing);
-    this.interactSlot = this.createAbilitySlot(
-      interactPos,
-      'E',
-      'ДЕЙСТВИЕ',
-      ITEM_SPRITE_MAP.interact_icon,
-      'Взаимодействие с сундуками, алтарями, кострами и спуском'
+    // 5. Slot 4: Context Interaction (E)
+    const interactX = startX + 3 * (slotSize + spacing);
+    this.interactSlot = this.scene.add.container(interactX, 0);
+
+    this.interactGlow = this.scene.add.rectangle(0, 0, slotSize + 6, slotSize + 6, 0xfacc15, 0);
+    this.interactGlow.setStrokeStyle(2.5, 0xfacc15, 0);
+    this.interactSlot.add(this.interactGlow);
+
+    const interactSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'inset');
+    this.interactSlot.add(interactSlotBg);
+
+    const interactFrame = ITEM_SPRITE_MAP.interact_icon.row * 11 + ITEM_SPRITE_MAP.interact_icon.col;
+    const interactIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, interactFrame);
+    interactIcon.setScale(1.0);
+    this.interactSlot.add(interactIcon);
+
+    const btn4 = this.createButtonBadge('E');
+    this.interactSlot.add(btn4);
+
+    // Floating Interaction Context Text above slot
+    this.interactPromptText = this.scene.add.text(0, -36, '', {
+      fontFamily: FONT.UI,
+      fontSize: '10px',
+      fontStyle: '700',
+      color: '#facc15',
+    });
+    this.interactPromptText.setOrigin(0.5, 0.5);
+    this.interactPromptText.setStroke('#000000', 3);
+    this.interactSlot.add(this.interactPromptText);
+
+    this.setupHoverTooltip(
+      interactSlotBg,
+      '[ E ] ДЕЙСТВИЕ',
+      'Контекстное взаимодействие: открытие сундуков, святилищ, костров и спуск на следующий этаж.'
     );
-
-    this.interactGlow = this.scene.add.rectangle(0, 0, slotSize + 4, slotSize + 4, 0x38bdf8, 0);
-    this.interactGlow.setStrokeStyle(2, 0x38bdf8, 0);
-    this.interactSlot.addAt(this.interactGlow, 0);
-
     this.container.add(this.interactSlot);
   }
 
-  private createAbilitySlot(
-    x: number,
-    hotkey: string,
-    name: string,
-    iconCoord: { col: number; row: number },
-    desc: string
-  ): Phaser.GameObjects.Container {
-    const slot = this.scene.add.container(x, 0);
+  private createButtonBadge(label: string): Phaser.GameObjects.Container {
+    const cont = this.scene.add.container(0, 20);
+    const bg = this.scene.add.rectangle(0, 0, 34, 14, 0x090d16, 0.95);
+    bg.setStrokeStyle(1.5, 0x475569);
 
-    // Slot Frame Background
-    const bg = this.scene.add.rectangle(0, 0, 38, 38, 0x0f172a, 0.95);
-    bg.setStrokeStyle(2, 0xd97706, 0.95);
-
-    const inner = this.scene.add.rectangle(0, 0, 32, 32, 0x020617, 0.7);
-    inner.setStrokeStyle(1, 0xfbbf24, 0.3);
-
-    // 32rogues Icon
-    const frameIndex = iconCoord.row * 11 + iconCoord.col;
-    const icon = this.scene.add.sprite(0, 0, TEXTURE.ITEMS_32ROGUES, frameIndex);
-    icon.setScale(0.9);
-
-    // Hotkey badge at bottom
-    const badgeBg = this.scene.add.rectangle(0, 16, 26, 11, 0x000000, 0.85);
-    badgeBg.setStrokeStyle(1, 0x94a3b8);
-
-    const badgeText = this.scene.add.text(0, 16, hotkey, {
+    const txt = this.scene.add.text(0, 0, label, {
       fontFamily: FONT.UI,
-      fontSize: '8px',
+      fontSize: '9px',
       fontStyle: '700',
       color: '#f8fafc',
     }).setOrigin(0.5, 0.5);
+    txt.setShadow(0, 1, '#000000', 1, true, true);
 
-    slot.add([bg, inner, icon, badgeBg, badgeText]);
+    cont.add([bg, txt]);
+    return cont;
+  }
 
-    // Hover Tooltip
-    bg.setInteractive({ useHandCursor: true })
+  private setupHoverTooltip(target: Phaser.GameObjects.GameObject, title: string, desc: string): void {
+    target.setInteractive({ useHandCursor: true })
       .on('pointerover', (pointer: Phaser.Input.Pointer) => {
         Tooltip.get(this.scene).show(pointer.x, pointer.y, {
-          title: `[${hotkey}] ${name}`,
+          title,
           description: desc,
           rarityColor: '#38bdf8',
         });
@@ -155,19 +221,38 @@ export class ActionBar {
       .on('pointerout', () => {
         Tooltip.get(this.scene).hide();
       });
-
-    return slot;
   }
 
-  public update(_player?: Player, specialCooldownRatio = 0, specialCooldownSec = 0, inInteractRange = false): void {
-    // 1. Update Special Cooldown Overlay
+  public update(player?: Player, specialCooldownRatio = 0, specialCooldownSec = 0, inInteractRange = false): void {
+    // 1. Update Elemental Infusion Runes on Attack and Dash
+    if (player) {
+      const attackEl = player.elementalSlots.attack;
+      if (attackEl) {
+        this.attackElementRune.setVisible(true);
+        const iconIndex = attackEl === 'fire' ? 9 : attackEl === 'frost' ? 10 : 11;
+        this.attackElementRune.setFrame(iconIndex);
+      } else {
+        this.attackElementRune.setVisible(false);
+      }
+
+      const dashEl = player.elementalSlots.dash;
+      if (dashEl) {
+        this.dashElementRune.setVisible(true);
+        const iconIndex = dashEl === 'fire' ? 9 : dashEl === 'frost' ? 10 : 11;
+        this.dashElementRune.setFrame(iconIndex);
+      } else {
+        this.dashElementRune.setVisible(false);
+      }
+    }
+
+    // 2. Update Special Cooldown Overlay
     this.specialCooldownSweep.clear();
     if (specialCooldownRatio > 0) {
-      const size = 36;
-      this.specialCooldownSweep.fillStyle(0x000000, 0.75);
+      const size = 42;
+      this.specialCooldownSweep.fillStyle(0x020617, 0.82);
       this.specialCooldownSweep.slice(
         0,
-        0,
+        -2,
         size / 2,
         -Math.PI / 2,
         -Math.PI / 2 + Math.PI * 2 * specialCooldownRatio,
@@ -181,17 +266,21 @@ export class ActionBar {
       this.specialCooldownText.setVisible(false);
     }
 
-    // 2. Update Interact Slot Glow when in range
+    // 3. Update Interact Slot Glow & Prompt
     if (inInteractRange) {
-      this.interactGlow.setAlpha(0.6 + Math.sin(this.scene.time.now / 150) * 0.3);
-      this.interactGlow.setStrokeStyle(2, 0x38bdf8, 0.9);
+      const pulse = 0.5 + Math.sin(this.scene.time.now / 140) * 0.4;
+      this.interactGlow.setAlpha(pulse);
+      this.interactGlow.setStrokeStyle(2.5, 0xfacc15, pulse);
+      this.interactPromptText.setText('НАЖМИТЕ E');
+      this.interactPromptText.setVisible(true);
     } else {
       this.interactGlow.setAlpha(0);
+      this.interactPromptText.setVisible(false);
     }
   }
 
   public handleResize(width: number, height: number): void {
-    this.container.setPosition(width / 2, height - 34);
+    this.container.setPosition(width / 2, height - 42);
   }
 
   public destroy(): void {

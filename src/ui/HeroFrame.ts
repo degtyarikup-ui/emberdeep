@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { DEPTH, FONT, TEXTURE } from '../gfx/registry';
 import { HeroClass, Player } from '../entities/Player';
 import { MetaManager } from '../meta/MetaManager';
+import { PixelUI, PIXEL_UI_TEXTURE } from '../gfx/PixelUI';
 
 export class HeroFrame {
   private scene: Phaser.Scene;
@@ -13,11 +14,10 @@ export class HeroFrame {
   private goldText: Phaser.GameObjects.Text;
   private embersText: Phaser.GameObjects.Text;
   private classNameText: Phaser.GameObjects.Text;
-  private heartsContainer: Phaser.GameObjects.Container;
 
   private currentHp = 3;
   private maxHp = 3;
-  private maxBarWidth = 120;
+  private maxBarWidth = 160;
 
   constructor(scene: Phaser.Scene, heroClass: HeroClass) {
     this.scene = scene;
@@ -25,111 +25,120 @@ export class HeroFrame {
     this.container.setDepth(DEPTH.UI);
     this.container.setScrollFactor(0);
 
-    // 1. Outer Ornate Background Plate
-    const panelBg = scene.add.rectangle(0, 0, 220, 56, 0x0f172a, 0.92);
-    panelBg.setOrigin(0, 0);
-    panelBg.setStrokeStyle(2, 0xd97706, 0.95);
-    this.container.add(panelBg);
+    const frameW = 260;
+    const frameH = 76;
 
-    const innerBevel = scene.add.rectangle(3, 3, 214, 50, 0x1e293b, 0.4);
-    innerBevel.setOrigin(0, 0);
-    innerBevel.setStrokeStyle(1, 0xfbbf24, 0.3);
-    this.container.add(innerBevel);
+    // 1. Chunky 9-slice Stone & Iron Panel
+    const panel = PixelUI.createPanel(scene, frameW / 2, frameH / 2, frameW, frameH);
+    this.container.add(panel);
 
-    // 2. Hero Portrait (36x36 frame with 32x32 sprite)
-    const portraitBg = scene.add.rectangle(6, 6, 44, 44, 0x05070d);
-    portraitBg.setOrigin(0, 0);
-    portraitBg.setStrokeStyle(2, 0xf59e0b);
-    this.container.add(portraitBg);
+    // 2. Beveled Inset Portrait Frame (48x48)
+    const portraitSlot = PixelUI.createSlot(scene, 32, frameH / 2, 48, 'legendary');
+    this.container.add(portraitSlot);
 
     const portraitTex = heroClass === 'ranger' ? TEXTURE.UI_HERO_PORTRAIT_RANGER : TEXTURE.UI_HERO_PORTRAIT_KNIGHT;
-    this.portraitSprite = scene.add.sprite(28, 28, portraitTex);
-    this.portraitSprite.setScale(1.2);
+    this.portraitSprite = scene.add.sprite(32, frameH / 2, portraitTex);
+    this.portraitSprite.setScale(1.15);
     this.container.add(this.portraitSprite);
 
     // Idle breathing on portrait
     scene.tweens.add({
       targets: this.portraitSprite,
-      scaleX: 1.25,
-      scaleY: 1.25,
-      duration: 1200,
+      scaleX: 1.22,
+      scaleY: 1.22,
+      duration: 1300,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
-    // 3. Class Name Title
-    const classLabel = heroClass === 'ranger' ? 'ЛУЧНИЦА ТЕНЕЙ' : 'РЫЦАРЬ ГОРНА';
-    this.classNameText = scene.add.text(58, 6, classLabel, {
+    // 3. Class Name Title (Crisp, High-Contrast 13px)
+    const isRanger = heroClass === 'ranger';
+    const classLabel = isRanger ? 'ЛУЧНИЦА ТЕНЕЙ' : 'РЫЦАРЬ ГОРНА';
+    const classColor = isRanger ? '#4ade80' : '#38bdf8';
+
+    this.classNameText = scene.add.text(64, 10, classLabel, {
       fontFamily: FONT.UI,
-      fontSize: '11px',
+      fontSize: '13px',
       fontStyle: '700',
-      color: heroClass === 'ranger' ? '#4ade80' : '#38bdf8',
+      color: classColor,
     });
-    this.classNameText.setStroke('#000000', 3);
+    this.classNameText.setStroke('#000000', 4);
+    this.classNameText.setShadow(0, 2, '#000000', 2, true, true);
     this.container.add(this.classNameText);
 
-    // 4. Health Bar (Ghost Bar + Active Fill)
-    const barX = 58;
-    const barY = 22;
-    const barH = 12;
+    // 4. 3D Beveled Health Bar
+    const barX = 64;
+    const barY = 30;
+    const barH = 14;
 
-    const hpCavity = scene.add.rectangle(barX, barY, this.maxBarWidth, barH, 0x020617);
+    // Outer Dark Metallic Cavity
+    const hpCavity = scene.add.rectangle(barX, barY, this.maxBarWidth, barH, 0x050811);
     hpCavity.setOrigin(0, 0);
-    hpCavity.setStrokeStyle(1, 0x334155);
+    hpCavity.setStrokeStyle(1.5, 0x1e293b);
     this.container.add(hpCavity);
 
-    // Ghost Bar (damage trail)
-    this.hpBarGhost = scene.add.rectangle(barX, barY, this.maxBarWidth, barH, 0xfbbf24, 0.85);
+    // Ghost Damage Trail (Amber)
+    this.hpBarGhost = scene.add.rectangle(barX, barY, this.maxBarWidth, barH, 0xf59e0b);
     this.hpBarGhost.setOrigin(0, 0);
     this.container.add(this.hpBarGhost);
 
-    // Main Red HP Fill
+    // Main Ruby Red HP Fill
     this.hpBarFill = scene.add.rectangle(barX, barY, this.maxBarWidth, barH, 0xdc2626);
     this.hpBarFill.setOrigin(0, 0);
     this.container.add(this.hpBarFill);
 
-    // HP Text Numbers
-    this.hpText = scene.add.text(barX + this.maxBarWidth / 2, barY + barH / 2, '3 / 3', {
+    // Top Gloss Highlight Line on Bar
+    const gloss = scene.add.rectangle(barX, barY + 1, this.maxBarWidth, 2, 0xffffff, 0.4);
+    gloss.setOrigin(0, 0);
+    this.container.add(gloss);
+
+    // HP Text Numbers (Large, bold, crisp!)
+    this.hpText = scene.add.text(barX + this.maxBarWidth / 2, barY + barH / 2, '3 / 3 HP', {
       fontFamily: FONT.UI,
-      fontSize: '9px',
+      fontSize: '11px',
       fontStyle: '700',
       color: '#ffffff',
     });
     this.hpText.setOrigin(0.5, 0.5);
-    this.hpText.setStroke('#000000', 3);
+    this.hpText.setStroke('#000000', 4);
+    this.hpText.setShadow(0, 1, '#000000', 2, true, true);
     this.container.add(this.hpText);
 
-    // 5. Hearts overlay container
-    this.heartsContainer = scene.add.container(barX + this.maxBarWidth + 6, barY);
-    this.container.add(this.heartsContainer);
+    // 5. Beveled Resource Badges Row: Gold & Embers
+    const resY = 50;
 
-    // 6. Resources Row: Gold & Embers
-    const resY = 38;
+    // Gold Inset Badge
+    const goldSlot = scene.add.rectangle(barX + 36, resY + 10, 76, 18, 0x050811, 0.9);
+    goldSlot.setStrokeStyle(1, 0x78350f);
+    this.container.add(goldSlot);
 
-    // Gold
-    const goldIcon = scene.add.sprite(barX + 6, resY + 6, TEXTURE.PROPS, 'coin');
-    goldIcon.setScale(1.1);
+    const goldIcon = scene.add.sprite(barX + 8, resY + 10, PIXEL_UI_TEXTURE.ICONS_SHEET, 6);
+    goldIcon.setScale(1.0);
     this.container.add(goldIcon);
 
-    this.goldText = scene.add.text(barX + 16, resY, '0', {
+    this.goldText = scene.add.text(barX + 22, resY + 3, '0', {
       fontFamily: FONT.UI,
-      fontSize: '11px',
+      fontSize: '12px',
       fontStyle: '700',
       color: '#fbbf24',
     });
     this.goldText.setStroke('#451a03', 3);
     this.container.add(this.goldText);
 
-    // Embers
-    const emberIcon = scene.add.sprite(barX + 64, resY + 6, TEXTURE.UI_EMBER_ICON);
-    emberIcon.setScale(0.9);
+    // Embers Inset Badge
+    const emberSlot = scene.add.rectangle(barX + 120, resY + 10, 76, 18, 0x050811, 0.9);
+    emberSlot.setStrokeStyle(1, 0x7c2d12);
+    this.container.add(emberSlot);
+
+    const emberIcon = scene.add.sprite(barX + 92, resY + 10, PIXEL_UI_TEXTURE.ICONS_SHEET, 7);
+    emberIcon.setScale(1.0);
     this.container.add(emberIcon);
 
     const embersCount = MetaManager.get().embers;
-    this.embersText = scene.add.text(barX + 76, resY, `${embersCount}`, {
+    this.embersText = scene.add.text(barX + 106, resY + 3, `${embersCount}`, {
       fontFamily: FONT.UI,
-      fontSize: '11px',
+      fontSize: '12px',
       fontStyle: '700',
       color: '#f97316',
     });
@@ -147,38 +156,36 @@ export class HeroFrame {
     const ratio = Math.max(0, Math.min(1, this.currentHp / this.maxHp));
     const targetW = Math.round(this.maxBarWidth * ratio);
 
-    // Smooth lerp main bar
     this.hpBarFill.width = targetW;
 
-    // Ghost bar lags behind smoothly
+    // Smooth ghost damage lag
     if (this.hpBarGhost.width > targetW) {
       this.hpBarGhost.width += (targetW - this.hpBarGhost.width) * 0.08;
     } else {
       this.hpBarGhost.width = targetW;
     }
 
-    this.hpText.setText(`${this.currentHp} / ${this.maxHp}`);
+    this.hpText.setText(`${this.currentHp} / ${this.maxHp} HP`);
 
-    // Pulse red when low HP
+    // Low HP danger pulse
     if (this.currentHp <= 1) {
-      this.hpBarFill.fillColor = 0xff0000;
+      this.hpBarFill.fillColor = 0xef4444;
+      this.classNameText.setColor('#ef4444');
     } else {
       this.hpBarFill.fillColor = 0xdc2626;
+      this.classNameText.setColor(player.heroClass === 'ranger' ? '#4ade80' : '#38bdf8');
     }
 
-    // Update gold
     this.goldText.setText(`${player.gold}`);
-
-    // Update embers
     this.embersText.setText(`${MetaManager.get().embers}`);
   }
 
   public triggerGoldBump(): void {
     this.scene.tweens.add({
       targets: this.goldText,
-      scaleX: 1.3,
-      scaleY: 1.3,
-      duration: 100,
+      scaleX: 1.35,
+      scaleY: 1.35,
+      duration: 120,
       yoyo: true,
       ease: 'Back.easeOut',
     });

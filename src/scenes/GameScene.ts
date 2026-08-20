@@ -28,11 +28,10 @@ import { BossBar } from '../ui/BossBar';
 import { PartyFrames } from '../ui/PartyFrames';
 import { StatsModal } from '../ui/StatsModal';
 import { Tooltip } from '../ui/Tooltip';
+import { PixelUI } from '../gfx/PixelUI';
 import {
   ElementType,
-  ElementalSlotConfig,
   ELEMENT_COLORS,
-  ELEMENT_NAMES,
   ComboResult,
 } from '../combat/ElementalSystem';
 import { YandexSDK } from '../yandex/yandexSdk';
@@ -185,10 +184,6 @@ export class GameScene extends Phaser.Scene {
   // Threat Meter (Time Scaling)
   private elapsedRunTime = 0;
   private currentThreatTier = 0;
-  private timerLabel!: Phaser.GameObjects.Text;
-  private threatContainer!: Phaser.GameObjects.Container;
-  private threatBadgeBg!: Phaser.GameObjects.Rectangle;
-  private threatBadgeText!: Phaser.GameObjects.Text;
 
   // A world camera zoomed in on the action, and a separate 1:1 UI camera for
   // the HUD — scrollFactor(0) alone does NOT exempt objects from the world
@@ -215,7 +210,13 @@ export class GameScene extends Phaser.Scene {
   private iKey!: Phaser.Input.Keyboard.Key;
   private escKey!: Phaser.Input.Keyboard.Key;
 
-  private elementalHudElements: Phaser.GameObjects.GameObject[] = [];
+  private topHeaderContainer!: Phaser.GameObjects.Container;
+  private depthLabel!: Phaser.GameObjects.Text;
+  private timerLabel!: Phaser.GameObjects.Text;
+  private threatContainer!: Phaser.GameObjects.Container;
+  private threatBadgeBg!: Phaser.GameObjects.Rectangle;
+  private threatBadgeText!: Phaser.GameObjects.Text;
+
   private elementalHazards: Array<{
     x: number;
     y: number;
@@ -225,7 +226,6 @@ export class GameScene extends Phaser.Scene {
   }> = [];
   private dashHazardTimer = 0;
   private bannerContainer?: Phaser.GameObjects.Container;
-  private depthLabel!: Phaser.GameObjects.Text;
   private vignette!: Phaser.GameObjects.Image;
   private damageFlash!: Phaser.GameObjects.Rectangle;
   private hint!: Phaser.GameObjects.Text;
@@ -819,41 +819,55 @@ export class GameScene extends Phaser.Scene {
     this.buildHeartsUI();
     this.updateInventoryHUD();
 
-    this.depthLabel = this.add
-      .text(this.scale.width - 16, 18, `ПОДЗЕМЕЛЬЕ ${this.depth}`, {
-        fontFamily: FONT.UI,
-        fontSize: '11px',
-        color: '#cfc6dd',
-      })
-      .setOrigin(1, 0)
-      .setDepth(DEPTH.UI);
-    this.worldCam.ignore(this.depthLabel);
+    // 3D Stone Top-Right Status Header
+    const headerW = 164;
+    const headerH = 76;
+    this.topHeaderContainer = this.add.container(this.scale.width - 20 - headerW / 2, 20 + headerH / 2);
+    this.topHeaderContainer.setDepth(DEPTH.UI);
+    this.worldCam.ignore(this.topHeaderContainer);
 
-    this.timerLabel = this.add
-      .text(this.scale.width - 16, 36, 'ВРЕМЯ: 00:00', {
-        fontFamily: FONT.UI,
+    const headerBg = PixelUI.createPanel(this, 0, 0, headerW, headerH);
+    this.topHeaderContainer.add(headerBg);
+
+    // Floor / Depth Banner
+    this.depthLabel = this.add
+      .text(0, -22, `ГЛУБИНА ${this.depth}: РУИНЫ`, {
+        fontFamily: FONT.TITLE,
         fontSize: '11px',
         fontStyle: '700',
-        color: '#cfc6dd',
+        color: '#fbbf24',
       })
-      .setOrigin(1, 0)
-      .setDepth(DEPTH.UI);
-    this.worldCam.ignore(this.timerLabel);
+      .setOrigin(0.5, 0.5);
+    this.depthLabel.setStroke('#451a03', 3);
+    this.topHeaderContainer.add(this.depthLabel);
 
-    this.threatContainer = this.add.container(this.scale.width - 60, 60);
-    this.threatContainer.setDepth(DEPTH.UI);
-    this.worldCam.ignore(this.threatContainer);
+    // Timer Badge
+    this.timerLabel = this.add
+      .text(0, -4, '⏱️ ВРЕМЯ: 00:00', {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#f8fafc',
+      })
+      .setOrigin(0.5, 0.5);
+    this.timerLabel.setStroke('#000000', 3);
+    this.topHeaderContainer.add(this.timerLabel);
 
-    this.threatBadgeBg = this.add.rectangle(0, 0, 90, 17, 0x14532d, 0.9);
+    // Threat Badge Box
+    this.threatContainer = this.add.container(0, 18);
+    this.threatBadgeBg = this.add.rectangle(0, 0, 134, 18, 0x14532d, 0.9);
     this.threatBadgeBg.setStrokeStyle(1.5, 0x4ade80);
 
-    this.threatBadgeText = this.add.text(0, 0, 'ЛЕГКО', {
+    this.threatBadgeText = this.add.text(0, 0, 'УГРОЗА: ЛЕГКО', {
       fontFamily: FONT.UI,
       fontSize: '9px',
       fontStyle: '700',
       color: '#4ade80',
     }).setOrigin(0.5, 0.5);
+    this.threatBadgeText.setStroke('#000000', 3);
+
     this.threatContainer.add([this.threatBadgeBg, this.threatBadgeText]);
+    this.topHeaderContainer.add(this.threatContainer);
 
     this.hint = this.add
       .text(this.scale.width / 2, this.scale.height - 20, 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ЛКМ/ПРОБЕЛ — АТАКА   ПКМ/Q — НАВЫК   E — ДЕЙСТВИЕ   ESC — МЕНЮ', {
@@ -1173,9 +1187,12 @@ export class GameScene extends Phaser.Scene {
     this.vignette.setPosition(width / 2, height / 2).setDisplaySize(width * 1.15, height * 1.15);
     this.damageFlash.setPosition(width / 2, height / 2).setSize(width, height);
     this.hint.setPosition(width / 2, height - 20);
-    this.depthLabel.setPosition(width - 16, 18);
-    this.timerLabel.setPosition(width - 16, 36);
-    this.threatContainer.setPosition(width - 60, 60);
+
+    const headerW = 164;
+    const headerH = 76;
+    if (this.topHeaderContainer) {
+      this.topHeaderContainer.setPosition(width - 20 - headerW / 2, 20 + headerH / 2);
+    }
 
     if (this.heroFrame) this.heroFrame.setPosition(20, 20);
     if (this.actionBar) this.actionBar.handleResize(width, height);
@@ -1918,7 +1935,7 @@ export class GameScene extends Phaser.Scene {
     const totalSec = Math.floor(this.elapsedRunTime / 1000);
     const mins = Math.floor(totalSec / 60);
     const secs = totalSec % 60;
-    this.timerLabel.setText(`ВРЕМЯ: ${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`);
+    this.timerLabel.setText(`⏱️ ВРЕМЯ: ${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`);
 
     // Determine current threat tier
     let newTier = 0;
@@ -1933,9 +1950,9 @@ export class GameScene extends Phaser.Scene {
       this.currentThreatTier = newTier;
       const tier = THREAT_TIERS[newTier];
       const colorHex = Phaser.Display.Color.HexStringToColor(tier.color).color;
-      this.threatBadgeBg.setFillStyle(tier.bg, 0.9);
+      this.threatBadgeBg.setFillStyle(tier.bg, 0.95);
       this.threatBadgeBg.setStrokeStyle(1.5, colorHex);
-      this.threatBadgeText.setText(tier.name);
+      this.threatBadgeText.setText(`УГРОЗА: ${tier.name}`);
       this.threatBadgeText.setColor(tier.color);
 
       SoundFX.playThreatLevelUp();
@@ -3023,69 +3040,6 @@ export class GameScene extends Phaser.Scene {
     if (this.statsModal?.isOpen) {
       this.statsModal.refresh(this.myPlayer);
     }
-    this.updateElementalHUD();
-  }
-
-  private updateElementalHUD(): void {
-    for (const el of this.elementalHudElements) el.destroy();
-    this.elementalHudElements = [];
-    if (!this.myPlayer) return;
-
-    const slots = this.myPlayer.elementalSlots;
-    const startX = 20;
-    const startY = 102;
-    const slotW = 66;
-    const slotH = 22;
-    const gap = 6;
-
-    const slotDefs: Array<{ label: string; key: keyof ElementalSlotConfig }> = [
-      { label: 'АТАКА', key: 'attack' },
-      { label: 'ВИХРЬ', key: 'skill' },
-      { label: 'РЫВОК', key: 'dash' },
-      { label: 'ГИБЕЛЬ', key: 'onKill' },
-    ];
-
-    slotDefs.forEach((s, idx) => {
-      const activeEl = slots[s.key];
-      const elColor = activeEl ? ELEMENT_COLORS[activeEl] : '#475569';
-      const elText = activeEl ? ELEMENT_NAMES[activeEl] : '—';
-
-      const x = startX + idx * (slotW + gap);
-      const y = startY;
-
-      const bg = this.add.rectangle(x + slotW / 2, y, slotW, slotH, 0x0f0b1a, 0.92).setDepth(DEPTH.UI + 5);
-      bg.setStrokeStyle(1.5, activeEl ? Phaser.Display.Color.HexStringToColor(elColor).color : 0x334155);
-      this.worldCam.ignore(bg);
-      this.elementalHudElements.push(bg);
-
-      // Slot type label (left)
-      const labelTxt = this.add
-        .text(x + 4, y, s.label, {
-          fontFamily: FONT.UI,
-          fontSize: '8px',
-          fontStyle: '700',
-          color: '#94a3b8',
-        })
-        .setOrigin(0, 0.5)
-        .setDepth(DEPTH.UI + 6);
-      labelTxt.setStroke('#000000', 3);
-      this.worldCam.ignore(labelTxt);
-      this.elementalHudElements.push(labelTxt);
-
-      // Element text badge (right)
-      const valTxt = this.add
-        .text(x + slotW - 4, y, elText, {
-          fontFamily: FONT.UI,
-          fontSize: '8px',
-          fontStyle: '700',
-          color: elColor,
-        })
-        .setOrigin(1, 0.5)
-        .setDepth(DEPTH.UI + 6);
-      valTxt.setStroke('#000000', 3);
-      this.worldCam.ignore(valTxt);
-      this.elementalHudElements.push(valTxt);
-    });
   }
 
   private triggerElementalComboEffect(x: number, y: number, combo: ComboResult): void {

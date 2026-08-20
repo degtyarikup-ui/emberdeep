@@ -5,6 +5,7 @@ import { ITEMS } from '../items/registry';
 import { ItemDef } from '../items/types';
 import { ITEM_SPRITE_MAP } from '../gfx/UIAtlas';
 import { MetaManager } from '../meta/MetaManager';
+import { PixelUI, PIXEL_UI_TEXTURE } from '../gfx/PixelUI';
 import { Tooltip } from './Tooltip';
 
 export class StatsModal {
@@ -12,8 +13,12 @@ export class StatsModal {
   private container: Phaser.GameObjects.Container;
   private isVisible = false;
 
-  private statsTexts: Phaser.GameObjects.Text[] = [];
+  private statsTexts: Phaser.GameObjects.GameObject[] = [];
   private itemSlotsContainer!: Phaser.GameObjects.Container;
+  private itemDetailContainer!: Phaser.GameObjects.Container;
+  private detailTitle!: Phaser.GameObjects.Text;
+  private detailDesc!: Phaser.GameObjects.Text;
+  private detailTag!: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -21,7 +26,7 @@ export class StatsModal {
     const h = scene.scale.height;
 
     this.container = scene.add.container(w / 2, h / 2);
-    this.container.setDepth(DEPTH.UI + 300);
+    this.container.setDepth(DEPTH.UI + 500);
     this.container.setScrollFactor(0);
     this.container.setVisible(false);
 
@@ -31,82 +36,109 @@ export class StatsModal {
   }
 
   private buildModal(): void {
-    const modalW = 500;
-    const modalH = 300;
+    const modalW = 560;
+    const modalH = 360;
 
-    // Dark backdrop overlay
-    const backdrop = this.scene.add.rectangle(0, 0, this.scene.scale.width * 2, this.scene.scale.height * 2, 0x000000, 0.75);
-    backdrop.setInteractive(); // Blocks clicks to the game world while open
+    // 1. Dark Backdrop Overlay
+    const backdrop = this.scene.add.rectangle(0, 0, this.scene.scale.width * 2, this.scene.scale.height * 2, 0x000000, 0.78);
+    backdrop.setInteractive(); // Prevent clicking behind
     this.container.add(backdrop);
 
-    // Main Ornate Panel
-    const panelBg = this.scene.add.rectangle(0, 0, modalW, modalH, 0x0f172a, 0.96);
-    panelBg.setStrokeStyle(2, 0xd97706, 0.98);
+    // 2. Main 9-slice Stone Panel
+    const mainPanel = PixelUI.createPanel(this.scene, 0, 0, modalW, modalH);
+    this.container.add(mainPanel);
 
-    const innerBevel = this.scene.add.rectangle(0, 0, modalW - 8, modalH - 8, 0x020617, 0.5);
-    innerBevel.setStrokeStyle(1, 0xfbbf24, 0.35);
+    // 3. Header Strip
+    const header = PixelUI.createHeader(this.scene, 0, -modalH / 2 + 16, modalW - 16, 26);
+    this.container.add(header);
 
-    // Header Title
-    const title = this.scene.add.text(0, -modalH / 2 + 18, 'ХАРАКТЕРИСТИКИ ГЕРОЯ И АРТЕФАКТЫ', {
+    const title = this.scene.add.text(0, -modalH / 2 + 16, '[ I ] ИНВЕНТАРЬ И ХАРАКТЕРИСТИКИ ГЕРОЯ', {
       fontFamily: FONT.TITLE,
-      fontSize: '14px',
+      fontSize: '13px',
       fontStyle: '700',
-      color: '#fbbf24',
+      color: '#fde047',
     }).setOrigin(0.5, 0.5);
-    title.setStroke('#451a03', 4);
+    title.setStroke('#000000', 4);
+    this.container.add(title);
 
-    // Close button prompt
-    const closePrompt = this.scene.add.text(0, modalH / 2 - 16, '[TAB] / [ESC] — ЗАКРЫТЬ ОКНО', {
-      fontFamily: FONT.UI,
-      fontSize: '9px',
-      color: '#94a3b8',
-    }).setOrigin(0.5, 0.5);
+    // Close [X] Button on Header
+    const closeBtn = this.scene.add.sprite(modalW / 2 - 20, -modalH / 2 + 16, PIXEL_UI_TEXTURE.ICONS_SHEET, 8);
+    closeBtn.setScale(1.2);
+    closeBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.close());
+    this.container.add(closeBtn);
 
-    // Left Column: Stats Panel
-    const leftW = 210;
-    const leftH = modalH - 70;
-    const leftX = -modalW / 2 + leftW / 2 + 20;
-    const leftY = 6;
+    // 4. Left Column: Stats & Hero Info (240px wide)
+    const leftW = 240;
+    const leftH = modalH - 56;
+    const leftX = -modalW / 2 + leftW / 2 + 16;
+    const leftY = 16;
 
-    const leftBg = this.scene.add.rectangle(leftX, leftY, leftW, leftH, 0x0b1120, 0.9);
-    leftBg.setStrokeStyle(1, 0x334155);
+    const leftBg = PixelUI.createPanel(this.scene, leftX, leftY, leftW, leftH);
+    this.container.add(leftBg);
 
     const statsHeader = this.scene.add.text(leftX, leftY - leftH / 2 + 14, 'ХАРАКТЕРИСТИКИ', {
       fontFamily: FONT.UI,
-      fontSize: '11px',
+      fontSize: '12px',
       fontStyle: '700',
       color: '#38bdf8',
     }).setOrigin(0.5, 0.5);
+    statsHeader.setStroke('#000000', 3);
+    this.container.add(statsHeader);
 
-    // Right Column: Items Panel
-    const rightW = 230;
-    const rightH = modalH - 70;
-    const rightX = modalW / 2 - rightW / 2 - 20;
-    const rightY = 6;
+    // 5. Right Column: Items Grid & Detail Box (270px wide)
+    const rightW = 270;
+    const rightH = modalH - 56;
+    const rightX = modalW / 2 - rightW / 2 - 16;
+    const rightY = 16;
 
-    const rightBg = this.scene.add.rectangle(rightX, rightY, rightW, rightH, 0x0b1120, 0.9);
-    rightBg.setStrokeStyle(1, 0x334155);
+    const rightBg = PixelUI.createPanel(this.scene, rightX, rightY, rightW, rightH);
+    this.container.add(rightBg);
 
     const itemsHeader = this.scene.add.text(rightX, rightY - rightH / 2 + 14, 'СОБРАННЫЕ АРТЕФАКТЫ', {
+      fontFamily: FONT.UI,
+      fontSize: '12px',
+      fontStyle: '700',
+      color: '#fbbf24',
+    }).setOrigin(0.5, 0.5);
+    itemsHeader.setStroke('#000000', 3);
+    this.container.add(itemsHeader);
+
+    this.itemSlotsContainer = this.scene.add.container(rightX, rightY - 30);
+    this.container.add(this.itemSlotsContainer);
+
+    // Inset Detail Card at bottom of right column
+    this.itemDetailContainer = this.scene.add.container(rightX, rightY + 95);
+    const detailBox = PixelUI.createSlot(this.scene, 0, 0, rightW - 20, 'inset');
+    detailBox.setDisplaySize(rightW - 20, 80);
+    this.itemDetailContainer.add(detailBox);
+
+    this.detailTitle = this.scene.add.text(-rightW / 2 + 20, -28, 'ВЫБЕРИТЕ ПРЕДМЕТ', {
       fontFamily: FONT.UI,
       fontSize: '11px',
       fontStyle: '700',
       color: '#fbbf24',
-    }).setOrigin(0.5, 0.5);
+    });
+    this.detailTitle.setStroke('#000000', 3);
+    this.itemDetailContainer.add(this.detailTitle);
 
-    this.itemSlotsContainer = this.scene.add.container(rightX, rightY);
+    this.detailTag = this.scene.add.text(rightW / 2 - 24, -28, '', {
+      fontFamily: FONT.UI,
+      fontSize: '9px',
+      fontStyle: '700',
+      color: '#38bdf8',
+    }).setOrigin(1, 0);
+    this.itemDetailContainer.add(this.detailTag);
 
-    this.container.add([
-      panelBg,
-      innerBevel,
-      title,
-      closePrompt,
-      leftBg,
-      statsHeader,
-      rightBg,
-      itemsHeader,
-      this.itemSlotsContainer,
-    ]);
+    this.detailDesc = this.scene.add.text(-rightW / 2 + 20, -10, 'Наведите курсор на артефакт в инвентаре для просмотра подробного описания и свойств.', {
+      fontFamily: FONT.UI,
+      fontSize: '9px',
+      color: '#cbd5e1',
+      wordWrap: { width: rightW - 40 },
+    });
+    this.detailDesc.setStroke('#000000', 2);
+    this.itemDetailContainer.add(this.detailDesc);
+
+    this.container.add(this.itemDetailContainer);
   }
 
   public toggle(player: Player): void {
@@ -121,7 +153,7 @@ export class StatsModal {
     if (this.isVisible) return;
     this.isVisible = true;
     this.container.setVisible(true);
-    this.container.setScale(0.85);
+    this.container.setScale(0.88);
     this.container.setAlpha(0);
 
     this.refresh(player);
@@ -131,7 +163,7 @@ export class StatsModal {
       scaleX: 1,
       scaleY: 1,
       alpha: 1,
-      duration: 200,
+      duration: 220,
       ease: 'Back.easeOut',
     });
   }
@@ -159,144 +191,166 @@ export class StatsModal {
   }
 
   public refresh(player: Player): void {
-    // 1. Update Stats on the left
-    for (const st of this.statsTexts) st.destroy();
+    // 1. Update Stats List on the Left Column
+    for (const obj of this.statsTexts) obj.destroy();
     this.statsTexts = [];
 
     const meta = MetaManager.get();
     const metaBonuses = meta.getBonuses();
     const items = player.items;
 
-    // Damage bonus
     const whetstoneBonus = (items.whetstone ?? 0) * 20;
     const totalDmgPercent = Math.round((100 + whetstoneBonus) * metaBonuses.damageMultiplier);
 
-    // Crit chance
     const critBonus = (items.crit_dagger ?? 0) * 15;
     const totalCrit = Math.round(5 + critBonus + metaBonuses.extraCrit * 100);
 
-    // Speed
     const bootsBonus = (items.boots ?? 0) * 15;
     const totalSpeedPercent = Math.round((100 + bootsBonus) * metaBonuses.speedMultiplier);
 
     const statsList = [
-      { label: 'Класс:', val: player.heroClass === 'ranger' ? 'Лучник' : 'Рыцарь', col: '#cbd5e1' },
-      { label: 'Здоровье (HP):', val: `${player.hp} / ${player.maxHp}`, col: '#ef4444' },
-      { label: 'Сила атаки:', val: `${totalDmgPercent}%`, col: '#f87171' },
-      { label: 'Шанс крита:', val: `${totalCrit}%`, col: '#fbbf24' },
-      { label: 'Скорость бега:', val: `${totalSpeedPercent}%`, col: '#4ade80' },
-      { label: 'Вампиризм:', val: items.leech_fang ? 'АКТИВЕН (15%)' : 'НЕТ', col: items.leech_fang ? '#a855f7' : '#64748b' },
-      { label: 'Бессмертие:', val: items.immortal_crown ? `ДА (${items.immortal_crown})` : 'НЕТ', col: items.immortal_crown ? '#facc15' : '#64748b' },
-      { label: 'Золото в кармане:', val: `${player.gold} 🪙`, col: '#fbbf24' },
-      { label: 'Эмберы бездны:', val: `${meta.embers} 🔥`, col: '#f97316' },
+      { iconIdx: 0, label: 'ЗДОРОВЬЕ (HP):', val: `${player.hp} / ${player.maxHp}`, col: '#ef4444' },
+      { iconIdx: 1, label: 'СИЛА АТАКИ:', val: `${totalDmgPercent}%`, col: '#f87171' },
+      { iconIdx: 2, label: 'ШАНС КРИТА:', val: `${totalCrit}%`, col: '#fbbf24' },
+      { iconIdx: 3, label: 'СКОРОСТЬ БЕГА:', val: `${totalSpeedPercent}%`, col: '#4ade80' },
+      { iconIdx: 4, label: 'ВАМПИРИЗМ:', val: items.leech_fang ? '15% УРОНА' : 'НЕТ', col: items.leech_fang ? '#c084fc' : '#64748b' },
+      { iconIdx: 5, label: 'БЕССМЕРТИЕ:', val: items.immortal_crown ? `ДА (x${items.immortal_crown})` : 'НЕТ', col: items.immortal_crown ? '#fde047' : '#64748b' },
+      { iconIdx: 6, label: 'ЗОЛОТО:', val: `${player.gold}`, col: '#fbbf24' },
+      { iconIdx: 7, label: 'ЭМБЕРЫ БЕЗДНЫ:', val: `${meta.embers}`, col: '#f97316' },
     ];
 
-    const leftX = -500 / 2 + 210 / 2 + 20;
-    const startY = -80;
+    const modalW = 560;
+    const leftW = 240;
+    const leftX = -modalW / 2 + leftW / 2 + 16;
+    const startY = -105;
 
     statsList.forEach((stat, i) => {
-      const y = startY + i * 18;
-      const lbl = this.scene.add.text(leftX - 90, y, stat.label, {
+      const y = startY + i * 28;
+
+      // Inset Row Strip
+      const rowBg = this.scene.add.rectangle(leftX, y, leftW - 24, 22, 0x050811, 0.85);
+      rowBg.setStrokeStyle(1, 0x1e293b);
+      this.container.add(rowBg);
+      this.statsTexts.push(rowBg);
+
+      // Icon
+      const icon = this.scene.add.sprite(leftX - leftW / 2 + 24, y, PIXEL_UI_TEXTURE.ICONS_SHEET, stat.iconIdx);
+      this.container.add(icon);
+      this.statsTexts.push(icon);
+
+      // Label
+      const lbl = this.scene.add.text(leftX - leftW / 2 + 38, y, stat.label, {
         fontFamily: FONT.UI,
-        fontSize: '9px',
+        fontSize: '10px',
+        fontStyle: '700',
         color: '#94a3b8',
-      });
-      const val = this.scene.add.text(leftX + 90, y, stat.val, {
+      }).setOrigin(0, 0.5);
+      lbl.setStroke('#000000', 3);
+      this.container.add(lbl);
+      this.statsTexts.push(lbl);
+
+      // Value
+      const val = this.scene.add.text(leftX + leftW / 2 - 20, y, stat.val, {
         fontFamily: FONT.UI,
-        fontSize: '9px',
+        fontSize: '11px',
         fontStyle: '700',
         color: stat.col,
-      }).setOrigin(1, 0);
-
-      this.container.add([lbl, val]);
-      this.statsTexts.push(lbl, val);
+      }).setOrigin(1, 0.5);
+      val.setStroke('#000000', 3);
+      this.container.add(val);
+      this.statsTexts.push(val);
     });
 
-    // 2. Update Items Grid on the right
+    // 2. Update Right Column Item Grid
     this.itemSlotsContainer.removeAll(true);
 
     const activeItemIds = Object.keys(items).filter((id) => items[id] > 0);
-    if (activeItemIds.length === 0) {
-      const noItems = this.scene.add.text(0, 0, 'НЕТ СОБРАННЫХ АРТЕФАКТОВ\n\nОткрывайте сундуки и\nпосещайте святилища!', {
-        fontFamily: FONT.UI,
-        fontSize: '10px',
-        color: '#64748b',
-        align: 'center',
-      }).setOrigin(0.5, 0.5);
-      this.itemSlotsContainer.add(noItems);
-      return;
-    }
-
-    const slotSize = 38;
+    const totalGridSlots = 15; // 3 rows x 5 cols
     const cols = 5;
-    const spacing = 6;
-    const startGridX = -((cols * (slotSize + spacing) - spacing) / 2) + slotSize / 2;
-    const startGridY = -70;
+    const slotSize = 42;
+    const spacing = 8;
+    const startGridX = -((cols * slotSize + (cols - 1) * spacing) / 2) + slotSize / 2;
+    const startGridY = -40;
 
-    activeItemIds.forEach((id, idx) => {
-      const count = items[id];
-      const itemDef: ItemDef | undefined = ITEMS[id];
-      if (!itemDef) return;
-
-      const col = idx % cols;
-      const row = Math.floor(idx / cols);
+    for (let i = 0; i < totalGridSlots; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
       const sx = startGridX + col * (slotSize + spacing);
       const sy = startGridY + row * (slotSize + spacing);
 
-      const slot = this.createItemGridSlot(sx, sy, itemDef, count);
-      this.itemSlotsContainer.add(slot);
-    });
+      const itemId = activeItemIds[i];
+      if (itemId) {
+        const count = items[itemId];
+        const itemDef: ItemDef | undefined = ITEMS[itemId];
+        if (itemDef) {
+          const slot = this.createItemGridSlot(sx, sy, itemDef, count, slotSize);
+          this.itemSlotsContainer.add(slot);
+          continue;
+        }
+      }
+
+      // Empty Recessed Slot
+      const emptySlot = PixelUI.createSlot(this.scene, sx, sy, slotSize, 'inset');
+      this.itemSlotsContainer.add(emptySlot);
+    }
   }
 
-  private createItemGridSlot(x: number, y: number, item: ItemDef, count: number): Phaser.GameObjects.Container {
+  private createItemGridSlot(
+    x: number,
+    y: number,
+    item: ItemDef,
+    count: number,
+    size: number
+  ): Phaser.GameObjects.Container {
     const slot = this.scene.add.container(x, y);
 
-    const rarityHex = item.color ?? '#facc15';
-    const rarityColor = Phaser.Display.Color.HexStringToColor(rarityHex).color;
+    let tier: 'common' | 'uncommon' | 'rare' | 'legendary' = 'common';
+    if (item.element) tier = 'uncommon';
+    if (item.id === 'immortal_crown' || item.id === 'leech_fang' || item.id === 'crit_dagger') tier = 'legendary';
+    else if (item.id === 'whetstone' || item.id === 'boots') tier = 'rare';
 
-    const bg = this.scene.add.rectangle(0, 0, 36, 36, 0x0f172a, 0.95);
-    bg.setStrokeStyle(2, rarityColor, 0.95);
-
-    const inner = this.scene.add.rectangle(0, 0, 30, 30, 0x030712, 0.6);
+    const slotBg = PixelUI.createSlot(this.scene, 0, 0, size, tier);
+    slot.add(slotBg);
 
     const iconCoord = ITEM_SPRITE_MAP[item.id];
     let icon: Phaser.GameObjects.Sprite;
     if (iconCoord) {
       const frameIndex = iconCoord.row * 11 + iconCoord.col;
       icon = this.scene.add.sprite(0, 0, TEXTURE.ITEMS_32ROGUES, frameIndex);
-      icon.setScale(0.9);
+      icon.setScale(0.95);
     } else {
       icon = this.scene.add.sprite(0, 0, TEXTURE.PROPS, item.icon);
       icon.setScale(1.2);
     }
-
-    slot.add([bg, inner, icon]);
+    slot.add(icon);
 
     if (count > 1) {
-      const badgeBg = this.scene.add.rectangle(12, 11, 14, 11, 0x000000, 0.9);
-      badgeBg.setStrokeStyle(1, 0xfbbf24);
+      const badgeBg = this.scene.add.rectangle(12, 11, 16, 12, 0x050811, 0.95);
+      badgeBg.setStrokeStyle(1.5, 0xfbbf24);
 
       const countText = this.scene.add.text(12, 11, `x${count}`, {
         fontFamily: FONT.UI,
-        fontSize: '8px',
+        fontSize: '9px',
         fontStyle: '700',
         color: '#ffffff',
       }).setOrigin(0.5, 0.5);
+      countText.setShadow(0, 1, '#000000', 1, true, true);
 
       slot.add([badgeBg, countText]);
     }
 
-    bg.setInteractive({ useHandCursor: true })
-      .on('pointerover', (pointer: Phaser.Input.Pointer) => {
-        Tooltip.get(this.scene).show(pointer.x, pointer.y, {
-          title: item.name,
-          description: item.desc,
-          rarityColor: item.color,
-          subtext: item.element ? `[ЭЛЕМЕНТ: ${item.element.toUpperCase()}]` : undefined,
-        });
+    slotBg.setInteractive({ useHandCursor: true })
+      .on('pointerover', () => {
+        this.detailTitle.setText(item.name.toUpperCase());
+        this.detailTitle.setColor(item.color ?? '#fde047');
+        this.detailTag.setText(item.element ? `[ ${item.element.toUpperCase()} ]` : '');
+        this.detailDesc.setText(item.desc);
       })
-      .on('pointerout', () => {
-        Tooltip.get(this.scene).hide();
+      .on('pointerdown', () => {
+        this.detailTitle.setText(item.name.toUpperCase());
+        this.detailTitle.setColor(item.color ?? '#fde047');
+        this.detailTag.setText(item.element ? `[ ${item.element.toUpperCase()} ]` : '');
+        this.detailDesc.setText(item.desc);
       });
 
     return slot;

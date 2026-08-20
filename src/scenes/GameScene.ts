@@ -1143,10 +1143,10 @@ export class GameScene extends Phaser.Scene {
         label: () => '+СЛУЧАЙНЫЙ АРТЕФАКТ',
         active: () => false,
         onClick: () => {
-          const item = getRandomItem(Object.keys(this.myPlayer.items));
+          const item = getRandomItem();
           if (item) {
             this.myPlayer.addItem(item.id);
-            this.inventoryTray.renderItems(this.myPlayer);
+            this.inventoryTray.updateItems(this.myPlayer.items);
             this.statsModal.refresh(this.myPlayer);
             this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 16, `+${item.name}`, '#38bdf8');
           }
@@ -1200,7 +1200,10 @@ export class GameScene extends Phaser.Scene {
         active: () => !!(this.boss && !this.boss.isDead),
         onClick: () => {
           if (!this.boss || this.boss.isDead) {
-            this.spawnDemonBoss();
+            // triggerAltarEvent is the only boss-spawn path; clear its
+            // one-shot guard so the cheat can re-summon after a kill.
+            this.altarActivated = false;
+            this.triggerAltarEvent();
           }
         },
       },

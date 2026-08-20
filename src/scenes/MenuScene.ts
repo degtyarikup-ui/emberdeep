@@ -840,7 +840,7 @@ export class MenuScene extends Phaser.Scene {
         color: 0x34d399,
         hex: '#a7f3d0',
         onClick: () => {
-          ACHIEVEMENTS.forEach((a) => AchievementManager.get().unlock(a.id, this));
+          Object.values(ACHIEVEMENTS).forEach((a) => AchievementManager.get().unlock(a.id, this));
           modal.destroy();
           this.openAchievementsModal();
         },

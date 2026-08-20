@@ -110,7 +110,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   ) {
     const isKnight = heroClass === 'knight';
     const isRanger = heroClass === 'ranger';
-    const isWizard = heroClass === 'wizard';
     const initTex = isKnight ? ACTORS.HERO.idle.key : isRanger ? TEXTURE.RANGER_IDLE : `${TEXTURE.WIZARD_IDLE}_f0`;
     super(scene, x, y, initTex, 0);
 

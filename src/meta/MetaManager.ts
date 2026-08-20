@@ -131,6 +131,12 @@ export class MetaManager {
     this.save();
   }
 
+  /** Wipes all meta progression back to a fresh save. Debug-menu only. */
+  resetProgress(): void {
+    this.state = { embers: 0, totalEmbersEarned: 0, upgrades: {} };
+    this.save();
+  }
+
   getUpgradeLevel(id: string): number {
     return this.state.upgrades[id] || 0;
   }

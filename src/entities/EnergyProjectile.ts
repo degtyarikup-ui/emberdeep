@@ -10,7 +10,6 @@ export class EnergyProjectile extends Phaser.GameObjects.Sprite {
   private vx: number;
   private vy: number;
   private lifespan: number;
-  private initialLifespan: number;
   private light?: Phaser.GameObjects.Light;
   isDestroyed = false;
   hitEntityIds = new Set<number>();
@@ -35,7 +34,6 @@ export class EnergyProjectile extends Phaser.GameObjects.Sprite {
     this.vx = Math.cos(angleRad) * speed;
     this.vy = Math.sin(angleRad) * speed;
     this.lifespan = isSupernova ? 1100 : 1400;
-    this.initialLifespan = this.lifespan;
 
     scene.add.existing(this);
     this.setOrigin(0.5, 0.5);

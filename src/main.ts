@@ -10,6 +10,13 @@ async function bootstrap(): Promise<void> {
   // Disable browser context menu across entire canvas area (§ 1.6)
   document.addEventListener('contextmenu', (e) => e.preventDefault());
 
+  // Prevent browser default F1 help popup
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F1') {
+      e.preventDefault();
+    }
+  });
+
   // 1. Initialize Yandex Games SDK BEFORE creating Phaser Game
   //    This is a hard requirement from Yandex (п. 1.1 Требований платформы):
   //    YaGames.init() must be called and awaited before any game logic runs.

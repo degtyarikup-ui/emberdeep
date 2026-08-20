@@ -952,12 +952,18 @@ export class GameScene extends Phaser.Scene {
     bg.on('pointerdown', () => this.toggleDebugMenu());
 
     // F1 and ` (Tilde) keys to toggle
-    this.input.keyboard?.on('keydown-F1', () => this.toggleDebugMenu());
-    this.input.keyboard?.on('keydown-BACKQUOTE', () => this.toggleDebugMenu());
+    const f1Key = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.F1, true);
+    f1Key?.on('down', (event: KeyboardEvent) => {
+      event?.preventDefault?.();
+      this.toggleDebugMenu();
+    });
+    this.input.keyboard?.on('keydown-BACKQUOTE', (event: KeyboardEvent) => {
+      event?.preventDefault?.();
+      this.toggleDebugMenu();
+    });
   }
 
   private toggleDebugMenu(): void {
-    if (!this.isDebugAllowed()) return;
     if (this.debugOpen) {
       this.closeDebugMenu();
     } else {
@@ -974,7 +980,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openDebugMenu(): void {
-    if (!this.isDebugAllowed()) return;
     if (this.debugContainer) this.debugContainer.destroy();
     this.debugOpen = true;
 
@@ -984,7 +989,7 @@ export class GameScene extends Phaser.Scene {
     this.debugContainer = modal;
 
     const modalW = 420;
-    const modalH = 310;
+    const modalH = 360;
 
     const bg = this.add.rectangle(0, 0, modalW, modalH, 0x0a0614, 0.97);
     bg.setStrokeStyle(2, 0x818cf8);
@@ -1022,7 +1027,7 @@ export class GameScene extends Phaser.Scene {
 
     // Section 1: Teleport to Levels
     const sec1Title = this.add
-      .text(-modalW / 2 + 20, -85, 'ПЕРЕХОД МЕЖДУ УРОВНЯМИ:', {
+      .text(-modalW / 2 + 20, -110, 'ПЕРЕХОД МЕЖДУ УРОВНЯМИ:', {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '700',
@@ -1040,7 +1045,7 @@ export class GameScene extends Phaser.Scene {
 
     levels.forEach((lvl, i) => {
       const btnX = -100 + (i % 2) * 200;
-      const btnY = -55 + Math.floor(i / 2) * 32;
+      const btnY = -80 + Math.floor(i / 2) * 32;
 
       const btnBg = this.add.rectangle(btnX, btnY, 185, 26, this.depth === lvl.depth ? 0x312e81 : 0x1e1b4b, 0.9);
       btnBg.setStrokeStyle(1.5, lvl.color);
@@ -1071,7 +1076,7 @@ export class GameScene extends Phaser.Scene {
 
     // Section 2: Cheats & Testing Tools
     const sec2Title = this.add
-      .text(-modalW / 2 + 20, 20, 'ТЕСТОВЫЕ КОМАНДЫ И ЧИТЫ:', {
+      .text(-modalW / 2 + 20, -5, 'ТЕСТОВЫЕ КОМАНДЫ И ЧИТЫ:', {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '700',
@@ -1104,6 +1109,50 @@ export class GameScene extends Phaser.Scene {
         },
       },
       {
+        id: 'heal',
+        label: () => 'ВОССТАНОВИТЬ HP',
+        active: () => false,
+        onClick: () => {
+          this.myPlayer.heal(this.myPlayer.maxHp);
+          this.buildHeartsUI();
+          this.heroFrame?.update(this.myPlayer);
+        },
+      },
+      {
+        id: 'coins',
+        label: () => '+100 ЗОЛОТА',
+        active: () => false,
+        onClick: () => {
+          this.myPlayer.gold += 100;
+          this.heroFrame?.update(this.myPlayer);
+          SoundFX.playCoinPickup();
+        },
+      },
+      {
+        id: 'embers',
+        label: () => '+10 УГЛЕЙ',
+        active: () => false,
+        onClick: () => {
+          MetaManager.get().addEmbers(10);
+          this.heroFrame?.update(this.myPlayer);
+          SoundFX.playCoinPickup();
+        },
+      },
+      {
+        id: 'item',
+        label: () => '+СЛУЧАЙНЫЙ АРТЕФАКТ',
+        active: () => false,
+        onClick: () => {
+          const item = getRandomItem(Object.keys(this.myPlayer.items));
+          if (item) {
+            this.myPlayer.addItem(item.id);
+            this.inventoryTray.renderItems(this.myPlayer);
+            this.statsModal.refresh(this.myPlayer);
+            this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 16, `+${item.name}`, '#38bdf8');
+          }
+        },
+      },
+      {
         id: 'light',
         label: () => `ПОЛНЫЙ СВЕТ: ${this.fullBright ? 'ВКЛ' : 'ВЫКЛ'}`,
         active: () => this.fullBright,
@@ -1131,16 +1180,6 @@ export class GameScene extends Phaser.Scene {
         },
       },
       {
-        id: 'coins',
-        label: () => '+100 ЗОЛОТА',
-        active: () => false,
-        onClick: () => {
-          this.myPlayer.gold += 100;
-          this.heroFrame?.update(this.myPlayer);
-          SoundFX.playCoinPickup();
-        },
-      },
-      {
         id: 'altar',
         label: () => 'АКТИВИРОВАТЬ АЛТАРЬ',
         active: () => this.altarCharged,
@@ -1155,11 +1194,21 @@ export class GameScene extends Phaser.Scene {
           }
         },
       },
+      {
+        id: 'boss',
+        label: () => 'СПАВН БОССА',
+        active: () => !!(this.boss && !this.boss.isDead),
+        onClick: () => {
+          if (!this.boss || this.boss.isDead) {
+            this.spawnDemonBoss();
+          }
+        },
+      },
     ];
 
     cheats.forEach((c, i) => {
       const btnX = -100 + (i % 2) * 200;
-      const btnY = 50 + Math.floor(i / 2) * 32;
+      const btnY = 22 + Math.floor(i / 2) * 32;
 
       const btnBg = this.add.rectangle(btnX, btnY, 185, 26, c.active() ? 0x065f46 : 0x18181b, 0.9);
       btnBg.setStrokeStyle(1.5, c.active() ? 0x34d399 : 0x52525b);

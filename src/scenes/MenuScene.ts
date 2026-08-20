@@ -146,6 +146,20 @@ export class MenuScene extends Phaser.Scene {
       this.scene.restart();
     });
 
+    // F1 Debug Button (Top-Right)
+    const debugBtn = makeButton(this, width - 65, 30, '[F1] ДЕБАГ', { fontSize: '11px', muted: true });
+    debugBtn.on('pointerdown', () => this.openDebugMenu(selectedHero));
+
+    const f1Key = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.F1, true);
+    f1Key?.on('down', (event: KeyboardEvent) => {
+      event?.preventDefault?.();
+      this.openDebugMenu(selectedHero);
+    });
+    this.input.keyboard?.on('keydown-BACKQUOTE', (event: KeyboardEvent) => {
+      event?.preventDefault?.();
+      this.openDebugMenu(selectedHero);
+    });
+
     // Hero Selection Showcase Cards with Animated Sprites
     const heroY = height * 0.47;
     const cardW = 180;
@@ -716,5 +730,162 @@ export class MenuScene extends Phaser.Scene {
     const closeBtn = makeButton(this, width / 2, height - 35, 'ЗАКРЫТЬ', { fontSize: '15px' });
     closeBtn.on('pointerdown', () => modal.destroy());
     modal.add(closeBtn);
+  }
+
+  private openDebugMenu(selectedHero: HeroClass): void {
+    const { width, height } = this.scale;
+    const modal = this.add.container(width / 2, height / 2).setDepth(DEPTH.UI + 600);
+
+    const modalW = 420;
+    const modalH = 340;
+
+    const backdrop = this.add.rectangle(0, 0, width * 2, height * 2, 0x000000, 0.7);
+    backdrop.setInteractive();
+
+    const bg = this.add.rectangle(0, 0, modalW, modalH, 0x0a0614, 0.98);
+    bg.setStrokeStyle(2, 0x818cf8);
+
+    const title = this.add
+      .text(0, -modalH / 2 + 20, 'МЕНЮ РАЗРАБОТЧИКА (DEBUG)', {
+        fontFamily: FONT.TITLE,
+        fontSize: '16px',
+        fontStyle: '700',
+        color: '#818cf8',
+      })
+      .setOrigin(0.5);
+
+    const closeBtn = this.add
+      .text(modalW / 2 - 18, -modalH / 2 + 18, 'ЗАКРЫТЬ', {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#ef4444',
+      })
+      .setOrigin(0.5);
+    closeBtn.setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => modal.destroy());
+
+    modal.add([backdrop, bg, title, closeBtn]);
+
+    // Section 1: Level Warp
+    const sec1Title = this.add
+      .text(-modalW / 2 + 20, -105, 'БЫСТРЫЙ СТАРТ С ВЫБРАННЫМ ГЕРОЕМ:', {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#fbbf24',
+      })
+      .setOrigin(0, 0.5);
+    modal.add(sec1Title);
+
+    const levels = [
+      { depth: 1, name: '[1] РУИНЫ', color: 0x22c55e, hex: '#86efac' },
+      { depth: 2, name: '[2] КАТАКОМБЫ', color: 0xa855f7, hex: '#d8b4fe' },
+      { depth: 3, name: '[3] НЕДРА', color: 0xef4444, hex: '#fca5a5' },
+      { depth: 4, name: '[4] БЕЗДНА', color: 0x6366f1, hex: '#a5b4fc' },
+    ];
+
+    levels.forEach((lvl, i) => {
+      const btnX = -100 + (i % 2) * 200;
+      const btnY = -75 + Math.floor(i / 2) * 32;
+
+      const btnBg = this.add.rectangle(btnX, btnY, 185, 26, 0x1e1b4b, 0.9);
+      btnBg.setStrokeStyle(1.5, lvl.color);
+
+      const btnText = this.add
+        .text(btnX, btnY, lvl.name, {
+          fontFamily: FONT.UI,
+          fontSize: '9px',
+          fontStyle: '700',
+          color: lvl.hex,
+        })
+        .setOrigin(0.5);
+
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.on('pointerdown', () => {
+        modal.destroy();
+        this.cameras.main.fadeOut(200, 8, 6, 12);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          this.scene.start(SCENE.GAME, { depth: lvl.depth, heroClass: selectedHero });
+        });
+      });
+
+      modal.add([btnBg, btnText]);
+    });
+
+    // Section 2: Meta Cheats
+    const sec2Title = this.add
+      .text(-modalW / 2 + 20, 0, 'УПРАВЛЕНИЕ ПРОГРЕССОМ:', {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#38bdf8',
+      })
+      .setOrigin(0, 0.5);
+    modal.add(sec2Title);
+
+    const cheats = [
+      {
+        label: '+1000 УГЛЕЙ (EMBERS)',
+        color: 0xf97316,
+        hex: '#fdba74',
+        onClick: () => {
+          MetaManager.get().addEmbers(1000);
+          modal.destroy();
+          this.scene.restart();
+        },
+      },
+      {
+        label: 'ОТКРЫТЬ ВСЕ АЧИВКИ',
+        color: 0x34d399,
+        hex: '#a7f3d0',
+        onClick: () => {
+          ACHIEVEMENTS.forEach((a) => AchievementManager.get().unlock(a.id, this));
+          modal.destroy();
+          this.openAchievementsModal();
+        },
+      },
+      {
+        label: 'СТАРТ: РЕЖИМ БОГА (GOD)',
+        color: 0xeab308,
+        hex: '#fef08a',
+        onClick: () => {
+          modal.destroy();
+          this.scene.start(SCENE.GAME, { depth: 1, heroClass: selectedHero, godMode: true });
+        },
+      },
+      {
+        label: 'СБРОСИТЬ ВЕСЬ ПРОГРЕСС',
+        color: 0xef4444,
+        hex: '#fca5a5',
+        onClick: () => {
+          MetaManager.get().resetProgress();
+          modal.destroy();
+          this.scene.restart();
+        },
+      },
+    ];
+
+    cheats.forEach((c, i) => {
+      const btnX = -100 + (i % 2) * 200;
+      const btnY = 30 + Math.floor(i / 2) * 32;
+
+      const btnBg = this.add.rectangle(btnX, btnY, 185, 26, 0x18181b, 0.9);
+      btnBg.setStrokeStyle(1.5, c.color);
+
+      const btnText = this.add
+        .text(btnX, btnY, c.label, {
+          fontFamily: FONT.UI,
+          fontSize: '9px',
+          fontStyle: '700',
+          color: c.hex,
+        })
+        .setOrigin(0.5);
+
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.on('pointerdown', () => c.onClick());
+
+      modal.add([btnBg, btnText]);
+    });
   }
 }

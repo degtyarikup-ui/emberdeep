@@ -56,20 +56,22 @@ export class BootScene extends Phaser.Scene {
     this.load.image(TEXTURE.PROP_VOID_OBELISK, asset('prop_void_obelisk.png'));
     this.load.image(TEXTURE.GAME_EMBLEM, asset('emblem.png'));
 
-    // Phase 3 Prop Animations
-    const f0x72 = 'vendor/0x72-dungeon-tileset-ii/source/0x72_DungeonTilesetII_v1.7/frames';
+    // Phase 3 Prop Animations. These frames originate from the 0x72 pack, but
+    // load from public/assets like everything else — vendor/ is a source
+    // library that is NOT copied into the production build, and raw paths
+    // there also bypass the base-URL rewrite the deployed site needs.
     for (let i = 0; i <= 3; i++) {
-      this.load.image(`${TEXTURE.PROP_SPIKES}_f${i}`, `${f0x72}/floor_spikes_anim_f${i}.png`);
-      this.load.image(`${TEXTURE.WIZARD_IDLE}_f${i}`, `${f0x72}/wizzard_m_idle_anim_f${i}.png`);
-      this.load.image(`${TEXTURE.WIZARD_RUN}_f${i}`, `${f0x72}/wizzard_m_run_anim_f${i}.png`);
+      this.load.image(`${TEXTURE.PROP_SPIKES}_f${i}`, asset(`floor_spikes_anim_f${i}.png`));
+      this.load.image(`${TEXTURE.WIZARD_IDLE}_f${i}`, asset(`wizzard_m_idle_anim_f${i}.png`));
+      this.load.image(`${TEXTURE.WIZARD_RUN}_f${i}`, asset(`wizzard_m_run_anim_f${i}.png`));
     }
     for (let i = 0; i <= 2; i++) {
-      this.load.image(`${TEXTURE.FOUNTAIN_BLUE}_f${i}`, `${f0x72}/wall_fountain_mid_blue_anim_f${i}.png`);
-      this.load.image(`${TEXTURE.FOUNTAIN_RED}_f${i}`, `${f0x72}/wall_fountain_mid_red_anim_f${i}.png`);
-      this.load.image(`${TEXTURE.CHEST_ANIM}_f${i}`, `${f0x72}/chest_full_open_anim_f${i}.png`);
+      this.load.image(`${TEXTURE.FOUNTAIN_BLUE}_f${i}`, asset(`wall_fountain_mid_blue_anim_f${i}.png`));
+      this.load.image(`${TEXTURE.FOUNTAIN_RED}_f${i}`, asset(`wall_fountain_mid_red_anim_f${i}.png`));
+      this.load.image(`${TEXTURE.CHEST_ANIM}_f${i}`, asset(`chest_full_open_anim_f${i}.png`));
     }
-    this.load.image(TEXTURE.STAFF, `${f0x72}/weapon_red_magic_staff.png`);
-    this.load.spritesheet(TEXTURE.WATER_WAVES, 'vendor/32rogues/source/32rogues/animated-tiles.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.image(TEXTURE.STAFF, asset('weapon_red_magic_staff.png'));
+    this.load.spritesheet(TEXTURE.WATER_WAVES, asset('water-waves-32rogues.png'), { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet(TEXTURE.ITEMS_32ROGUES, asset('items-32rogues.png'), { frameWidth: 32, frameHeight: 32 });
 
     preloadActor(this, ACTORS.HERO);

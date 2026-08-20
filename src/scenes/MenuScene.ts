@@ -10,6 +10,7 @@ import { ACHIEVEMENTS } from '../achievements/registry';
 import { AchievementManager } from '../achievements/AchievementManager';
 import { I18n, t } from '../i18n';
 import { YandexSDK } from '../yandex/yandexSdk';
+import { isDebugAllowed } from '../debug/access';
 
 function makeButton(
   scene: Phaser.Scene,
@@ -146,19 +147,23 @@ export class MenuScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // F1 Debug Button (Top-Right)
-    const debugBtn = makeButton(this, width - 65, 30, '[F1] ДЕБАГ', { fontSize: '11px', muted: true });
-    debugBtn.on('pointerdown', () => this.openDebugMenu(selectedHero));
+    // F1 Debug Button (Top-Right). Rule §9: neither the button nor the
+    // hotkeys may be created in a storefront build, so this is gated before
+    // anything is constructed rather than inside openDebugMenu().
+    if (isDebugAllowed()) {
+      const debugBtn = makeButton(this, width - 65, 30, '[F1] ДЕБАГ', { fontSize: '11px', muted: true });
+      debugBtn.on('pointerdown', () => this.openDebugMenu(selectedHero));
 
-    const f1Key = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.F1, true);
-    f1Key?.on('down', (event: KeyboardEvent) => {
-      event?.preventDefault?.();
-      this.openDebugMenu(selectedHero);
-    });
-    this.input.keyboard?.on('keydown-BACKQUOTE', (event: KeyboardEvent) => {
-      event?.preventDefault?.();
-      this.openDebugMenu(selectedHero);
-    });
+      const f1Key = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.F1, true);
+      f1Key?.on('down', (event: KeyboardEvent) => {
+        event?.preventDefault?.();
+        this.openDebugMenu(selectedHero);
+      });
+      this.input.keyboard?.on('keydown-BACKQUOTE', (event: KeyboardEvent) => {
+        event?.preventDefault?.();
+        this.openDebugMenu(selectedHero);
+      });
+    }
 
     // Hero Selection Showcase Cards with Animated Sprites
     const heroY = height * 0.47;

@@ -37,6 +37,7 @@ import {
 } from '../combat/ElementalSystem';
 import { YandexSDK } from '../yandex/yandexSdk';
 import { t } from '../i18n';
+import { isDebugAllowed } from '../debug/access';
 
 export const THREAT_TIERS = [
   { name: 'ЛЕГКО', color: '#4ade80', bg: 0x14532d, threshold: 0 },
@@ -919,10 +920,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isDebugAllowed(): boolean {
-    return Boolean(
-      import.meta.env.DEV ||
-      (typeof window !== 'undefined' && window.location.search.includes('debug=1'))
-    );
+    return isDebugAllowed();
   }
 
   private buildDebugUI(): void {

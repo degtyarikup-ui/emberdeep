@@ -16,8 +16,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Non-blocking init Yandex Games SDK
-    YandexSDK.get().init().catch(() => {});
     this.load.image(PACK.DUNGEON_TILES.key, PACK.DUNGEON_TILES.url);
     this.load.image(PACK.RESOURCES.key, PACK.RESOURCES.url);
     this.load.image(PACK.DUNGEON_PROPS.key, PACK.DUNGEON_PROPS.url);
@@ -191,6 +189,9 @@ export class BootScene extends Phaser.Scene {
     } catch {
       // fonts failed to load — Phaser will fall back to a default font
     }
+    // Signal to Yandex Games that loading is complete and game is playable
+    YandexSDK.get().gameReady();
+
     this.scene.start(SCENE.MENU);
   }
 

@@ -82,6 +82,17 @@ export interface TranslationDict {
   achSpeedrunnerDesc: string;
   unlocked: string;
   locked: string;
+
+  // Monetization keys
+  resurrectAdBtn: string;
+  doubleEmbersBtn: string;
+  embersDoubled: string;
+  freeEmbersAdBtn: string;
+  freeEmbersClaimed: string;
+  buyEmbersSmall: string;
+  buyEmbersMedium: string;
+  buyEmbersLarge: string;
+  shopHeader: string;
 }
 
 const RU: TranslationDict = {
@@ -98,13 +109,13 @@ const RU: TranslationDict = {
   eInteract: 'E — Взаимодействие (сундуки, порталы)',
   escPause: 'Esc / P — Пауза',
   backBtn: 'НАЗАД',
-  selectClass: 'ВЫБОР КЛАССА',
+  selectClass: 'ВЫБЕРИТЕ КЛАСС',
   knightTitle: 'РЫЦАРЬ',
-  knightStats: '3 HP · Меч (2x Урон)',
-  knightSkill: 'ПКМ / Пробел · Круговой Вихрь',
+  knightStats: '3 HP · Меч (Урон x2)',
+  knightSkill: 'ПКМ / Пробел · Круговой вихрь',
   rangerTitle: 'СЛЕДОПЫТ',
   rangerStats: '2 HP · Лук (Дальний бой)',
-  rangerSkill: 'ЛКМ · Стрельба стрелами',
+  rangerSkill: 'ЛКМ · Быстрая стрельба стрелами',
   langBtn: 'ЯЗЫК: RU',
 
   roomCode: 'КОД КОМНАТЫ',
@@ -115,7 +126,7 @@ const RU: TranslationDict = {
   copyCode: 'СКОПИРОВАТЬ КОД',
   copied: 'СКОПИРОВАНО!',
 
-  embersCount: 'Угли Тьмы: ',
+  embersCount: 'Тёмные Угли: ',
   totalEarned: 'Всего собрано: ',
   upgradePurchased: 'Улучшено!',
   maxLevelReached: 'МАКС. УРОВЕНЬ',
@@ -137,7 +148,7 @@ const RU: TranslationDict = {
   bossDefeated: 'ВЛАДЫКА БЕЗДНЫ ПОВЕРЖЕН!',
   dungeonCleared: 'ПОДЗЕМЕЛЬЕ ЗАЧИЩЕНО!',
   heroFallen: 'ГЕРОЙ ПАЛ В БОЮ',
-  resurrectPrompt: 'Нажмите [R] или посмотрите рекламу для возрождения',
+  resurrectPrompt: 'Посмотрите рекламу для мгновенного возрождения!',
   pressEToOpen: '[E] Открыть сундук',
   pressEToRest: '[E] Присесть у костра',
   pressEToEnter: '[E] Войти в портал',
@@ -166,6 +177,17 @@ const RU: TranslationDict = {
   achSpeedrunnerDesc: 'Используй рывок на Shift',
   unlocked: 'Открыто',
   locked: 'Заблокировано',
+
+  // Monetization keys
+  resurrectAdBtn: '⚡ ВОСКРЕСНУТЬ (РЕКЛАМА)',
+  doubleEmbersBtn: '🔥 УДВОИТЬ УГЛИ (ВИДЕО)',
+  embersDoubled: '✓ УГЛИ УДВОЕНЫ!',
+  freeEmbersAdBtn: '🎁 +15 УГЛЕЙ (ВИДЕО)',
+  freeEmbersClaimed: '✓ ПОЛУЧЕНО!',
+  buyEmbersSmall: '100 Углей (49 ЯН)',
+  buyEmbersMedium: '300 Углей (129 ЯН)',
+  buyEmbersLarge: '1000 Углей (299 ЯН)',
+  shopHeader: 'МАГАЗИН УГЛЕЙ',
 };
 
 const EN: TranslationDict = {
@@ -221,7 +243,7 @@ const EN: TranslationDict = {
   bossDefeated: 'LORD OF THE ABYSS DEFEATED!',
   dungeonCleared: 'DUNGEON CLEARED!',
   heroFallen: 'HERO HAS FALLEN',
-  resurrectPrompt: 'Press [R] or watch ad to resurrect',
+  resurrectPrompt: 'Watch a short ad for an instant revival!',
   pressEToOpen: '[E] Open Chest',
   pressEToRest: '[E] Rest by Fire',
   pressEToEnter: '[E] Enter Portal',
@@ -250,6 +272,17 @@ const EN: TranslationDict = {
   achSpeedrunnerDesc: 'Perform a tactical dodge with Shift',
   unlocked: 'Unlocked',
   locked: 'Locked',
+
+  // Monetization keys
+  resurrectAdBtn: '⚡ RESURRECT (WATCH AD)',
+  doubleEmbersBtn: '🔥 DOUBLE EMBERS (WATCH AD)',
+  embersDoubled: '✓ EMBERS DOUBLED!',
+  freeEmbersAdBtn: '🎁 +15 EMBERS (WATCH AD)',
+  freeEmbersClaimed: '✓ CLAIMED!',
+  buyEmbersSmall: '100 Embers (49 YAN)',
+  buyEmbersMedium: '300 Embers (129 YAN)',
+  buyEmbersLarge: '1000 Embers (299 YAN)',
+  shopHeader: 'EMBER SHOP',
 };
 
 const STORAGE_KEY = 'emberdeep_lang';

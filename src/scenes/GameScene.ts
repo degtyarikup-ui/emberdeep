@@ -29,6 +29,8 @@ import {
   ELEMENT_NAMES,
   ComboResult,
 } from '../combat/ElementalSystem';
+import { YandexSDK } from '../yandex/yandexSdk';
+import { t } from '../i18n';
 
 export const THREAT_TIERS = [
   { name: 'ЛЕГКО', color: '#4ade80', bg: 0x14532d, threshold: 0 },
@@ -180,6 +182,7 @@ export class GameScene extends Phaser.Scene {
   private specialHudContainer!: Phaser.GameObjects.Container;
   private specialHudBg!: Phaser.GameObjects.Rectangle;
   private specialHudText!: Phaser.GameObjects.Text;
+  private hasResurrectedThisRun = false;
 
   // Threat Meter (Time Scaling)
   private elapsedRunTime = 0;
@@ -273,6 +276,8 @@ export class GameScene extends Phaser.Scene {
     this.gameOver = false;
     this.frozen = false;
     this.killCount = 0;
+    if (this.depth === 1) this.hasResurrectedThisRun = false;
+    YandexSDK.get().gameplayStart();
 
     // Reset all arrays and objects so restarts never leak or crash
     this.chests = [];
@@ -2509,8 +2514,116 @@ export class GameScene extends Phaser.Scene {
     if (this.gameOver) return;
     this.gameOver = true;
     this.frozen = true;
+    YandexSDK.get().gameplayStop();
     for (const enemy of this.enemies) (enemy.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
 
+    // If hero hasn't used second chance yet, offer Rewarded Resurrect
+    if (!this.hasResurrectedThisRun) {
+      this.showResurrectModal(() => {
+        this.proceedToGameOverScreen();
+      });
+      return;
+    }
+
+    this.proceedToGameOverScreen();
+  }
+
+  private showResurrectModal(onDecline: () => void): void {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    const container = this.add.container(0, 0).setDepth(DEPTH.UI + 150);
+    this.worldCam.ignore(container);
+
+    const backdrop = this.add.rectangle(w / 2, h / 2, w, h, 0x07050c, 0.88);
+    const title = this.add
+      .text(w / 2, h / 2 - 55, t().heroFallen, {
+        fontFamily: FONT.TITLE,
+        fontSize: '28px',
+        fontStyle: '700',
+        color: '#ef4444',
+      })
+      .setOrigin(0.5)
+      .setStroke('#000000', 6);
+
+    const subtitle = this.add
+      .text(w / 2, h / 2 - 15, t().resurrectPrompt, {
+        fontFamily: FONT.UI,
+        fontSize: '12px',
+        color: '#fde047',
+      })
+      .setOrigin(0.5);
+
+    // Resurrect Button
+    const resBtnBg = this.add.rectangle(w / 2, h / 2 + 30, 270, 40, 0xca8a04, 1);
+    resBtnBg.setStrokeStyle(2, 0xfef08a);
+    resBtnBg.setInteractive({ useHandCursor: true });
+
+    const resBtnText = this.add
+      .text(w / 2, h / 2 + 30, t().resurrectAdBtn, {
+        fontFamily: FONT.UI,
+        fontSize: '13px',
+        fontStyle: '700',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5);
+
+    resBtnBg.on('pointerover', () => resBtnBg.setFillStyle(0xeab308, 1));
+    resBtnBg.on('pointerout', () => resBtnBg.setFillStyle(0xca8a04, 1));
+
+    resBtnBg.on('pointerdown', () => {
+      resBtnBg.disableInteractive();
+      YandexSDK.get().showRewardedVideo({
+        onOpen: () => {},
+        onRewarded: () => {
+          container.destroy();
+          this.hasResurrectedThisRun = true;
+          this.gameOver = false;
+          this.frozen = false;
+          this.myPlayer.respawnAt(this.myPlayer.x, this.myPlayer.y);
+          this.myPlayer.hp = Math.max(2, Math.floor(this.myPlayer.maxHp * 0.5));
+
+          // Shockwave: repel all enemies nearby
+          for (const enemy of this.enemies) {
+            const dist = Phaser.Math.Distance.Between(this.myPlayer.x, this.myPlayer.y, enemy.x, enemy.y);
+            if (dist < 260) {
+              const angle = Phaser.Math.Angle.Between(this.myPlayer.x, this.myPlayer.y, enemy.x, enemy.y);
+              (enemy.body as Phaser.Physics.Arcade.Body).setVelocity(Math.cos(angle) * 350, Math.sin(angle) * 350);
+            }
+          }
+          SoundFX.playItemAcquired();
+          this.cameras.main.flash(400, 255, 220, 100);
+          YandexSDK.get().gameplayStart();
+        },
+        onError: () => {
+          container.destroy();
+          onDecline();
+        },
+        onClose: () => {},
+      });
+    });
+
+    // Skip Button
+    const skipBtn = this.add
+      .text(w / 2, h / 2 + 80, 'ПРОДОЛЖИТЬ БЕЗ ВОСКРЕШЕНИЯ', {
+        fontFamily: FONT.UI,
+        fontSize: '11px',
+        color: '#94a3b8',
+      })
+      .setOrigin(0.5)
+      .setPadding(10, 6, 10, 6)
+      .setInteractive({ useHandCursor: true });
+
+    skipBtn.on('pointerover', () => skipBtn.setColor('#ffffff'));
+    skipBtn.on('pointerout', () => skipBtn.setColor('#94a3b8'));
+    skipBtn.on('pointerdown', () => {
+      container.destroy();
+      onDecline();
+    });
+
+    container.add([backdrop, title, subtitle, resBtnBg, resBtnText, skipBtn]);
+  }
+
+  private proceedToGameOverScreen(): void {
     const embersEarned = Math.max(1, Math.floor(this.myPlayer.gold / 10));
     MetaManager.get().addEmbers(embersEarned);
 
@@ -2518,13 +2631,16 @@ export class GameScene extends Phaser.Scene {
       title: 'ВЫ ПОГИБЛИ',
       titleColor: '#c94f3d',
       stats: `Повержено врагов: ${this.killCount}   ·   Получено Углей: +${embersEarned}`,
+      embersEarned,
       buttonText: 'ИГРАТЬ СНОВА',
       onConfirm: () => {
+        YandexSDK.get().showFullscreenAdvWithCooldown();
         this.net?.room.sendTransition({ kind: 'gameover', nextDepth: 1 });
         this.scene.restart({ depth: 1, net: this.net, heroClass: this.heroClass, playerHealth: {}, elapsedRunTime: 0 });
       },
       secondaryText: 'В ГЛАВНОЕ МЕНЮ (ПРОКАЧКА)',
       onSecondaryConfirm: () => {
+        YandexSDK.get().showFullscreenAdvWithCooldown();
         void this.net?.room.leave();
         this.scene.start(SCENE.MENU);
       },
@@ -2535,6 +2651,7 @@ export class GameScene extends Phaser.Scene {
     if (this.gameOver) return;
     this.gameOver = true;
     this.frozen = true;
+    YandexSDK.get().gameplayStop();
 
     const embersEarned = 10 + Math.floor(this.myPlayer.gold / 10);
     MetaManager.get().addEmbers(embersEarned);
@@ -2548,8 +2665,10 @@ export class GameScene extends Phaser.Scene {
       title: 'ПОДЗЕМЕЛЬЕ ПРОЙДЕНО',
       titleColor: '#9ee08a',
       stats: `Повержено врагов: ${this.killCount}   ·   Глубина: ${this.depth}   ·   Угли: +${embersEarned}`,
+      embersEarned,
       buttonText: 'СПУСТИТЬСЯ ГЛУБЖЕ',
       onConfirm: () => {
+        YandexSDK.get().showFullscreenAdvWithCooldown();
         this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1, playerHealth: nextHealth });
         this.scene.restart({
           depth: this.depth + 1,
@@ -2569,6 +2688,7 @@ export class GameScene extends Phaser.Scene {
     title: string;
     titleColor: string;
     stats: string;
+    embersEarned?: number;
     buttonText: string;
     onConfirm: () => void;
     secondaryText?: string;
@@ -2581,7 +2701,7 @@ export class GameScene extends Phaser.Scene {
 
     const backdrop = this.add.rectangle(w / 2, h / 2, w, h, 0x07050c, 0).setDepth(0);
     const title = this.add
-      .text(w / 2, h / 2 - 50, opts.title, {
+      .text(w / 2, h / 2 - 70, opts.title, {
         fontFamily: FONT.TITLE,
         fontSize: '34px',
         fontStyle: '700',
@@ -2591,7 +2711,7 @@ export class GameScene extends Phaser.Scene {
       .setAlpha(0)
       .setStroke('#0d0a10', 6);
     const stats = this.add
-      .text(w / 2, h / 2 - 2, opts.stats, {
+      .text(w / 2, h / 2 - 25, opts.stats, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         color: '#cfc6dd',
@@ -2599,15 +2719,57 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0);
 
-    const confirmBg = this.add.rectangle(w / 2, h / 2 + 42, 230, 36, 0x166534, 0.95);
+    const elements: Phaser.GameObjects.GameObject[] = [backdrop, title, stats];
+
+    // Double Embers Rewarded Ad Button (§ 4.5)
+    if (opts.embersEarned && opts.embersEarned > 0) {
+      let isDoubled = false;
+      const doubleBtnBg = this.add.rectangle(w / 2, h / 2 + 10, 260, 32, 0x854d0e, 0.95);
+      doubleBtnBg.setStrokeStyle(1.5, 0xeab308);
+      doubleBtnBg.setInteractive({ useHandCursor: true });
+      doubleBtnBg.setAlpha(0);
+
+      const doubleBtnText = this.add
+        .text(w / 2, h / 2 + 10, `🔥 УДВОИТЬ УГЛИ (+${opts.embersEarned} ВИДЕО)`, {
+          fontFamily: FONT.UI,
+          fontSize: '11px',
+          fontStyle: '700',
+          color: '#fef08a',
+        })
+        .setOrigin(0.5)
+        .setAlpha(0);
+
+      doubleBtnBg.on('pointerdown', () => {
+        if (isDoubled) return;
+        doubleBtnBg.disableInteractive();
+        YandexSDK.get().showRewardedVideo({
+          onOpen: () => {},
+          onRewarded: () => {
+            isDoubled = true;
+            MetaManager.get().addEmbers(opts.embersEarned!);
+            doubleBtnBg.setFillStyle(0x166534, 0.95);
+            doubleBtnBg.setStrokeStyle(1.5, 0x4ade80);
+            doubleBtnText.setText('✓ УГЛИ УДВОЕНЫ!');
+            doubleBtnText.setColor('#86efac');
+            SoundFX.playItemAcquired();
+          },
+          onClose: () => {},
+          onError: () => {},
+        });
+      });
+
+      elements.push(doubleBtnBg, doubleBtnText);
+    }
+
+    const confirmBg = this.add.rectangle(w / 2, h / 2 + 55, 230, 36, 0x166534, 0.95);
     confirmBg.setStrokeStyle(2, 0x4ade80);
     confirmBg.setInteractive({ useHandCursor: true });
     confirmBg.setAlpha(0);
 
     const confirm = this.add
-      .text(w / 2, h / 2 + 42, opts.buttonText, {
+      .text(w / 2, h / 2 + 55, opts.buttonText, {
         fontFamily: FONT.UI,
-        fontSize: '15px',
+        fontSize: '14px',
         fontStyle: '700',
         color: '#f0e2b8',
       })
@@ -2628,11 +2790,11 @@ export class GameScene extends Phaser.Scene {
     });
     confirmBg.on('pointerdown', triggerConfirm);
 
-    const elements: Phaser.GameObjects.GameObject[] = [backdrop, title, stats, confirmBg, confirm];
+    elements.push(confirmBg, confirm);
 
     if (opts.secondaryText && opts.onSecondaryConfirm) {
       const secBtn = this.add
-        .text(w / 2, h / 2 + 78, opts.secondaryText, {
+        .text(w / 2, h / 2 + 95, opts.secondaryText, {
           fontFamily: FONT.UI,
           fontSize: '12px',
           color: '#94a3b8',

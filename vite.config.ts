@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
 
-// base only needs to change for the GitHub Pages build — locally the app
-// still serves from the root so `npm run dev` behaves exactly as before.
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/emberdeep/' : '/',
+// Use relative base ('./') so the build works in any environment:
+// Yandex Games ZIP archive, local previews, GitHub Pages, or custom CDN paths.
+export default defineConfig({
+  base: './',
   server: {
     port: 5173,
     strictPort: false,
@@ -11,4 +11,4 @@ export default defineConfig(({ command }) => ({
   build: {
     target: 'esnext',
   },
-}));
+});

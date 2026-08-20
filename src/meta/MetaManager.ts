@@ -1,4 +1,5 @@
 import { MetaUpgradeDef, MetaState } from './types';
+import { YandexSDK } from '../yandex/yandexSdk';
 
 const STORAGE_KEY = 'emberdeep_meta';
 
@@ -94,6 +95,26 @@ export class MetaManager {
   private save(): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      void YandexSDK.get().savePlayerData({ meta: this.state });
+    } catch {
+      // ignore
+    }
+  }
+
+  async syncCloud(): Promise<void> {
+    try {
+      const data = await YandexSDK.get().loadPlayerData();
+      if (data && data.meta) {
+        const cloudMeta = data.meta as MetaState;
+        if ((cloudMeta.totalEmbersEarned || 0) > (this.state.totalEmbersEarned || 0)) {
+          this.state = {
+            embers: Number(cloudMeta.embers) || 0,
+            totalEmbersEarned: Number(cloudMeta.totalEmbersEarned) || 0,
+            upgrades: cloudMeta.upgrades || {},
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+        }
+      }
     } catch {
       // ignore
     }

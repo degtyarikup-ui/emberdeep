@@ -7,6 +7,7 @@ import { ACTORS, createActorAnims, preloadActor } from '../gfx/actors';
 import { buildHudAtlas } from '../gfx/hud';
 import { PACK, LEGACY_PACK, asset } from '../gfx/pack';
 import { ANIM, TEXTURE } from '../gfx/registry';
+import { UIAtlas } from '../gfx/UIAtlas';
 import { SCENE } from './keys';
 import { YandexSDK } from '../yandex/yandexSdk';
 
@@ -65,6 +66,7 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`${TEXTURE.CHEST_ANIM}_f${i}`, `${f0x72}/chest_full_open_anim_f${i}.png`);
     }
     this.load.spritesheet(TEXTURE.WATER_WAVES, 'vendor/32rogues/source/32rogues/animated-tiles.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet(TEXTURE.ITEMS_32ROGUES, asset('items-32rogues.png'), { frameWidth: 32, frameHeight: 32 });
 
     preloadActor(this, ACTORS.HERO);
     preloadActor(this, ACTORS.ORC);
@@ -77,6 +79,7 @@ export class BootScene extends Phaser.Scene {
     buildChestTexture(this, TEXTURE.CHEST);
     buildStairsTexture(this, TEXTURE.STAIRS);
     buildHudAtlas(this, TEXTURE.HUD_ICONS);
+    UIAtlas.buildAtlas(this);
     this.buildParticleTexture();
     this.buildBloodParticleTexture();
     this.buildBoneParticleTexture();

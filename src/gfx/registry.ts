@@ -54,6 +54,15 @@ export const TEXTURE = {
   CHEST_ANIM: 'tex-chest-anim',
   WATER_WAVES: 'tex-water-waves',
   BONFIRE_STAGE: 'tex-bonfire-stage',
+  ITEMS_32ROGUES: 'tex-items-32rogues',
+  UI_PANEL_NINE: 'tex-ui-panel-nine',
+  UI_SLOT_FRAME: 'tex-ui-slot-frame',
+  UI_HERO_PORTRAIT_KNIGHT: 'tex-ui-hero-knight',
+  UI_HERO_PORTRAIT_RANGER: 'tex-ui-hero-ranger',
+  UI_SKULL_ORNAMENT: 'tex-ui-skull-ornament',
+  UI_HP_BAR_FRAME: 'tex-ui-hp-bar-frame',
+  UI_BOSS_BAR_FRAME: 'tex-ui-boss-bar-frame',
+  UI_EMBER_ICON: 'tex-ui-ember-icon',
 } as const;
 
 export const ANIM = {

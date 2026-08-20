@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { SCENE } from './keys';
 import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
 import { FLOOR_INDICES, TILE_MARGIN, TILE_SPACING } from '../gfx/tiles';
-import { HUD_ICON } from '../gfx/hud';
 import { PROP } from '../gfx/props';
 import { buildLevel1, TILE_SIZE } from '../world/level1';
 import { HeroClass, Player } from '../entities/Player';
@@ -14,7 +13,7 @@ import { RoomClient } from '../net/RoomClient';
 import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot, BossSnapshot } from '../net/types';
 import { SoundFX } from '../audio/SoundFX';
 import { ItemDef } from '../items/types';
-import { ITEMS, getRandomItem } from '../items/registry';
+import { getRandomItem } from '../items/registry';
 import { AchievementManager } from '../achievements/AchievementManager';
 import { MetaManager } from '../meta/MetaManager';
 import { ParticleFactory } from '../gfx/ParticleFactory';
@@ -22,6 +21,13 @@ import { ScreenShake } from '../gfx/ScreenShake';
 import { HitstopManager } from '../gfx/HitstopManager';
 import { DamageNumberManager } from '../gfx/DamageNumber';
 import { BonfireEntity } from '../world/BonfireEntity';
+import { HeroFrame } from '../ui/HeroFrame';
+import { ActionBar } from '../ui/ActionBar';
+import { InventoryTray } from '../ui/InventoryTray';
+import { BossBar } from '../ui/BossBar';
+import { PartyFrames } from '../ui/PartyFrames';
+import { StatsModal } from '../ui/StatsModal';
+import { Tooltip } from '../ui/Tooltip';
 import {
   ElementType,
   ElementalSlotConfig,
@@ -174,14 +180,6 @@ export class GameScene extends Phaser.Scene {
   private altarLight?: Phaser.GameObjects.Light;
   private boss?: BossEnemy;
   private bossProjectiles: BossProjectile[] = [];
-  private bossBarContainer?: Phaser.GameObjects.Container;
-  private bossBarFill?: Phaser.GameObjects.Rectangle;
-  private bossBarText?: Phaser.GameObjects.Text;
-
-  // Special Ability HUD
-  private specialHudContainer!: Phaser.GameObjects.Container;
-  private specialHudBg!: Phaser.GameObjects.Rectangle;
-  private specialHudText!: Phaser.GameObjects.Text;
   private hasResurrectedThisRun = false;
 
   // Threat Meter (Time Scaling)
@@ -206,10 +204,17 @@ export class GameScene extends Phaser.Scene {
   private exitX = 0;
   private exitY = 0;
 
-  private hearts: Phaser.GameObjects.GameObject[] = [];
-  private goldIcon!: Phaser.GameObjects.Sprite;
-  private goldLabel!: Phaser.GameObjects.Text;
-  private itemTray: Phaser.GameObjects.Container[] = [];
+  // New RPG UI Modules
+  public heroFrame!: HeroFrame;
+  public actionBar!: ActionBar;
+  public inventoryTray!: InventoryTray;
+  public bossBarUI!: BossBar;
+  public partyFrames!: PartyFrames;
+  public statsModal!: StatsModal;
+  private tabKey!: Phaser.Input.Keyboard.Key;
+  private iKey!: Phaser.Input.Keyboard.Key;
+  private escKey!: Phaser.Input.Keyboard.Key;
+
   private elementalHudElements: Phaser.GameObjects.GameObject[] = [];
   private elementalHazards: Array<{
     x: number;
@@ -290,11 +295,6 @@ export class GameScene extends Phaser.Scene {
     this.playerArrows = [];
     this.bossProjectiles = [];
     this.boss = undefined;
-    this.bossBarContainer = undefined;
-    this.bossBarFill = undefined;
-    this.bossBarText = undefined;
-    this.hearts = [];
-    this.itemTray = [];
     this.bannerContainer = undefined;
     this.players = [];
     this.playerLights.clear();
@@ -798,27 +798,25 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    this.tabKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.TAB);
+    this.iKey = this.input.keyboard!.addKey('I');
+    this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+    this.input.keyboard!.addCapture([
+      Phaser.Input.Keyboard.KeyCodes.TAB,
+      Phaser.Input.Keyboard.KeyCodes.SPACE,
+    ]);
+
+    // Initialize New Dark Fantasy RPG UI
+    Tooltip.get(this);
+    this.heroFrame = new HeroFrame(this, this.heroClass);
+    this.actionBar = new ActionBar(this, this.heroClass);
+    this.inventoryTray = new InventoryTray(this);
+    this.bossBarUI = new BossBar(this);
+    this.partyFrames = new PartyFrames(this);
+    this.statsModal = new StatsModal(this);
+
     this.buildHeartsUI();
-    this.buildSpecialAbilityHUD();
-
-    this.goldIcon = this.add.sprite(22, 46, TEXTURE.PROPS, 'coin');
-    this.goldIcon.setOrigin(0.5, 0.5);
-    this.goldIcon.setScale(1.2);
-    this.goldIcon.setScrollFactor(0);
-    this.goldIcon.setDepth(DEPTH.UI);
-    this.worldCam.ignore(this.goldIcon);
-
-    this.goldLabel = this.add.text(34, 39, '0', {
-      fontFamily: FONT.UI,
-      fontSize: '13px',
-      fontStyle: '700',
-      color: '#fbbf24',
-    });
-    this.goldLabel.setStroke('#451a03', 3);
-    this.goldLabel.setScrollFactor(0);
-    this.goldLabel.setDepth(DEPTH.UI);
-    this.worldCam.ignore(this.goldLabel);
-
     this.updateInventoryHUD();
 
     this.depthLabel = this.add
@@ -1123,7 +1121,7 @@ export class GameScene extends Phaser.Scene {
         active: () => false,
         onClick: () => {
           this.myPlayer.gold += 100;
-          this.goldLabel.setText(`${this.myPlayer.gold}`);
+          this.heroFrame?.update(this.myPlayer);
           SoundFX.playCoinPickup();
         },
       },
@@ -1170,51 +1168,6 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private buildSpecialAbilityHUD(): void {
-    const isKnight = this.heroClass === 'knight';
-    const x = 76;
-    const y = this.scale.height - 18;
-
-    this.specialHudContainer = this.add.container(x, y);
-    this.specialHudContainer.setDepth(DEPTH.UI);
-    this.worldCam.ignore(this.specialHudContainer);
-
-    this.specialHudBg = this.add.rectangle(0, 0, 130, 20, 0x140e21, 0.9);
-    this.specialHudBg.setStrokeStyle(1.5, isKnight ? 0x38bdf8 : 0x4ade80);
-
-    const labelName = isKnight ? 'ВИХРЬ' : 'ЗАЛП';
-    this.specialHudText = this.add
-      .text(0, 0, `[ПКМ/Q] ${labelName} · ГОТОВО`, {
-        fontFamily: FONT.UI,
-        fontSize: '9px',
-        fontStyle: '700',
-        color: isKnight ? '#38bdf8' : '#4ade80',
-      })
-      .setOrigin(0.5, 0.5);
-
-    this.specialHudContainer.add([this.specialHudBg, this.specialHudText]);
-  }
-
-  private updateSpecialAbilityHUD(): void {
-    if (!this.specialHudContainer || !this.myPlayer) return;
-    const cd = this.myPlayer.specialCooldown;
-    const isKnight = this.heroClass === 'knight';
-    const labelName = isKnight ? 'ВИХРЬ' : 'ЗАЛП';
-
-    if (cd > 0) {
-      const secs = (cd / 1000).toFixed(1);
-      this.specialHudBg.setStrokeStyle(1, 0x64748b);
-      this.specialHudText.setText(`[ПКМ/Q] ${labelName} · ${secs}с`);
-      this.specialHudText.setColor('#94a3b8');
-    } else {
-      const activeColor = isKnight ? '#38bdf8' : '#4ade80';
-      const activeHex = isKnight ? 0x38bdf8 : 0x4ade80;
-      this.specialHudBg.setStrokeStyle(1.5, activeHex);
-      this.specialHudText.setText(`[ПКМ/Q] ${labelName} · ГОТОВО`);
-      this.specialHudText.setColor(activeColor);
-    }
-  }
-
   private handleResize(width: number, height: number): void {
     this.uiCam.setSize(width, height);
     this.vignette.setPosition(width / 2, height / 2).setDisplaySize(width * 1.15, height * 1.15);
@@ -1223,13 +1176,55 @@ export class GameScene extends Phaser.Scene {
     this.depthLabel.setPosition(width - 16, 18);
     this.timerLabel.setPosition(width - 16, 36);
     this.threatContainer.setPosition(width - 60, 60);
-    if (this.specialHudContainer) this.specialHudContainer.setPosition(76, height - 18);
-    if (this.bossBarContainer) this.bossBarContainer.setPosition(width / 2, 28);
+
+    if (this.heroFrame) this.heroFrame.setPosition(20, 20);
+    if (this.actionBar) this.actionBar.handleResize(width, height);
+    if (this.inventoryTray) this.inventoryTray.handleResize(width, height);
+    if (this.bossBarUI) this.bossBarUI.handleResize(width);
+    if (this.partyFrames) this.partyFrames.handleResize();
+    if (this.statsModal) this.statsModal.handleResize(width, height);
+  }
+
+  private isAnyInteractableInRange(): boolean {
+    if (!this.myPlayer) return false;
+    const px = this.myPlayer.x;
+    const py = this.myPlayer.y;
+
+    for (const chest of this.chests) {
+      if (!chest.opened && Phaser.Math.Distance.Between(px, py, chest.x, chest.y) < INTERACT_RANGE) {
+        return true;
+      }
+    }
+    for (const shrine of this.shrines) {
+      if (shrine.usesLeft > 0 && Phaser.Math.Distance.Between(px, py, shrine.x, shrine.y) < INTERACT_RANGE + 4) {
+        return true;
+      }
+    }
+    for (const bonfire of this.bonfires) {
+      if (Phaser.Math.Distance.Between(px, py, bonfire.x, bonfire.y) < INTERACT_RANGE) {
+        return true;
+      }
+    }
+    if (this.altarCharged && Phaser.Math.Distance.Between(px, py, this.exitX, this.exitY) < INTERACT_RANGE + 10) {
+      return true;
+    }
+    if (!this.altarActivated && Phaser.Math.Distance.Between(px, py, this.altarX, this.altarY) < INTERACT_RANGE + 10) {
+      return true;
+    }
+    return false;
   }
 
   update(_time: number, delta: number): void {
     if (this.hitstop) this.hitstop.update(this.game.loop.delta);
     if (this.screenShake) this.screenShake.update(delta);
+
+    // Tab / I key toggle stats modal
+    if (Phaser.Input.Keyboard.JustDown(this.tabKey) || Phaser.Input.Keyboard.JustDown(this.iKey)) {
+      this.statsModal?.toggle(this.myPlayer);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.statsModal?.isOpen) {
+      this.statsModal.close();
+    }
 
     if (this.frozen) return;
 
@@ -1282,9 +1277,26 @@ export class GameScene extends Phaser.Scene {
     this.updateThreatMeter(delta);
     this.updateBossProjectiles(delta);
     this.updatePlayerArrows(delta);
-    this.updateSpecialAbilityHUD();
     this.updateCoins(delta);
     this.updateCamera();
+
+    if (this.heroFrame && this.myPlayer) {
+      this.heroFrame.update(this.myPlayer);
+    }
+    if (this.partyFrames && this.myPlayer) {
+      this.partyFrames.update(this.players, this.myPlayer);
+    }
+    if (this.boss && this.bossBarUI) {
+      this.bossBarUI.update(this.boss);
+    }
+    if (this.actionBar && this.myPlayer) {
+      const maxCd = this.heroClass === 'ranger' ? 4000 : 3500;
+      const cd = this.myPlayer.specialCooldown;
+      const ratio = cd > 0 ? cd / maxCd : 0;
+      const secs = cd > 0 ? cd / 1000 : 0;
+      const inInteractRange = this.isAnyInteractableInRange();
+      this.actionBar.update(this.myPlayer, ratio, secs, inInteractRange);
+    }
   }
 
   private updateHostFrame(delta: number): void {
@@ -2123,91 +2135,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createBossHealthBar(boss: BossEnemy): void {
-    if (this.bossBarContainer) this.bossBarContainer.destroy();
-
-    const w = 320;
-    const h = 18;
-    const cx = this.scale.width / 2;
-    const cy = 28;
-
-    const cont = this.add.container(cx, cy);
-    cont.setDepth(DEPTH.UI + 40);
-
-    const title = this.add
-      .text(0, -14, `${boss.bossName.toUpperCase()} · СТРАЖ БЕЗДНЫ`, {
-        fontFamily: FONT.UI,
-        fontSize: '11px',
-        fontStyle: '700',
-        color: '#f87171',
-      })
-      .setOrigin(0.5);
-    title.setStroke('#000000', 3);
-
-    const bg = this.add.rectangle(0, 2, w, h, 0x1f1726, 0.95);
-    bg.setStrokeStyle(1.5, 0x7f1d1d);
-
-    const fillBg = this.add.rectangle(-w / 2 + 2, 2, w - 4, h - 4, 0x450a0a, 1).setOrigin(0, 0.5);
-    const fill = this.add.rectangle(-w / 2 + 2, 2, w - 4, h - 4, 0xdc2626, 1).setOrigin(0, 0.5);
-
-    const hpText = this.add
-      .text(0, 2, `${boss.currentHp} / ${boss.maxHp} HP`, {
-        fontFamily: FONT.UI,
-        fontSize: '10px',
-        fontStyle: '700',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-    hpText.setStroke('#000000', 3);
-
-    cont.add([title, bg, fillBg, fill, hpText]);
-    cont.setScale(0.8);
-    cont.setAlpha(0);
-    this.worldCam.ignore(cont);
-
-    this.tweens.add({
-      targets: cont,
-      scale: 1,
-      alpha: 1,
-      duration: 350,
-      ease: 'Back.easeOut',
-    });
-
-    this.bossBarContainer = cont;
-    this.bossBarFill = fill;
-    this.bossBarText = hpText;
+    if (this.bossBarUI) {
+      this.bossBarUI.show();
+      this.bossBarUI.update(boss);
+    }
   }
 
   private updateBossHealthBar(): void {
-    if (!this.boss || !this.bossBarFill || !this.bossBarText) return;
-    const w = 316;
-    const pct = Phaser.Math.Clamp(this.boss.currentHp / this.boss.maxHp, 0, 1);
-    this.bossBarFill.setSize(w * pct, 14);
-    this.bossBarText.setText(`${this.boss.currentHp} / ${this.boss.maxHp} HP`);
-
-    if (this.boss.currentPhase === 2) {
-      this.bossBarFill.setFillStyle(0xf97316);
-    }
+    if (!this.boss || !this.bossBarUI) return;
+    this.bossBarUI.update(this.boss);
   }
 
   private onBossDefeated(): void {
     this.altarCharged = true;
-
-    if (this.bossBarContainer) {
-      this.bossBarText?.setText('СТРАЖ ПОВЕРЖЕН!');
-      this.time.delayedCall(1500, () => {
-        if (this.bossBarContainer) {
-          this.tweens.add({
-            targets: this.bossBarContainer,
-            alpha: 0,
-            y: 15,
-            duration: 400,
-            onComplete: () => {
-              this.bossBarContainer?.destroy();
-              this.bossBarContainer = undefined;
-            },
-          });
-        }
-      });
+    if (this.bossBarUI) {
+      this.bossBarUI.hide();
     }
 
     // Spawn Boss Reward Chest (Free Golden Chest!)
@@ -2464,7 +2406,8 @@ export class GameScene extends Phaser.Scene {
             }
             SoundFX.playCoinPickup();
             this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 16, '+1 ЗОЛОТО', '#fbbf24');
-            this.goldLabel.setText(`${this.myPlayer.gold}`);
+            this.heroFrame?.triggerGoldBump();
+            this.heroFrame?.update(this.myPlayer);
           }
         }
       }
@@ -2877,7 +2820,7 @@ export class GameScene extends Phaser.Scene {
             if (player === this.myPlayer) {
               this.showItemAcquiredBanner(item);
               this.updateInventoryHUD();
-              this.goldLabel.setText(`${this.myPlayer.gold}`);
+              this.heroFrame?.update(this.myPlayer);
               const uniqueCount = Object.keys(player.items).filter((k) => player.items[k] > 0).length;
               if (uniqueCount >= 3) {
                 AchievementManager.get().unlock('collector', this);
@@ -2969,7 +2912,7 @@ export class GameScene extends Phaser.Scene {
           } else if (shrine.kind === 'chance') {
             if (player.gold >= shrine.cost) {
               player.gold -= shrine.cost;
-              if (player === this.myPlayer) this.goldLabel.setText(`${this.myPlayer.gold}`);
+              if (player === this.myPlayer) this.heroFrame?.update(this.myPlayer);
 
               shrine.cost += 6;
               const win = Math.random() < 0.6;
@@ -3073,50 +3016,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateInventoryHUD(): void {
-    for (const itemCont of this.itemTray) itemCont.destroy();
-    this.itemTray = [];
-
     if (!this.myPlayer) return;
-    const items = this.myPlayer.items;
-    const itemIds = Object.keys(items).filter((id) => items[id] > 0);
-    const startX = 20;
-    const startY = 70;
-    const slotSize = 22;
-    const spacing = 4;
-
-    itemIds.forEach((id, idx) => {
-      const count = items[id];
-      const itemDef = ITEMS[id];
-      if (!itemDef) return;
-
-      const cont = this.add.container(startX + idx * (slotSize + spacing), startY);
-      cont.setScrollFactor(0);
-      cont.setDepth(DEPTH.UI + 5);
-
-      const bg = this.add.rectangle(0, 0, slotSize, slotSize, 0x181425, 0.85);
-      bg.setStrokeStyle(1.5, Phaser.Display.Color.HexStringToColor(itemDef.color).color);
-
-      const icon = this.add.sprite(0, 0, TEXTURE.PROPS, itemDef.icon);
-      icon.setScale(1.1);
-
-      cont.add([bg, icon]);
-
-      if (count > 1) {
-        const badge = this.add.text(8, 6, `x${count}`, {
-          fontFamily: FONT.UI,
-          fontSize: '9px',
-          fontStyle: '700',
-          color: '#ffffff',
-        });
-        badge.setOrigin(1, 1);
-        badge.setStroke('#000000', 3);
-        cont.add(badge);
-      }
-
-      this.worldCam.ignore(cont);
-      this.itemTray.push(cont);
-    });
-
+    if (this.inventoryTray) {
+      this.inventoryTray.updateItems(this.myPlayer.items);
+    }
+    if (this.statsModal?.isOpen) {
+      this.statsModal.refresh(this.myPlayer);
+    }
     this.updateElementalHUD();
   }
 
@@ -3437,7 +3343,7 @@ export class GameScene extends Phaser.Scene {
 
       if (player === this.myPlayer) {
         player.applyRemoteHealth(ps.hp, ps.maxHp, ps.downed);
-        this.goldLabel.setText(`${this.myPlayer.gold}`);
+        this.heroFrame?.update(this.myPlayer);
         this.updateInventoryHUD();
       } else {
         player.applyRemoteState(ps.x, ps.y, ps.anim, ps.flipX, ps.hp, ps.maxHp, ps.downed);
@@ -3482,32 +3388,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private buildHeartsUI(): void {
-    for (const h of this.hearts) h.destroy();
-    this.hearts = [];
-    const startX = 18;
-    const multi = this.players.length > 1;
-    const roster = [...this.players].sort((a, b) => a.slot - b.slot);
-
-    roster.forEach((player, row) => {
-      const y = 18 + row * 18;
-      if (multi) {
-        const tag = this.add
-          .text(startX - 4, y, `${player.slot + 1}`, { fontFamily: FONT.UI, fontSize: '10px', fontStyle: '700', color: '#cfc6dd' })
-          .setOrigin(1, 0.15)
-          .setDepth(DEPTH.UI);
-        this.worldCam.ignore(tag);
-        this.hearts.push(tag);
-      }
-      for (let i = 0; i < player.maxHp; i++) {
-        const full = i < player.hp;
-        const heart = this.add
-          .sprite(startX + i * 16, y, TEXTURE.HUD_ICONS, full ? HUD_ICON.HEART_FULL : HUD_ICON.HEART_EMPTY)
-          .setDepth(DEPTH.UI)
-          .setScale(1.6);
-        this.worldCam.ignore(heart);
-        this.hearts.push(heart);
-      }
-    });
+    if (this.myPlayer && this.heroFrame) {
+      this.heroFrame.update(this.myPlayer);
+    }
+    if (this.partyFrames && this.myPlayer) {
+      this.partyFrames.update(this.players, this.myPlayer);
+    }
   }
 }
 

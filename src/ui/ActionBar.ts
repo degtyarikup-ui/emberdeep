@@ -64,7 +64,12 @@ export class ActionBar {
     this.attackSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'common');
     this.attackSlot.add(this.attackSlotBg);
 
-    const attackIconCoord = this.heroClass === 'ranger' ? ITEM_SPRITE_MAP.ranger_bow : ITEM_SPRITE_MAP.knight_sword;
+    const attackIconCoord =
+      this.heroClass === 'wizard'
+        ? ITEM_SPRITE_MAP.wizard_staff
+        : this.heroClass === 'ranger'
+        ? ITEM_SPRITE_MAP.ranger_bow
+        : ITEM_SPRITE_MAP.knight_sword;
     const attackFrame = attackIconCoord.row * 11 + attackIconCoord.col;
     const attackIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, attackFrame);
     attackIcon.setScale(1.0);
@@ -83,7 +88,9 @@ export class ActionBar {
     this.setupHoverTooltip(
       this.attackSlotBg,
       '[ ЛКМ ] ОСНОВНАЯ АТАКА',
-      this.heroClass === 'ranger'
+      this.heroClass === 'wizard'
+        ? 'Выстрел сгустком энергии из посоха. Наносит магический урон и передает эффекты рун.'
+        : this.heroClass === 'ranger'
         ? 'Выстрел стрелой во врага. Урон масштабируется от силы атаки и стихийных рун.'
         : 'Размашистый удар мечом по дуге. Наносит физический урон и отбрасывает врагов.'
     );
@@ -95,7 +102,12 @@ export class ActionBar {
     this.specialSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'uncommon');
     this.specialSlot.add(this.specialSlotBg);
 
-    const specIconCoord = this.heroClass === 'ranger' ? { col: 1, row: 9 } : { col: 6, row: 1 };
+    const specIconCoord =
+      this.heroClass === 'wizard'
+        ? ITEM_SPRITE_MAP.supernova_icon
+        : this.heroClass === 'ranger'
+        ? { col: 1, row: 9 }
+        : { col: 6, row: 1 };
     const specFrame = specIconCoord.row * 11 + specIconCoord.col;
     const specIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, specFrame);
     specIcon.setScale(1.0);
@@ -122,7 +134,9 @@ export class ActionBar {
     this.setupHoverTooltip(
       this.specialSlotBg,
       '[ ПКМ / Q ] СПЕЦУМЕНИЕ',
-      this.heroClass === 'ranger'
+      this.heroClass === 'wizard'
+        ? 'Чародейская Сверхновая: выпускает кольцо из 8 сфер энергии вокруг мага.'
+        : this.heroClass === 'ranger'
         ? 'Веерный залп: выпускает 5 пробивающих стрел веером.'
         : 'Вихрь стали: круговой сокрушительный удар вокруг рыцаря.'
     );

@@ -21,6 +21,9 @@ export interface TranslationDict {
   rangerTitle: string;
   rangerStats: string;
   rangerSkill: string;
+  wizardTitle: string;
+  wizardStats: string;
+  wizardSkill: string;
   langBtn: string;
   
   roomCode: string;
@@ -116,6 +119,9 @@ const RU: TranslationDict = {
   rangerTitle: 'СЛЕДОПЫТ',
   rangerStats: '2 HP · Лук (Дальний бой)',
   rangerSkill: 'ЛКМ · Быстрая стрельба стрелами',
+  wizardTitle: 'ВОЛШЕБНИК',
+  wizardStats: '2 HP · Посох (Магия дальнего боя)',
+  wizardSkill: 'ЛКМ · Сгустки тайной энергии',
   langBtn: 'ЯЗЫК: RU',
 
   roomCode: 'КОД КОМНАТЫ',
@@ -211,6 +217,9 @@ const EN: TranslationDict = {
   rangerTitle: 'RANGER',
   rangerStats: '2 HP · Bow (Ranged Combat)',
   rangerSkill: 'LMB · Rapid Arrow Fire',
+  wizardTitle: 'WIZARD',
+  wizardStats: '2 HP · Staff (Ranged Magic)',
+  wizardSkill: 'LMB · Arcane Energy Blasts',
   langBtn: 'LANG: EN',
 
   roomCode: 'ROOM CODE',

@@ -60,12 +60,15 @@ export class BootScene extends Phaser.Scene {
     const f0x72 = 'vendor/0x72-dungeon-tileset-ii/source/0x72_DungeonTilesetII_v1.7/frames';
     for (let i = 0; i <= 3; i++) {
       this.load.image(`${TEXTURE.PROP_SPIKES}_f${i}`, `${f0x72}/floor_spikes_anim_f${i}.png`);
+      this.load.image(`${TEXTURE.WIZARD_IDLE}_f${i}`, `${f0x72}/wizzard_m_idle_anim_f${i}.png`);
+      this.load.image(`${TEXTURE.WIZARD_RUN}_f${i}`, `${f0x72}/wizzard_m_run_anim_f${i}.png`);
     }
     for (let i = 0; i <= 2; i++) {
       this.load.image(`${TEXTURE.FOUNTAIN_BLUE}_f${i}`, `${f0x72}/wall_fountain_mid_blue_anim_f${i}.png`);
       this.load.image(`${TEXTURE.FOUNTAIN_RED}_f${i}`, `${f0x72}/wall_fountain_mid_red_anim_f${i}.png`);
       this.load.image(`${TEXTURE.CHEST_ANIM}_f${i}`, `${f0x72}/chest_full_open_anim_f${i}.png`);
     }
+    this.load.image(TEXTURE.STAFF, `${f0x72}/weapon_red_magic_staff.png`);
     this.load.spritesheet(TEXTURE.WATER_WAVES, 'vendor/32rogues/source/32rogues/animated-tiles.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet(TEXTURE.ITEMS_32ROGUES, asset('items-32rogues.png'), { frameWidth: 32, frameHeight: 32 });
 
@@ -88,6 +91,7 @@ export class BootScene extends Phaser.Scene {
     this.buildWoodParticleTexture();
     this.buildWoodDebrisTexture();
     this.buildSlashFxTexture();
+    this.buildEnergyProjectileTexture();
     this.buildVignetteTexture();
     this.buildDustParticleTexture();
     this.buildSmokeParticleTexture();
@@ -132,6 +136,20 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: ANIM.RANGER_RUN,
       frames: this.anims.generateFrameNumbers(TEXTURE.RANGER_RUN, { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.WIZARD_IDLE,
+      frames: [0, 1, 2, 3].map(i => ({ key: `${TEXTURE.WIZARD_IDLE}_f${i}` })),
+      frameRate: 6,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.WIZARD_RUN,
+      frames: [0, 1, 2, 3].map(i => ({ key: `${TEXTURE.WIZARD_RUN}_f${i}` })),
       frameRate: 8,
       repeat: -1,
     });
@@ -394,4 +412,44 @@ export class BootScene extends Phaser.Scene {
     ctx.fill();
     this.textures.addCanvas(TEXTURE.SHADOW, canvas);
   }
+
+  private buildEnergyProjectileTexture(): void {
+    const size = 18;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    // Glowing mystical aura
+    const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, size / 2);
+    g.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+    g.addColorStop(0.35, 'rgba(240, 171, 252, 0.95)');
+    g.addColorStop(0.7, 'rgba(168, 85, 247, 0.7)');
+    g.addColorStop(1, 'rgba(126, 34, 206, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+
+    // 4-point radiant energy cross/diamond flare
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 6);
+    ctx.lineTo(cx + 2, cy - 2);
+    ctx.lineTo(cx + 6, cy);
+    ctx.lineTo(cx + 2, cy + 2);
+    ctx.lineTo(cx, cy + 6);
+    ctx.lineTo(cx - 2, cy + 2);
+    ctx.lineTo(cx - 6, cy);
+    ctx.lineTo(cx - 2, cy - 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Hot center pixel core
+    ctx.fillStyle = '#e0e7ff';
+    ctx.fillRect(cx - 1, cy - 1, 2, 2);
+
+    this.textures.addCanvas(TEXTURE.PROJECTILE_ENERGY, canvas);
+  }
 }
+

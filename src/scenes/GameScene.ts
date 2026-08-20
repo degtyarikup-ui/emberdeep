@@ -9,6 +9,7 @@ import { Enemy } from '../entities/Enemy';
 import { BossEnemy } from '../entities/BossEnemy';
 import { BossProjectile } from '../entities/BossProjectile';
 import { ArrowProjectile } from '../entities/ArrowProjectile';
+import { EnergyProjectile } from '../entities/EnergyProjectile';
 import { RoomClient } from '../net/RoomClient';
 import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot, BossSnapshot } from '../net/types';
 import { SoundFX } from '../audio/SoundFX';
@@ -130,7 +131,7 @@ export class GameScene extends Phaser.Scene {
   private players: Player[] = [];
   private myPlayer!: Player;
   private playerLights: Map<Player, Phaser.GameObjects.Light> = new Map();
-  private playerArrows: ArrowProjectile[] = [];
+  private playerArrows: (ArrowProjectile | EnergyProjectile)[] = [];
 
   private remoteInputs: Map<number, InputPayload> = new Map();
   private lastConsumedSeq: Map<number, { attack: number; interact: number }> = new Map();
@@ -1307,7 +1308,7 @@ export class GameScene extends Phaser.Scene {
       this.bossBarUI.update(this.boss);
     }
     if (this.actionBar && this.myPlayer) {
-      const maxCd = this.heroClass === 'ranger' ? 4000 : 3500;
+      const maxCd = this.heroClass === 'knight' ? 3500 : this.heroClass === 'ranger' ? 4200 : 4000;
       const cd = this.myPlayer.specialCooldown;
       const ratio = cd > 0 ? cd / maxCd : 0;
       const secs = cd > 0 ? cd / 1000 : 0;
@@ -1476,7 +1477,7 @@ export class GameScene extends Phaser.Scene {
     const res = player.tryAttack(targetX, targetY);
     if (!res) return;
 
-    if (res.kind === 'arrow' && res.projectile) {
+    if ((res.kind === 'arrow' || res.kind === 'energy') && res.projectile) {
       this.worldLayer.add(res.projectile);
       this.playerArrows.push(res.projectile);
       return;
@@ -1635,12 +1636,14 @@ export class GameScene extends Phaser.Scene {
     const res = player.trySpecial(targetX, targetY);
     if (!res) return;
 
-    if (res.kind === 'volley' && res.projectiles) {
+    if ((res.kind === 'volley' || res.kind === 'supernova') && res.projectiles) {
       for (const p of res.projectiles) {
         this.worldLayer.add(p);
         this.playerArrows.push(p);
       }
-      if (player === this.myPlayer) this.worldCam.shake(50, 0.0015);
+      if (player === this.myPlayer) {
+        this.worldCam.shake(res.kind === 'supernova' ? 80 : 50, res.kind === 'supernova' ? 0.0025 : 0.0015);
+      }
       return;
     }
 
@@ -1769,7 +1772,11 @@ export class GameScene extends Phaser.Scene {
         const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, this.boss.x, this.boss.y - 12);
         if (dist <= 22 && !arrow.hitEntityIds.has(9999)) {
           arrow.hitEntityIds.add(9999);
-          SoundFX.playArrowHit();
+          if (arrow instanceof EnergyProjectile) {
+            SoundFX.playEnergyHit();
+          } else {
+            SoundFX.playArrowHit();
+          }
           const isCrit = Math.random() < this.myPlayer.critChance;
           const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1)));
           const killed = this.boss.takeDamage(dmg, arrow.x, arrow.y);
@@ -1779,7 +1786,8 @@ export class GameScene extends Phaser.Scene {
             this.spawnDamageNumber(this.boss.x, this.boss.y - 16, `КРИТ! -${dmg}`, '#f87171');
             this.worldCam.shake(70, 0.002);
           } else {
-            this.spawnDamageNumber(this.boss.x, this.boss.y - 16, `-${dmg}`, '#ffe28a');
+            const hitCol = arrow instanceof EnergyProjectile ? '#c084fc' : '#ffe28a';
+            this.spawnDamageNumber(this.boss.x, this.boss.y - 16, `-${dmg}`, hitCol);
           }
 
           this.hitSpark.setPosition(this.boss.x, this.boss.y - 12);
@@ -1808,13 +1816,18 @@ export class GameScene extends Phaser.Scene {
         const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, enemy.x, enemy.y - 8);
         if (dist <= 16) {
           arrow.hitEntityIds.add(enemy.id);
-          SoundFX.playArrowHit();
+          if (arrow instanceof EnergyProjectile) {
+            SoundFX.playEnergyHit();
+          } else {
+            SoundFX.playArrowHit();
+          }
           const isCrit = Math.random() < this.myPlayer.critChance;
           const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1)));
           const killed = enemy.takeDamage(dmg, arrow.x, arrow.y);
 
-          if (this.myPlayer.elementalSlots.attack) {
-            const combo = enemy.applyElement(this.myPlayer.elementalSlots.attack);
+          const elem = (arrow as EnergyProjectile).element ?? this.myPlayer.elementalSlots.attack;
+          if (elem) {
+            const combo = enemy.applyElement(elem);
             if (combo) {
               this.triggerElementalComboEffect(enemy.x, enemy.y, combo);
             }
@@ -1827,7 +1840,8 @@ export class GameScene extends Phaser.Scene {
               this.triggerChainLightning(enemy, this.myPlayer.stormTargets, Math.round(dmg * 0.75));
             }
           } else {
-            this.spawnDamageNumber(enemy.x, enemy.y, `-${dmg}`, '#ffe28a');
+            const hitCol = arrow instanceof EnergyProjectile ? '#c084fc' : '#ffe28a';
+            this.spawnDamageNumber(enemy.x, enemy.y, `-${dmg}`, hitCol);
           }
 
           this.hitSpark.setPosition(enemy.x, enemy.y - 8);

@@ -25,6 +25,8 @@ export const ITEM_SPRITE_MAP: Record<string, { col: number; row: number }> = {
   // Weapons for classes
   knight_sword: { col: 3, row: 0 }, // Longsword
   ranger_bow: { col: 0, row: 9 }, // Hunting Bow
+  wizard_staff: { col: 0, row: 10 }, // Magic Staff
+  supernova_icon: { col: 4, row: 15 }, // Arcane Star Orb
   shield: { col: 1, row: 11 }, // Iron Shield
   dash_icon: { col: 5, row: 13 }, // Swift boots
   interact_icon: { col: 6, row: 17 }, // Hand / key
@@ -98,28 +100,26 @@ export class UIAtlas {
     const ctx = canvas.getContext('2d')!;
 
     // Outer dark shadow
-    ctx.fillStyle = '#05070d';
+    ctx.fillStyle = '#020617';
     ctx.fillRect(0, 0, 36, 36);
 
-    // Dark slate slot body
-    ctx.fillStyle = '#131c2e';
+    // Inset slot cavity
+    ctx.fillStyle = '#0b0f19';
     ctx.fillRect(2, 2, 32, 32);
 
-    // Inset top/left dark shadow
-    ctx.fillStyle = '#080c14';
-    ctx.fillRect(3, 3, 30, 30);
+    // Metallic beveled border
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(2, 2, 32, 32);
 
-    // Border bevel
-    ctx.strokeStyle = '#475569';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(1.5, 1.5, 33, 33);
-
-    // Subtle gold corner notches
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(0, 0, 3, 3);
-    ctx.fillRect(33, 0, 3, 3);
-    ctx.fillRect(0, 33, 3, 3);
-    ctx.fillRect(33, 33, 3, 3);
+    // Top & Left inner highlight
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(3, 33);
+    ctx.lineTo(3, 3);
+    ctx.lineTo(33, 3);
+    ctx.stroke();
 
     scene.textures.addCanvas(TEXTURE.UI_SLOT_FRAME, canvas);
   }
@@ -127,26 +127,15 @@ export class UIAtlas {
   private static buildOrnateBorderTexture(scene: Phaser.Scene): void {
     if (scene.textures.exists(TEXTURE.UI_HP_BAR_FRAME)) return;
     const canvas = document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 20;
+    canvas.width = 16;
+    canvas.height = 16;
     const ctx = canvas.getContext('2d')!;
 
-    // Black background
-    ctx.fillStyle = '#0a0a0f';
-    ctx.fillRect(0, 0, 160, 20);
-
-    // Inner cavity
-    ctx.fillStyle = '#1f1622';
-    ctx.fillRect(3, 3, 154, 14);
-
-    // Gold filigree border
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 16, 16);
     ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, 158, 18);
-
-    ctx.strokeStyle = '#fde047';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(2, 2, 156, 16);
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(1, 1, 14, 14);
 
     scene.textures.addCanvas(TEXTURE.UI_HP_BAR_FRAME, canvas);
   }
@@ -154,12 +143,10 @@ export class UIAtlas {
   private static buildSkullTexture(scene: Phaser.Scene): void {
     if (scene.textures.exists(TEXTURE.UI_SKULL_ORNAMENT)) return;
     const canvas = document.createElement('canvas');
-    canvas.width = 24;
-    canvas.height = 24;
+    canvas.width = 16;
+    canvas.height = 16;
     const ctx = canvas.getContext('2d')!;
 
-    // Horned demon skull icon for Boss Bar
-    ctx.fillStyle = '#e2e8f0';
     // Cranium
     ctx.fillRect(6, 4, 12, 10);
     // Horns
@@ -286,6 +273,56 @@ export class UIAtlas {
       rCtx.strokeRect(1, 1, 30, 30);
 
       scene.textures.addCanvas(TEXTURE.UI_HERO_PORTRAIT_RANGER, rCanvas);
+    }
+
+    // 3. Wizard Portrait (32x32)
+    if (!scene.textures.exists(TEXTURE.UI_HERO_PORTRAIT_WIZARD)) {
+      const wCanvas = document.createElement('canvas');
+      wCanvas.width = 32;
+      wCanvas.height = 32;
+      const wCtx = wCanvas.getContext('2d')!;
+
+      // Deep Arcane Indigo background
+      wCtx.fillStyle = '#1e1035';
+      wCtx.fillRect(0, 0, 32, 32);
+
+      // Pointed Wizard Hat / Hood
+      wCtx.fillStyle = '#6b21a8';
+      wCtx.beginPath();
+      wCtx.moveTo(16, 2);
+      wCtx.lineTo(29, 27);
+      wCtx.lineTo(3, 27);
+      wCtx.closePath();
+      wCtx.fill();
+
+      // Hat Brim
+      wCtx.fillStyle = '#9333ea';
+      wCtx.fillRect(2, 14, 28, 3);
+
+      // Glowing Arcane Star Crystal on Hat
+      wCtx.fillStyle = '#f0abfc';
+      wCtx.fillRect(15, 6, 2, 2);
+      wCtx.fillStyle = '#ffffff';
+      wCtx.fillRect(15, 7, 2, 1);
+
+      // Shadowed Mystic Face under cowl
+      wCtx.fillStyle = '#0b0518';
+      wCtx.fillRect(8, 16, 16, 10);
+
+      // Glowing Purple-Cyan Arcane Eyes
+      wCtx.fillStyle = '#c084fc';
+      wCtx.fillRect(10, 18, 3, 2);
+      wCtx.fillRect(19, 18, 3, 2);
+      wCtx.fillStyle = '#38bdf8';
+      wCtx.fillRect(11, 18, 1, 1);
+      wCtx.fillRect(20, 18, 1, 1);
+
+      // Arcane Violet / Gold Border
+      wCtx.strokeStyle = '#c084fc';
+      wCtx.lineWidth = 2;
+      wCtx.strokeRect(1, 1, 30, 30);
+
+      scene.textures.addCanvas(TEXTURE.UI_HERO_PORTRAIT_WIZARD, wCanvas);
     }
   }
 

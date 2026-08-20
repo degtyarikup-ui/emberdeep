@@ -676,6 +676,110 @@ class SoundFXManager {
     osc.stop(t + 0.09);
   }
 
+  /** Resonant mystical staff energy cast */
+  playStaffCast(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+
+    // Harmonic singing crystal/arcane chime
+    const chime = ctx.createOscillator();
+    const chimeGain = ctx.createGain();
+    chime.type = 'sine';
+    chime.frequency.setValueAtTime(620, t);
+    chime.frequency.exponentialRampToValueAtTime(1400, t + 0.06);
+    chime.frequency.exponentialRampToValueAtTime(880, t + 0.18);
+
+    chimeGain.gain.setValueAtTime(0.28, t);
+    chimeGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+    chime.connect(chimeGain);
+    chimeGain.connect(this.sfxGain);
+    chime.start(t);
+    chime.stop(t + 0.18);
+
+    // Deep mana surge resonance
+    const surge = ctx.createOscillator();
+    const surgeGain = ctx.createGain();
+    surge.type = 'triangle';
+    surge.frequency.setValueAtTime(220, t);
+    surge.frequency.exponentialRampToValueAtTime(110, t + 0.14);
+
+    surgeGain.gain.setValueAtTime(0.32, t);
+    surgeGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+    surge.connect(surgeGain);
+    surgeGain.connect(this.sfxGain);
+    surge.start(t);
+    surge.stop(t + 0.14);
+  }
+
+  /** Arcane energy blast impact / detonation */
+  playEnergyHit(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+
+    // Crisp high-frequency glass/energy shatter
+    const spark = ctx.createOscillator();
+    const sparkGain = ctx.createGain();
+    spark.type = 'sine';
+    spark.frequency.setValueAtTime(1200, t);
+    spark.frequency.exponentialRampToValueAtTime(320, t + 0.12);
+
+    sparkGain.gain.setValueAtTime(0.35, t);
+    sparkGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+    spark.connect(sparkGain);
+    sparkGain.connect(this.sfxGain);
+    spark.start(t);
+    spark.stop(t + 0.12);
+
+    // Low sub-bass pop
+    const sub = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    sub.type = 'triangle';
+    sub.frequency.setValueAtTime(240, t);
+    sub.frequency.exponentialRampToValueAtTime(45, t + 0.14);
+
+    subGain.gain.setValueAtTime(0.42, t);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+    sub.connect(subGain);
+    subGain.connect(this.sfxGain);
+    sub.start(t);
+    sub.stop(t + 0.14);
+  }
+
+  /** Arcane Supernova cosmic release burst */
+  playSupernova(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+
+    // Rising ethereal power chord
+    const freqs = [330, 440, 660, 880];
+    freqs.forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.exponentialRampToValueAtTime(f * 2.2, t + 0.12);
+      osc.frequency.exponentialRampToValueAtTime(f * 0.7, t + 0.45);
+
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      osc.start(t);
+      osc.stop(t + 0.45);
+    });
+  }
+
   /** Tree chop axe/blade thud into solid trunk */
   playTreeChop(): void {
     const ctx = this.ensureContext();

@@ -36,7 +36,12 @@ export class HeroFrame {
     const portraitSlot = PixelUI.createSlot(scene, 32, frameH / 2, 48, 'legendary');
     this.container.add(portraitSlot);
 
-    const portraitTex = heroClass === 'ranger' ? TEXTURE.UI_HERO_PORTRAIT_RANGER : TEXTURE.UI_HERO_PORTRAIT_KNIGHT;
+    const portraitTex =
+      heroClass === 'wizard'
+        ? TEXTURE.UI_HERO_PORTRAIT_WIZARD
+        : heroClass === 'ranger'
+        ? TEXTURE.UI_HERO_PORTRAIT_RANGER
+        : TEXTURE.UI_HERO_PORTRAIT_KNIGHT;
     this.portraitSprite = scene.add.sprite(32, frameH / 2, portraitTex);
     this.portraitSprite.setScale(1.15);
     this.container.add(this.portraitSprite);
@@ -54,8 +59,9 @@ export class HeroFrame {
 
     // 3. Class Name Title (Crisp, High-Contrast 13px)
     const isRanger = heroClass === 'ranger';
-    const classLabel = isRanger ? 'ЛУЧНИЦА ТЕНЕЙ' : 'РЫЦАРЬ ГОРНА';
-    const classColor = isRanger ? '#4ade80' : '#38bdf8';
+    const isWizard = heroClass === 'wizard';
+    const classLabel = isWizard ? 'ВОЛШЕБНИК ЭФИРА' : isRanger ? 'ЛУЧНИЦА ТЕНЕЙ' : 'РЫЦАРЬ ГОРНА';
+    const classColor = isWizard ? '#c084fc' : isRanger ? '#4ade80' : '#38bdf8';
 
     this.classNameText = scene.add.text(64, 10, classLabel, {
       fontFamily: FONT.UI,
@@ -173,7 +179,7 @@ export class HeroFrame {
       this.classNameText.setColor('#ef4444');
     } else {
       this.hpBarFill.fillColor = 0xdc2626;
-      this.classNameText.setColor(player.heroClass === 'ranger' ? '#4ade80' : '#38bdf8');
+      this.classNameText.setColor(player.heroClass === 'wizard' ? '#c084fc' : player.heroClass === 'ranger' ? '#4ade80' : '#38bdf8');
     }
 
     this.goldText.setText(`${player.gold}`);

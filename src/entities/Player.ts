@@ -4,6 +4,7 @@ import { ACTORS } from '../gfx/actors';
 import { ActorAnim } from '../net/types';
 import { SoundFX, SurfaceType } from '../audio/SoundFX';
 import { ArrowProjectile } from './ArrowProjectile';
+import { EnergyProjectile } from './EnergyProjectile';
 import { MetaManager } from '../meta/MetaManager';
 import { EntityAnimController } from '../gfx/AnimationManager';
 import { ElementalSlotConfig, ElementType, ELEMENT_COLORS } from '../combat/ElementalSystem';
@@ -11,14 +12,16 @@ import { ITEMS } from '../items/registry';
 
 const KNIGHT_SPEED = 130;
 const RANGER_SPEED = 145;
+const WIZARD_SPEED = 135;
 const KNIGHT_ATTACK_COOLDOWN = 360;
 const RANGER_ATTACK_COOLDOWN = 620;
+const WIZARD_ATTACK_COOLDOWN = 480;
 const ATTACK_LOCK = 140;
 const KNOCKBACK_LOCK = 150;
 const INVULN_DURATION = 900;
 const RESPAWN_GRACE = 1400;
 
-export type HeroClass = 'knight' | 'ranger';
+export type HeroClass = 'knight' | 'ranger' | 'wizard';
 
 type AnimState = 'idle' | 'run' | 'death';
 
@@ -34,6 +37,12 @@ const RANGER_BODY_CONFIG: Record<AnimState, { size: [number, number]; offset: [n
   death: { size: [14, 12], offset: [9, 20] },
 };
 
+const WIZARD_BODY_CONFIG: Record<AnimState, { size: [number, number]; offset: [number, number] }> = {
+  idle: { size: [14, 12], offset: [9, 20] }, // 32x32 frame
+  run: { size: [14, 12], offset: [9, 20] },
+  death: { size: [14, 12], offset: [9, 20] },
+};
+
 export interface PlayerInput {
   up: boolean;
   down: boolean;
@@ -43,18 +52,18 @@ export interface PlayerInput {
 }
 
 export interface SpecialResult {
-  kind: 'whirlwind' | 'volley';
+  kind: 'whirlwind' | 'volley' | 'supernova';
   x: number;
   y: number;
   radius?: number;
   damage?: number;
-  projectiles?: ArrowProjectile[];
+  projectiles?: (ArrowProjectile | EnergyProjectile)[];
   element?: ElementType;
 }
 
 export interface AttackResult {
-  kind: 'melee' | 'arrow';
-  projectile?: ArrowProjectile;
+  kind: 'melee' | 'arrow' | 'energy';
+  projectile?: ArrowProjectile | EnergyProjectile;
   aimAngle?: number;
   element?: ElementType;
 }
@@ -100,12 +109,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     heroClass: HeroClass = 'knight'
   ) {
     const isKnight = heroClass === 'knight';
-    const initTex = isKnight ? ACTORS.HERO.idle.key : TEXTURE.RANGER_IDLE;
+    const isRanger = heroClass === 'ranger';
+    const isWizard = heroClass === 'wizard';
+    const initTex = isKnight ? ACTORS.HERO.idle.key : isRanger ? TEXTURE.RANGER_IDLE : `${TEXTURE.WIZARD_IDLE}_f0`;
     super(scene, x, y, initTex, 0);
 
     this.slot = slot;
     this.heroClass = heroClass;
-    this.specialMaxCooldown = isKnight ? 3500 : 4200;
+    this.specialMaxCooldown = isKnight ? 3500 : isRanger ? 4200 : 4000;
 
     const bonuses = MetaManager.get().getBonuses();
 
@@ -134,21 +145,23 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (isKnight) {
       this.play(ACTORS.HERO.idle.key);
-    } else {
+    } else if (isRanger) {
       this.play(ANIM.RANGER_IDLE);
+    } else {
+      this.play(ANIM.WIZARD_IDLE);
     }
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    const bodyCfg = isKnight ? BODY_CONFIG.idle : RANGER_BODY_CONFIG.idle;
+    const bodyCfg = isKnight ? BODY_CONFIG.idle : isRanger ? RANGER_BODY_CONFIG.idle : WIZARD_BODY_CONFIG.idle;
     body.setSize(bodyCfg.size[0], bodyCfg.size[1]);
     body.setOffset(bodyCfg.offset[0], bodyCfg.offset[1]);
     body.setCollideWorldBounds(true);
     this.setDepth(DEPTH.YSORT_BASE + y + 16);
 
-    // Weapon sprite: Sword for Knight, Bow for Ranger
-    const weaponTex = isKnight ? TEXTURE.WEAPON_SWORD : TEXTURE.BOW;
+    // Weapon sprite: Sword for Knight, Bow for Ranger, Staff for Wizard
+    const weaponTex = isKnight ? TEXTURE.WEAPON_SWORD : isRanger ? TEXTURE.BOW : TEXTURE.STAFF;
     this.sword = scene.add.sprite(x + 6, y - 13, weaponTex);
-    this.sword.setOrigin(isKnight ? 0.5 : 0.5, isKnight ? 0.88 : 0.5);
+    this.sword.setOrigin(isKnight ? 0.5 : isRanger ? 0.5 : 0.5, isKnight ? 0.88 : isRanger ? 0.5 : 0.85);
     this.sword.setPipeline('Light2D');
     this.sword.setDepth(DEPTH.YSORT_BASE + y + 17);
     this.sword.setScale(1.0);
@@ -179,7 +192,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   get moveSpeed(): number {
     const metaSpeed = MetaManager.get().getBonuses().speedMultiplier;
-    const baseSpeed = (this.heroClass === 'knight' ? KNIGHT_SPEED : RANGER_SPEED) * metaSpeed;
+    const classSpeed = this.heroClass === 'knight' ? KNIGHT_SPEED : this.heroClass === 'ranger' ? RANGER_SPEED : WIZARD_SPEED;
+    const baseSpeed = classSpeed * metaSpeed;
     const base = baseSpeed * (1 + (this.items['boots'] || 0) * 0.15);
     const sprintFactor = this.isSprinting ? 1.55 : 1.0;
     const hackFactor = this.speedHack ? 2.2 : 1.0;
@@ -262,16 +276,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.knockbackLock = KNOCKBACK_LOCK;
     
     // Hit reaction
+    this.setTint(0xff4422);
+    this.scene.time.delayedCall(100, () => this.clearTint());
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: this.baseScale * 1.15,
+      scaleY: this.baseScale * 0.85,
+      duration: 80,
+      yoyo: true,
+    });
     if (this.heroClass === 'knight') {
-      this.setTint(0xff4422);
-      this.scene.time.delayedCall(100, () => this.clearTint());
-      this.scene.tweens.add({
-        targets: this,
-        scaleX: this.baseScale * 1.15,
-        scaleY: this.baseScale * 0.85,
-        duration: 80,
-        yoyo: true,
-      });
       this.setAnimState('hit');
     }
 
@@ -326,7 +340,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Returns attack result or null if on cooldown. */
   tryAttack(targetX?: number, targetY?: number): AttackResult | null {
     if (this.attackCooldown > 0 || this.dying) return null;
-    this.attackCooldown = this.heroClass === 'knight' ? KNIGHT_ATTACK_COOLDOWN : RANGER_ATTACK_COOLDOWN;
+    this.attackCooldown =
+      this.heroClass === 'knight'
+        ? KNIGHT_ATTACK_COOLDOWN
+        : this.heroClass === 'ranger'
+        ? RANGER_ATTACK_COOLDOWN
+        : WIZARD_ATTACK_COOLDOWN;
     this.attackLock = ATTACK_LOCK;
 
     const dir = this.flipX ? -1 : 1;
@@ -355,13 +374,30 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
       this.playRangerShootAnimation(angle);
       return { kind: 'arrow', projectile: arrow, aimAngle: angle, element: this.elementalSlots.attack };
+    } else if (this.heroClass === 'wizard') {
+      SoundFX.playStaffCast();
+      const spawnX = this.x + Math.cos(angle) * 14;
+      const spawnY = this.y - 14 + Math.sin(angle) * 14;
+      const energy = new EnergyProjectile(
+        this.scene,
+        spawnX,
+        spawnY,
+        angle,
+        Math.max(1, Math.round(this.attackDamage)),
+        1,
+        340,
+        this.elementalSlots.attack,
+        false
+      );
+      this.playWizardCastAnimation(angle);
+      return { kind: 'energy', projectile: energy, aimAngle: angle, element: this.elementalSlots.attack };
     } else {
       this.playAttackAnimation(angle);
       return { kind: 'melee', aimAngle: angle, element: this.elementalSlots.attack };
     }
   }
 
-  /** Triggers special ability (Knight Whirlwind or Ranger Arrow Volley). */
+  /** Triggers special ability (Knight Whirlwind, Ranger Arrow Volley, or Wizard Arcane Supernova). */
   trySpecial(targetX?: number, targetY?: number): SpecialResult | null {
     if (this.specialCooldown > 0 || this.dying) return null;
     this.specialCooldown = this.specialMaxCooldown;
@@ -402,6 +438,30 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
       this.playRangerShootAnimation(baseAngle);
       return { kind: 'volley', x: this.x, y: this.y, projectiles, element: this.elementalSlots.skill };
+    } else if (this.heroClass === 'wizard') {
+      SoundFX.playSupernova();
+      this.playSupernovaAnimation();
+
+      const projectiles: EnergyProjectile[] = [];
+      const count = 8;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const spawnX = this.x + Math.cos(angle) * 14;
+        const spawnY = this.y - 14 + Math.sin(angle) * 14;
+        const energy = new EnergyProjectile(
+          this.scene,
+          spawnX,
+          spawnY,
+          angle,
+          Math.max(2, Math.round(this.attackDamage * 1.6)),
+          2, // pierce 2 targets
+          310,
+          this.elementalSlots.skill,
+          true
+        );
+        projectiles.push(energy);
+      }
+      return { kind: 'supernova', x: this.x, y: this.y, projectiles, element: this.elementalSlots.skill };
     } else {
       SoundFX.playSwordSwing();
       this.playWhirlwindAnimation();
@@ -498,6 +558,75 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
+  private playWizardCastAnimation(aimAngle: number): void {
+    this.isAttacking = true;
+    const dir = this.flipX ? -1 : 1;
+
+    // Staff thrust forward
+    this.sword.setOrigin(0.5, 0.85);
+    this.sword.setRotation(aimAngle + 0.25 * dir);
+
+    const castDist = 10;
+    const thrustX = Math.cos(aimAngle) * castDist;
+    const thrustY = Math.sin(aimAngle) * castDist;
+
+    this.sword.setPosition(this.x + 6 * dir + thrustX, this.y - 14 + thrustY);
+
+    // Body squash/recoil
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: this.baseScale * 1.15,
+      scaleY: this.baseScale * 0.9,
+      duration: 60,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+    });
+
+    // Reset staff position
+    this.scene.time.delayedCall(90, () => {
+      this.scene.tweens.add({
+        targets: this.sword,
+        x: this.x + 6 * dir,
+        y: this.y - 13,
+        rotation: 0.15 * dir,
+        duration: 100,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          this.isAttacking = false;
+        },
+      });
+    });
+  }
+
+  private playSupernovaAnimation(): void {
+    // Expanding magic nova ring
+    const ring = this.scene.add.circle(this.x, this.y - 14, 16, 0xc084fc, 0.7);
+    ring.setStrokeStyle(3, 0xf0abfc, 0.95);
+    ring.setDepth(DEPTH.YSORT_BASE + this.y + 10);
+
+    const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+    if (worldLayer) worldLayer.add(ring);
+
+    this.scene.tweens.add({
+      targets: ring,
+      scaleX: 3.5,
+      scaleY: 3.5,
+      alpha: 0,
+      duration: 400,
+      ease: 'Cubic.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: this.baseScale * 1.35,
+      scaleY: this.baseScale * 0.82,
+      duration: 120,
+      yoyo: true,
+      ease: 'Back.easeOut',
+    });
+  }
+
   /** Triggers the sword swing, slash arc FX, body lunge, and audio. */
   playAttackAnimation(aimAngle: number): void {
     this.isAttacking = true;
@@ -582,21 +711,32 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setOrigin(0.5, 1.0);
 
     const isKnight = this.heroClass === 'knight';
+    const isRanger = this.heroClass === 'ranger';
     if (next === 'death') {
       this.play(ACTORS.HERO.death.key, true);
     } else if (isKnight) {
       this.play(ACTORS.HERO[next as AnimState].key, true);
-    } else {
+    } else if (isRanger) {
       if (next === 'run') {
         this.play(ANIM.RANGER_RUN, true);
       } else {
         this.play(ANIM.RANGER_IDLE, true);
       }
+    } else {
+      if (next === 'run') {
+        this.play(ANIM.WIZARD_RUN, true);
+      } else {
+        this.play(ANIM.WIZARD_IDLE, true);
+      }
     }
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (body && BODY_CONFIG[next as AnimState]) {
-      const cfg = isKnight ? BODY_CONFIG[next as AnimState] : RANGER_BODY_CONFIG[next as AnimState];
+      const cfg = isKnight
+        ? BODY_CONFIG[next as AnimState]
+        : isRanger
+        ? RANGER_BODY_CONFIG[next as AnimState]
+        : WIZARD_BODY_CONFIG[next as AnimState];
       body.setSize(cfg.size[0], cfg.size[1]);
       body.setOffset(cfg.offset[0], cfg.offset[1]);
     }
@@ -616,6 +756,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const bob = moving ? Math.sin(this.scene.time.now / 90) * 2.5 : Math.sin(this.scene.time.now / 350) * 1.0;
         this.sword.setPosition(this.x + 6 * dir, this.y - 13 + bob);
         this.sword.setAngle(0);
+      }
+      return;
+    }
+
+    if (this.heroClass === 'wizard') {
+      if (!this.isAttacking) {
+        this.sword.setTexture(TEXTURE.STAFF);
+        this.sword.setOrigin(0.5, 0.85);
+        const bob = moving ? Math.sin(this.scene.time.now / 90) * 3.0 : Math.sin(this.scene.time.now / 350) * 1.5;
+        this.sword.setPosition(this.x + 6 * dir, this.y - 13 + bob);
+        this.sword.setAngle(12 * dir);
       }
       return;
     }
@@ -646,7 +797,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.setOrigin(0.5, 1.0);
       const body = this.body as Phaser.Physics.Arcade.Body;
       if (body) {
-        const cfg = this.heroClass === 'knight' ? BODY_CONFIG.death : RANGER_BODY_CONFIG.death;
+        const cfg =
+          this.heroClass === 'knight'
+            ? BODY_CONFIG.death
+            : this.heroClass === 'ranger'
+            ? RANGER_BODY_CONFIG.death
+            : WIZARD_BODY_CONFIG.death;
         body.setSize(cfg.size[0], cfg.size[1]);
         body.setOffset(cfg.offset[0], cfg.offset[1]);
       }
@@ -780,7 +936,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     ghost.setOrigin(this.originX, this.originY);
     ghost.setFlipX(this.flipX);
     ghost.setScale(this.scaleX, this.scaleY);
-    ghost.setTint(this.heroClass === 'ranger' ? 0x4ade80 : 0x38bdf8);
+    ghost.setTint(this.heroClass === 'wizard' ? 0xc084fc : this.heroClass === 'ranger' ? 0x4ade80 : 0x38bdf8);
     ghost.setAlpha(0.4);
     ghost.setDepth(Math.max(0, this.depth - 1));
 

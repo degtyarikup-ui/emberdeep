@@ -3,6 +3,7 @@ import { SCENE } from './keys';
 import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
 import { TILE_INDEX } from '../gfx/tiles';
 import { ACTORS } from '../gfx/actors';
+import { HeroClass } from '../entities/Player';
 import { MetaManager, META_UPGRADES } from '../meta/MetaManager';
 import { SoundFX } from '../audio/SoundFX';
 import { ACHIEVEMENTS } from '../achievements/registry';
@@ -136,7 +137,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(DEPTH.UI);
 
-    let selectedHero: 'knight' | 'ranger' = 'knight';
+    let selectedHero: HeroClass = 'knight';
 
     // Language Toggle Button (Top-Left)
     const langBtn = makeButton(this, 60, 30, t().langBtn, { fontSize: '13px' });
@@ -147,42 +148,43 @@ export class MenuScene extends Phaser.Scene {
 
     // Hero Selection Showcase Cards with Animated Sprites
     const heroY = height * 0.47;
-    const cardW = 205;
+    const cardW = 180;
     const cardH = 68;
+    const cardSpacing = 190;
 
     // 1. Knight Card
-    const knightBtn = this.add.container(width / 2 - 115, heroY).setDepth(DEPTH.UI);
+    const knightBtn = this.add.container(width / 2 - cardSpacing, heroY).setDepth(DEPTH.UI);
     const knightBg = this.add.rectangle(0, 0, cardW, cardH, 0x1e1528, 0.95).setStrokeStyle(2, 0xfbbf24);
 
-    const knightSprite = this.add.sprite(-cardW / 2 + 28, 22, ACTORS.HERO.idle.key);
+    const knightSprite = this.add.sprite(-cardW / 2 + 26, 22, ACTORS.HERO.idle.key);
     knightSprite.setOrigin(0.5, 1.0);
     knightSprite.setScale(1.7);
     knightSprite.play(ACTORS.HERO.idle.key);
 
-    const knightSword = this.add.sprite(-cardW / 2 + 38, 10, TEXTURE.WEAPON_SWORD);
+    const knightSword = this.add.sprite(-cardW / 2 + 36, 10, TEXTURE.WEAPON_SWORD);
     knightSword.setOrigin(0.5, 0.88);
     knightSword.setScale(1.15);
     knightSword.setAngle(20);
 
     const knightText = this.add
-      .text(-cardW / 2 + 56, -20, t().knightTitle, {
+      .text(-cardW / 2 + 52, -20, t().knightTitle, {
         fontFamily: FONT.UI,
-        fontSize: '13px',
+        fontSize: '12px',
         fontStyle: '700',
         color: '#f0e2b8',
       })
       .setOrigin(0, 0);
 
     const knightSub = this.add
-      .text(-cardW / 2 + 56, -3, t().knightStats, {
+      .text(-cardW / 2 + 52, -3, t().knightStats, {
         fontFamily: FONT.UI,
-        fontSize: '9px',
+        fontSize: '8px',
         color: '#fcd34d',
       })
       .setOrigin(0, 0);
 
     const knightSkill = this.add
-      .text(-cardW / 2 + 56, 12, t().knightSkill, {
+      .text(-cardW / 2 + 52, 12, t().knightSkill, {
         fontFamily: FONT.UI,
         fontSize: '8px',
         color: '#94a3b8',
@@ -193,37 +195,37 @@ export class MenuScene extends Phaser.Scene {
     knightBg.setInteractive({ useHandCursor: true });
 
     // 2. Ranger Card
-    const rangerBtn = this.add.container(width / 2 + 115, heroY).setDepth(DEPTH.UI);
+    const rangerBtn = this.add.container(width / 2, heroY).setDepth(DEPTH.UI);
     const rangerBg = this.add.rectangle(0, 0, cardW, cardH, 0x120d1c, 0.65).setStrokeStyle(1.5, 0x475569);
 
-    const rangerSprite = this.add.sprite(-cardW / 2 + 28, 22, TEXTURE.RANGER_IDLE);
+    const rangerSprite = this.add.sprite(-cardW / 2 + 26, 22, TEXTURE.RANGER_IDLE);
     rangerSprite.setOrigin(0.5, 1.0);
     rangerSprite.setScale(1.7);
     rangerSprite.play(ANIM.RANGER_IDLE);
 
-    const rangerBow = this.add.sprite(-cardW / 2 + 38, 10, TEXTURE.BOW);
+    const rangerBow = this.add.sprite(-cardW / 2 + 36, 10, TEXTURE.BOW);
     rangerBow.setOrigin(0.5, 0.5);
     rangerBow.setScale(1.1);
 
     const rangerText = this.add
-      .text(-cardW / 2 + 56, -20, t().rangerTitle, {
+      .text(-cardW / 2 + 52, -20, t().rangerTitle, {
         fontFamily: FONT.UI,
-        fontSize: '13px',
+        fontSize: '12px',
         fontStyle: '700',
         color: '#8b8398',
       })
       .setOrigin(0, 0);
 
     const rangerSub = this.add
-      .text(-cardW / 2 + 56, -3, t().rangerStats, {
+      .text(-cardW / 2 + 52, -3, t().rangerStats, {
         fontFamily: FONT.UI,
-        fontSize: '9px',
+        fontSize: '8px',
         color: '#4ade80',
       })
       .setOrigin(0, 0);
 
     const rangerSkill = this.add
-      .text(-cardW / 2 + 56, 12, t().rangerSkill, {
+      .text(-cardW / 2 + 52, 12, t().rangerSkill, {
         fontFamily: FONT.UI,
         fontSize: '8px',
         color: '#64748b',
@@ -233,9 +235,51 @@ export class MenuScene extends Phaser.Scene {
     rangerBtn.add([rangerBg, rangerSprite, rangerBow, rangerText, rangerSub, rangerSkill]);
     rangerBg.setInteractive({ useHandCursor: true });
 
+    // 3. Wizard Card
+    const wizardBtn = this.add.container(width / 2 + cardSpacing, heroY).setDepth(DEPTH.UI);
+    const wizardBg = this.add.rectangle(0, 0, cardW, cardH, 0x120d1c, 0.65).setStrokeStyle(1.5, 0x475569);
+
+    const wizardSprite = this.add.sprite(-cardW / 2 + 26, 22, `${TEXTURE.WIZARD_IDLE}_f0`);
+    wizardSprite.setOrigin(0.5, 1.0);
+    wizardSprite.setScale(1.7);
+    wizardSprite.play(ANIM.WIZARD_IDLE);
+
+    const wizardStaff = this.add.sprite(-cardW / 2 + 36, 10, TEXTURE.STAFF);
+    wizardStaff.setOrigin(0.5, 0.85);
+    wizardStaff.setScale(1.1);
+    wizardStaff.setAngle(12);
+
+    const wizardText = this.add
+      .text(-cardW / 2 + 52, -20, t().wizardTitle, {
+        fontFamily: FONT.UI,
+        fontSize: '12px',
+        fontStyle: '700',
+        color: '#8b8398',
+      })
+      .setOrigin(0, 0);
+
+    const wizardSub = this.add
+      .text(-cardW / 2 + 52, -3, t().wizardStats, {
+        fontFamily: FONT.UI,
+        fontSize: '8px',
+        color: '#c084fc',
+      })
+      .setOrigin(0, 0);
+
+    const wizardSkill = this.add
+      .text(-cardW / 2 + 52, 12, t().wizardSkill, {
+        fontFamily: FONT.UI,
+        fontSize: '8px',
+        color: '#64748b',
+      })
+      .setOrigin(0, 0);
+
+    wizardBtn.add([wizardBg, wizardSprite, wizardStaff, wizardText, wizardSub, wizardSkill]);
+    wizardBg.setInteractive({ useHandCursor: true });
+
     // Gentle idle weapon bobbing
     this.tweens.add({
-      targets: [knightSword, rangerBow],
+      targets: [knightSword, rangerBow, wizardStaff],
       y: '+=2',
       duration: 900,
       yoyo: true,
@@ -244,26 +288,37 @@ export class MenuScene extends Phaser.Scene {
     });
 
     const updateHeroSelection = () => {
+      // Reset all to unselected
+      knightBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+      knightText.setColor('#8b8398');
+      knightSprite.setAlpha(0.55);
+      knightSword.setAlpha(0.55);
+
+      rangerBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+      rangerText.setColor('#8b8398');
+      rangerSprite.setAlpha(0.55);
+      rangerBow.setAlpha(0.55);
+
+      wizardBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+      wizardText.setColor('#8b8398');
+      wizardSprite.setAlpha(0.55);
+      wizardStaff.setAlpha(0.55);
+
       if (selectedHero === 'knight') {
         knightBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0xfbbf24);
         knightText.setColor('#f0e2b8');
         knightSprite.setAlpha(1);
         knightSword.setAlpha(1);
-
-        rangerBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
-        rangerText.setColor('#8b8398');
-        rangerSprite.setAlpha(0.55);
-        rangerBow.setAlpha(0.55);
-      } else {
+      } else if (selectedHero === 'ranger') {
         rangerBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0x4ade80);
         rangerText.setColor('#4ade80');
         rangerSprite.setAlpha(1);
         rangerBow.setAlpha(1);
-
-        knightBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
-        knightText.setColor('#8b8398');
-        knightSprite.setAlpha(0.55);
-        knightSword.setAlpha(0.55);
+      } else if (selectedHero === 'wizard') {
+        wizardBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0xc084fc);
+        wizardText.setColor('#c084fc');
+        wizardSprite.setAlpha(1);
+        wizardStaff.setAlpha(1);
       }
     };
 
@@ -279,6 +334,12 @@ export class MenuScene extends Phaser.Scene {
       selectedHero = 'ranger';
       updateHeroSelection();
       this.tweens.add({ targets: rangerBtn, scale: 1.05, duration: 80, yoyo: true });
+    });
+
+    wizardBg.on('pointerdown', () => {
+      selectedHero = 'wizard';
+      updateHeroSelection();
+      this.tweens.add({ targets: wizardBtn, scale: 1.05, duration: 80, yoyo: true });
     });
 
     const playBtn = makeButton(this, width / 2, height * 0.60 + 8, t().playSolo);

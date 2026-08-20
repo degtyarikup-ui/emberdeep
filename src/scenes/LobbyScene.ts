@@ -4,6 +4,7 @@ import { TEXTURE, DEPTH, FONT } from '../gfx/registry';
 import { TILE_INDEX } from '../gfx/tiles';
 import { RoomClient } from '../net/RoomClient';
 import { RosterEntry } from '../net/types';
+import { HeroClass } from '../entities/Player';
 
 function makeButton(
   scene: Phaser.Scene,
@@ -54,13 +55,13 @@ export class LobbyScene extends Phaser.Scene {
   private myName = randomName();
   private joinTimeout?: Phaser.Time.TimerEvent;
 
-  private heroClass: 'knight' | 'ranger' = 'knight';
+  private heroClass: HeroClass = 'knight';
 
   constructor() {
     super(SCENE.LOBBY);
   }
 
-  init(data?: { heroClass?: 'knight' | 'ranger' }): void {
+  init(data?: { heroClass?: HeroClass }): void {
     this.heroClass = data?.heroClass ?? 'knight';
   }
 

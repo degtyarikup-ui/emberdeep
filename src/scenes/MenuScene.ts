@@ -10,7 +10,7 @@ import { ACHIEVEMENTS } from '../achievements/registry';
 import { AchievementManager } from '../achievements/AchievementManager';
 import { I18n, t } from '../i18n';
 import { YandexSDK } from '../yandex/yandexSdk';
-import { isDebugAllowed } from '../debug/access';
+import { registerDebugHotkey } from '../debug/hotkey';
 
 function makeButton(
   scene: Phaser.Scene,
@@ -147,23 +147,10 @@ export class MenuScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // F1 Debug Button (Top-Right). Rule §9: neither the button nor the
-    // hotkeys may be created in a storefront build, so this is gated before
-    // anything is constructed rather than inside openDebugMenu().
-    if (isDebugAllowed()) {
-      const debugBtn = makeButton(this, width - 65, 30, '[F1] ДЕБАГ', { fontSize: '11px', muted: true });
-      debugBtn.on('pointerdown', () => this.openDebugMenu(selectedHero));
-
-      const f1Key = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.F1, true);
-      f1Key?.on('down', (event: KeyboardEvent) => {
-        event?.preventDefault?.();
-        this.openDebugMenu(selectedHero);
-      });
-      this.input.keyboard?.on('keydown-BACKQUOTE', (event: KeyboardEvent) => {
-        event?.preventDefault?.();
-        this.openDebugMenu(selectedHero);
-      });
-    }
+    // Debug menu: three quick presses of "0". No visible button — see
+    // registerDebugHotkey() and rule §9. Note this reads selectedHero at
+    // trigger time, so the class picked before opening is the one used.
+    registerDebugHotkey(this, () => this.openDebugMenu(selectedHero));
 
     // Hero Selection Showcase Cards with Animated Sprites
     const heroY = height * 0.47;
@@ -387,9 +374,10 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    // Top Embers counter
-    const embersCounter = this.add
-      .text(width - 24, 24, `УГЛИ: ${MetaManager.get().embers}`, {
+    // Top Embers counter: ember icon + amount, no word. The label used to
+    // read "УГЛИ: N" and ran left far enough to sit under the top-right UI.
+    const embersCount = this.add
+      .text(width - 24, 24, `${MetaManager.get().embers}`, {
         fontFamily: FONT.UI,
         fontSize: '14px',
         fontStyle: '700',
@@ -397,7 +385,12 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(1, 0)
       .setDepth(DEPTH.UI);
-    embersCounter.setStroke('#0d0a10', 4);
+    embersCount.setStroke('#0d0a10', 4);
+
+    this.add
+      .image(width - 28 - embersCount.width, 24 + embersCount.height / 2, TEXTURE.UI_EMBER_ICON)
+      .setOrigin(1, 0.5)
+      .setDepth(DEPTH.UI);
 
     this.add
       .image(width / 2, height / 2, TEXTURE.VIGNETTE)

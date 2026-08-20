@@ -37,7 +37,7 @@ import {
 } from '../combat/ElementalSystem';
 import { YandexSDK } from '../yandex/yandexSdk';
 import { t } from '../i18n';
-import { isDebugAllowed } from '../debug/access';
+import { registerDebugHotkey } from '../debug/hotkey';
 
 export const THREAT_TIERS = [
   { name: 'ЛЕГКО', color: '#4ade80', bg: 0x14532d, threshold: 0 },
@@ -243,7 +243,6 @@ export class GameScene extends Phaser.Scene {
   // Debug Tools
   private debugOpen = false;
   private debugContainer?: Phaser.GameObjects.Container;
-  private debugBtn?: Phaser.GameObjects.Container;
   private godMode = false;
   private speedHack = false;
   private fullBright = false;
@@ -919,46 +918,11 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private isDebugAllowed(): boolean {
-    return isDebugAllowed();
-  }
-
   private buildDebugUI(): void {
-    if (!this.isDebugAllowed()) return;
-
-    const x = this.scale.width - 55;
-    const y = 92;
-
-    this.debugBtn = this.add.container(x, y);
-    this.debugBtn.setDepth(DEPTH.UI + 50);
-    this.worldCam.ignore(this.debugBtn);
-
-    const bg = this.add.rectangle(0, 0, 80, 18, 0x1e1b4b, 0.9);
-    bg.setStrokeStyle(1.5, 0x818cf8);
-
-    const txt = this.add
-      .text(0, 0, '[F1] ДЕБАГ', {
-        fontFamily: FONT.UI,
-        fontSize: '8px',
-        fontStyle: '700',
-        color: '#c7d2fe',
-      })
-      .setOrigin(0.5);
-
-    this.debugBtn.add([bg, txt]);
-    bg.setInteractive({ useHandCursor: true });
-    bg.on('pointerdown', () => this.toggleDebugMenu());
-
-    // F1 and ` (Tilde) keys to toggle
-    const f1Key = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.F1, true);
-    f1Key?.on('down', (event: KeyboardEvent) => {
-      event?.preventDefault?.();
-      this.toggleDebugMenu();
-    });
-    this.input.keyboard?.on('keydown-BACKQUOTE', (event: KeyboardEvent) => {
-      event?.preventDefault?.();
-      this.toggleDebugMenu();
-    });
+    // No on-screen button: the debug menu opens on three quick presses of
+    // "0". See registerDebugHotkey() and rule §9 — the gate lives there, so
+    // nothing is registered at all when debug is disallowed.
+    registerDebugHotkey(this, () => this.toggleDebugMenu());
   }
 
   private toggleDebugMenu(): void {

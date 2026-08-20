@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  # Pushes made with a GitHub App token (Antigravity, Jules, and other cloud
+  # Pushes made with a GitHub App token (Antigravity and other cloud
   # agents) deliberately do NOT fire the `push` event above — GitHub suppresses
   # it to stop workflows retriggering themselves. Without this poll such
   # commits sit on main undeployed, and a broken build goes unnoticed.

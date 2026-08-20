@@ -1,10 +1,29 @@
 import { YandexSDK } from '../yandex/yandexSdk';
 
-// Hosts that only the two of us use for testing. The published storefront
-// builds (Yandex Games, VK Play, itch.io, …) are served from elsewhere, so
-// listing a host here never loosens a release build — see rule §9 in
+// Hosts that only we use for testing. Storefront builds are served from
+// elsewhere, so listing a host here never loosens a release — see rule §9 in
 // SPRITE_COMPOSITION_RULES.md.
 const INTERNAL_TEST_HOSTS = ['degtyarikup-ui.github.io'];
+
+/**
+ * True only for a genuine Yandex Games session.
+ *
+ * Note that `YandexSDK.get().ysdk` being non-null does NOT mean this — the SDK
+ * script is loaded from an absolute yandex.ru URL, so `YaGames.init()` also
+ * succeeds on our own domain. Checking it alone disabled debug everywhere.
+ */
+function isYandexGamesSession(): boolean {
+  // Yandex embeds games in an iframe. A cross-origin top throws on access,
+  // which itself means we are framed.
+  try {
+    if (window.self !== window.top) return true;
+  } catch {
+    return true;
+  }
+  // Off-platform the SDK reports an empty app id; a real, registered game
+  // session always carries one.
+  return Boolean(YandexSDK.get().ysdk?.environment?.app?.id);
+}
 
 /**
  * Single source of truth for whether developer tooling (the F1 debug menu,
@@ -18,14 +37,13 @@ const INTERNAL_TEST_HOSTS = ['degtyarikup-ui.github.io'];
  */
 export function isDebugAllowed(): boolean {
   if (typeof window === 'undefined') return Boolean(import.meta.env.DEV);
+  if (import.meta.env.DEV) return true;
 
-  // Hard veto: a live Yandex SDK means we really are inside Yandex Games,
-  // whatever host the files came from. This outranks every allowance below.
-  if (YandexSDK.get().ysdk) return false;
+  // Hard veto, outranking every allowance below.
+  if (isYandexGamesSession()) return false;
 
-  return Boolean(
-    import.meta.env.DEV ||
-      window.location.search.includes('debug=1') ||
-      INTERNAL_TEST_HOSTS.includes(window.location.hostname)
+  return (
+    window.location.search.includes('debug=1') ||
+    INTERNAL_TEST_HOSTS.includes(window.location.hostname)
   );
 }

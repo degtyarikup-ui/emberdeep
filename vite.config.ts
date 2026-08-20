@@ -10,5 +10,17 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Phaser is ~3/4 of the bundle and changes only when we bump the
+          // dependency. Splitting it out means a returning player re-downloads
+          // just the game code after each deploy instead of the whole thing.
+          phaser: ['phaser'],
+        },
+      },
+    },
+    // The engine chunk alone is legitimately ~1.4 MB; warn above that.
+    chunkSizeWarningLimit: 1600,
   },
 });

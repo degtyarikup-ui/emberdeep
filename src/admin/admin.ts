@@ -475,7 +475,7 @@ function renderTimelineRow(ev: TimelineEvent): string {
               ${ICONS.terminal} сборка
             </span>
             <span class="timeline-title">${escapeHtml(ev.title)}</span>
-            <span style="font-size: 11px; color: ${isSuccess ? 'var(--color-success)' : isFailed ? 'var(--color-error)' : 'var(--color-warning)'};">
+            <span style="font-size: 11px; color: ${isSuccess ? 'var(--color-success)' : isFailed ? 'var(--color-error)' : isRunning ? 'var(--color-warning)' : 'var(--text-tertiary)'};">
               ${escapeHtml(ev.statusLabel || '')}
             </span>
           </div>

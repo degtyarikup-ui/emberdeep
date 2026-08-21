@@ -275,7 +275,7 @@ body {
 }
 
 .avatar-status-pending {
-  background: var(--color-info);
+  background: var(--text-tertiary);
 }
 
 .timeline-content {

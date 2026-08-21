@@ -333,15 +333,29 @@ export function buildTimeline(params: {
 
     const isFailed = run.conclusion === 'failure';
     const isSuccess = run.conclusion === 'success';
-    const isRunning = run.status === 'in_progress' || run.status === 'queued';
-    const status = isSuccess ? 'success' : isFailed ? 'failure' : isRunning ? 'in_progress' : 'queued';
+    const isCancelled = run.conclusion === 'cancelled';
+    const isRunning = run.status === 'in_progress';
+    const isQueued = run.status === 'queued' || (!run.conclusion && !run.status);
+    const status = isSuccess
+      ? 'success'
+      : isFailed
+        ? 'failure'
+        : isRunning
+          ? 'in_progress'
+          : isCancelled
+            ? 'queued' // uses neutral grey styling
+            : 'queued';
     const statusLabel = isSuccess
       ? 'Сборка успешна'
       : isFailed
         ? 'Сборка упала'
         : isRunning
           ? 'Идет сборка'
-          : 'В очереди';
+          : isCancelled
+            ? 'Отменена'
+            : isQueued
+              ? 'В очереди'
+              : String(run.conclusion || run.status);
     const duration = calculateDuration(run.run_started_at || run.created_at, run.updated_at);
     const failedSteps = run.jobs ? getAllFailedSteps(run.jobs) : [];
 

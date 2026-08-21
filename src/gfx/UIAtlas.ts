@@ -66,12 +66,12 @@ export class UIAtlas {
     ctx.fillRect(6, 6, 36, 36);
 
     // Outer golden frame border
-    ctx.strokeStyle = '#d97706';
+    ctx.strokeStyle = '#8a5a15';
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, 46, 46);
 
     // Inner bright gold highlight
-    ctx.strokeStyle = '#fbbf24';
+    ctx.strokeStyle = '#a07820';
     ctx.lineWidth = 1;
     ctx.strokeRect(3, 3, 42, 42);
 
@@ -133,7 +133,7 @@ export class UIAtlas {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, 16, 16);
-    ctx.strokeStyle = '#d97706';
+    ctx.strokeStyle = '#8a5a15';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(1, 1, 14, 14);
 
@@ -231,7 +231,7 @@ export class UIAtlas {
       kCtx.fillRect(18, 14, 3, 1);
 
       // Gold border
-      kCtx.strokeStyle = '#d97706';
+      kCtx.strokeStyle = '#8a5a15';
       kCtx.lineWidth = 2;
       kCtx.strokeRect(1, 1, 30, 30);
 
@@ -335,7 +335,7 @@ export class UIAtlas {
     y: number,
     width: number,
     height: number,
-    strokeColor = 0xd97706,
+    strokeColor = 0x8a5a15,
     fillColor = 0x0f172a
   ): Phaser.GameObjects.Container {
     const container = scene.add.container(x, y);

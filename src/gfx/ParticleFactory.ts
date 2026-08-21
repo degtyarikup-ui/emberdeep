@@ -74,7 +74,7 @@ export class ParticleFactory {
       speed: { min: 60, max: 190 },
       scale: { start: 2.0, end: 0 },
       alpha: { start: 1, end: 0 },
-      tint: [0xff4500, 0xff8c00, 0xffd700],
+      tint: [0xcc3800, 0xcc7000, 0xccaa00],
       blendMode: 'ADD',
       emitting: false,
     });
@@ -126,12 +126,12 @@ export class ParticleFactory {
     }
   }
 
-  spawnFootstepDust(x: number, y: number, tint = 0xc4b59d, count = 2): void {
+  spawnFootstepDust(x: number, y: number, tint = 0x7a7060, count = 2): void {
     this.dustEmitter.setParticleTint(tint);
     this.dustEmitter.emitParticleAt(x, y, count);
   }
 
-  spawnDashBurst(x: number, y: number, tint = 0xc4b59d, count = 6): void {
+  spawnDashBurst(x: number, y: number, tint = 0x7a7060, count = 6): void {
     this.dustEmitter.setParticleTint(tint);
     this.dustEmitter.emitParticleAt(x, y, count);
   }

@@ -172,8 +172,8 @@ export class ActionBar {
     const interactX = startX + 3 * (slotSize + spacing);
     this.interactSlot = this.scene.add.container(interactX, 0);
 
-    this.interactGlow = this.scene.add.rectangle(0, 0, slotSize + 6, slotSize + 6, 0xfacc15, 0);
-    this.interactGlow.setStrokeStyle(2.5, 0xfacc15, 0);
+    this.interactGlow = this.scene.add.rectangle(0, 0, slotSize + 6, slotSize + 6, 0xb89830, 0);
+    this.interactGlow.setStrokeStyle(2.5, 0xb89830, 0);
     this.interactSlot.add(this.interactGlow);
 
     const interactSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'inset');
@@ -208,7 +208,7 @@ export class ActionBar {
 
   private createButtonBadge(label: string): Phaser.GameObjects.Container {
     const cont = this.scene.add.container(0, 20);
-    const bg = this.scene.add.rectangle(0, 0, 34, 14, 0x090d16, 0.95);
+    const bg = this.scene.add.rectangle(0, 0, 34, 14, 0x050810, 0.95);
     bg.setStrokeStyle(1.5, 0x475569);
 
     const txt = this.scene.add.text(0, 0, label, {
@@ -263,7 +263,7 @@ export class ActionBar {
     this.specialCooldownSweep.clear();
     if (specialCooldownRatio > 0) {
       const size = 42;
-      this.specialCooldownSweep.fillStyle(0x020617, 0.82);
+      this.specialCooldownSweep.fillStyle(0x020617, 0.88);
       this.specialCooldownSweep.slice(
         0,
         -2,
@@ -284,7 +284,7 @@ export class ActionBar {
     if (inInteractRange) {
       const pulse = 0.5 + Math.sin(this.scene.time.now / 140) * 0.4;
       this.interactGlow.setAlpha(pulse);
-      this.interactGlow.setStrokeStyle(2.5, 0xfacc15, pulse);
+      this.interactGlow.setStrokeStyle(2.5, 0xb89830, pulse);
       this.interactPromptText.setText('НАЖМИТЕ E');
       this.interactPromptText.setVisible(true);
     } else {

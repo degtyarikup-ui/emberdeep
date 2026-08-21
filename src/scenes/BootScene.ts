@@ -226,8 +226,8 @@ export class BootScene extends Phaser.Scene {
     canvas.height = 4;
     const ctx = canvas.getContext('2d')!;
     const g = ctx.createRadialGradient(2, 2, 0, 2, 2, 2);
-    g.addColorStop(0, 'rgba(255,210,120,0.95)');
-    g.addColorStop(1, 'rgba(255,210,120,0)');
+    g.addColorStop(0, 'rgba(220,170,80,0.95)');
+    g.addColorStop(1, 'rgba(220,170,80,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 4, 4);
     this.textures.addCanvas(TEXTURE.PARTICLE_SPARK, canvas);
@@ -330,9 +330,9 @@ export class BootScene extends Phaser.Scene {
 
     const grad = ctx.createLinearGradient(0, 0, size, size);
     grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-    grad.addColorStop(0.3, 'rgba(200, 245, 255, 0.9)');
-    grad.addColorStop(0.7, 'rgba(100, 200, 255, 0.75)');
-    grad.addColorStop(1, 'rgba(60, 140, 255, 0)');
+    grad.addColorStop(0.3, 'rgba(176, 184, 196, 0.9)');
+    grad.addColorStop(0.7, 'rgba(106, 112, 128, 0.75)');
+    grad.addColorStop(1, 'rgba(58, 64, 80, 0)');
     ctx.fillStyle = grad;
     ctx.fill();
 
@@ -353,9 +353,9 @@ export class BootScene extends Phaser.Scene {
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;
-    const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.24, size / 2, size / 2, size * 0.6);
+    const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.18, size / 2, size / 2, size * 0.50);
     g.addColorStop(0, 'rgba(7,5,12,0)');
-    g.addColorStop(1, 'rgba(5,3,9,0.94)');
+    g.addColorStop(1, 'rgba(5,3,9,0.97)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
     this.textures.addCanvas(TEXTURE.VIGNETTE, canvas);
@@ -393,11 +393,11 @@ export class BootScene extends Phaser.Scene {
     canvas.width = 4;
     canvas.height = 3;
     const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#5a8a3c';
+    ctx.fillStyle = '#3a5a28';
     ctx.fillRect(1, 0, 2, 1);
     ctx.fillRect(0, 1, 4, 1);
     ctx.fillRect(1, 2, 2, 1);
-    ctx.fillStyle = '#78b44e';
+    ctx.fillStyle = '#4a6a30';
     ctx.fillRect(2, 0, 1, 1);
     ctx.fillRect(1, 1, 2, 1);
     this.textures.addCanvas(TEXTURE.PARTICLE_LEAF, canvas);

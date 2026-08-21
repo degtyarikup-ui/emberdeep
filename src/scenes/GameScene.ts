@@ -380,8 +380,8 @@ export class GameScene extends Phaser.Scene {
         body.setOffset((sprite.width - 22) / 2, sprite.height - 16);
         this.solids.add(sprite);
 
-        const light = this.lights.addLight(x, y - 10, 180, 0xff7722, 1.7);
-        this.torchLights.push({ light, base: 1.7, phase: Math.random() * Math.PI * 2 });
+        const light = this.lights.addLight(x, y - 10, 150, 0xff7722, 1.3);
+        this.torchLights.push({ light, base: 1.3, phase: Math.random() * Math.PI * 2 });
       }
     }
 
@@ -395,8 +395,8 @@ export class GameScene extends Phaser.Scene {
       sprite.play({ key: ANIM.TORCH_FLICKER, startFrame: Phaser.Math.Between(0, 3) });
       world.add(sprite);
 
-      const light = this.lights.addLight(x, y - 8, 150, 0xff9a4d, 1.4);
-      this.torchLights.push({ light, base: 1.4, phase: Math.random() * Math.PI * 2 });
+      const light = this.lights.addLight(x, y - 8, 120, 0xff9a4d, 1.0);
+      this.torchLights.push({ light, base: 1.0, phase: Math.random() * Math.PI * 2 });
     }
 
     for (let i = 0; i < level.decorations.length; i++) {
@@ -584,7 +584,7 @@ export class GameScene extends Phaser.Scene {
         this.physics.add.collider(p, this.solids);
       }
 
-      const light = this.lights.addLight(px, py, 150, 0xfbe3b8, isMine ? 0.7 : 0.45);
+      const light = this.lights.addLight(px, py, 120, 0xfbe3b8, isMine ? 0.5 : 0.3);
       this.playerLights.set(p, light);
 
       this.players.push(p);
@@ -729,7 +729,7 @@ export class GameScene extends Phaser.Scene {
       speedY: { min: -10, max: -3 },
       speedX: { min: -4, max: 4 },
       scale: { start: 1, end: 0.1 },
-      alpha: { start: 0.45, end: 0 },
+      alpha: { start: 0.15, end: 0 },
       tint: level.biome.dustColor,
       frequency: 200,
       blendMode: 'ADD',
@@ -758,7 +758,7 @@ export class GameScene extends Phaser.Scene {
     this.vignette = this.add
       .image(this.scale.width / 2, this.scale.height / 2, TEXTURE.VIGNETTE)
       .setDepth(DEPTH.OVERLAY)
-      .setDisplaySize(this.scale.width * 1.15, this.scale.height * 1.15);
+      .setDisplaySize(this.scale.width * 1.4, this.scale.height * 1.4);
     this.worldCam.ignore(this.vignette);
 
     this.damageFlash = this.add
@@ -1199,7 +1199,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleResize(width: number, height: number): void {
     this.uiCam.setSize(width, height);
-    this.vignette.setPosition(width / 2, height / 2).setDisplaySize(width * 1.15, height * 1.15);
+    this.vignette.setPosition(width / 2, height / 2).setDisplaySize(width * 1.4, height * 1.4);
     this.damageFlash.setPosition(width / 2, height / 2).setSize(width, height);
     this.hint.setPosition(width / 2, height - 20);
 
@@ -2237,7 +2237,7 @@ export class GameScene extends Phaser.Scene {
             SoundFX.playPlayerHurt();
             if (player === this.myPlayer) {
               this.spawnDamageNumber(player.x, player.y, `-${proj.damage}`, '#ff7a7a');
-              this.damageFlash.setAlpha(0.35);
+              this.damageFlash.setAlpha(0.55);
               this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 260 });
               this.worldCam.shake(80, 0.0025);
             }
@@ -2470,7 +2470,7 @@ export class GameScene extends Phaser.Scene {
 
     if (player === this.myPlayer) {
       this.spawnDamageNumber(player.x, player.y, `-${enemy.contactDamage}`, '#ff7a7a');
-      this.damageFlash.setAlpha(0.35);
+      this.damageFlash.setAlpha(0.55);
       this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 260 });
       this.worldCam.shake(80, 0.0025);
     }

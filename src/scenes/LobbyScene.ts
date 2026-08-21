@@ -87,7 +87,7 @@ export class LobbyScene extends Phaser.Scene {
       .setPipeline('Light2D')
       .setDepth(0);
     this.tweens.add({ targets: bg, tilePositionY: 40, duration: 40000, repeat: -1, yoyo: true });
-    this.add.rectangle(0, 0, width, height, 0x0a0710, 0.6).setOrigin(0, 0).setDepth(1);
+    this.add.rectangle(0, 0, width, height, 0x0a0710, 0.75).setOrigin(0, 0).setDepth(1);
     this.lights.addLight(width / 2, height * 0.3, 260, 0xcbb3ff, 0.3);
 
     this.add
@@ -288,7 +288,7 @@ export class LobbyScene extends Phaser.Scene {
           fontFamily: FONT.TITLE,
           fontSize: '40px',
           fontStyle: '700',
-          color: '#ffce6b',
+          color: '#b89840',
         })
         .setOrigin(0.5)
         .setDepth(DEPTH.UI)

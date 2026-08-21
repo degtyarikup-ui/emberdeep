@@ -9,19 +9,19 @@ export class ItemPopup extends Phaser.GameObjects.Container {
     const h = 50;
 
     const bg = scene.add.rectangle(0, 0, w, h, 0x090514, 0.9);
-    bg.setStrokeStyle(2, isRarityHigh ? 0xd4af37 : 0x555555);
+    bg.setStrokeStyle(2, isRarityHigh ? 0x9a8028 : 0x555555);
 
     const title = scene.add.text(0, -10, name, {
       fontFamily: '"Cinzel Decorative", serif',
       fontSize: '12px',
-      color: isRarityHigh ? '#ffd700' : '#ffffff',
+      color: isRarityHigh ? '#c8a830' : '#d4c4a0',
       fontStyle: '700'
     }).setOrigin(0.5);
 
     const sub = scene.add.text(0, 8, desc, {
       fontFamily: '"Pixelify Sans", sans-serif',
       fontSize: '10px',
-      color: '#00ffff'
+      color: '#4a9aaa'
     }).setOrigin(0.5);
 
     this.add([bg, title, sub]);

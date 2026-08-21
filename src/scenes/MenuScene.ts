@@ -24,7 +24,7 @@ function makeButton(
       fontFamily: FONT.UI,
       fontSize: opts.fontSize ?? '20px',
       fontStyle: '600',
-      color: opts.muted ? '#8b8398' : '#f0e2b8',
+      color: opts.muted ? '#8b8398' : '#c8b890',
     })
     .setOrigin(0.5)
     .setDepth(DEPTH.UI)
@@ -33,11 +33,11 @@ function makeButton(
 
   txt.on('pointerover', () => {
     scene.tweens.add({ targets: txt, scale: 1.08, duration: 120 });
-    txt.setColor(opts.muted ? '#b3aabd' : '#ffce6b');
+    txt.setColor(opts.muted ? '#b3aabd' : '#d4a840');
   });
   txt.on('pointerout', () => {
     scene.tweens.add({ targets: txt, scale: 1, duration: 120 });
-    txt.setColor(opts.muted ? '#8b8398' : '#f0e2b8');
+    txt.setColor(opts.muted ? '#8b8398' : '#c8b890');
   });
   txt.on('pointerdown', () => {
     scene.tweens.add({ targets: txt, scale: 0.96, duration: 60, yoyo: true });
@@ -73,7 +73,7 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(0);
     this.tweens.add({ targets: bg, tilePositionY: 40, duration: 40000, repeat: -1, yoyo: true });
 
-    this.add.rectangle(0, 0, width, height, 0x0a0710, 0.55).setOrigin(0, 0).setDepth(1);
+    this.add.rectangle(0, 0, width, height, 0x0a0710, 0.75).setOrigin(0, 0).setDepth(1);
 
     // Centered Emberdeep Animated Emblem Crest
     const emblemY = height * 0.16;
@@ -96,11 +96,11 @@ export class MenuScene extends Phaser.Scene {
     for (const tx of [width * 0.26, width * 0.74]) {
       const sprite = this.add.sprite(tx, torchY, TEXTURE.TORCH, 0).setDepth(DEPTH.DECOR).setPipeline('Light2D').setScale(2.4);
       sprite.play(ANIM.TORCH_FLICKER);
-      this.lights.addLight(tx, torchY, 220, 0xff9a4d, 1.6);
+      this.lights.addLight(tx, torchY, 180, 0xff9a4d, 1.2);
     }
 
-    this.lights.addLight(width / 2, emblemY, 220, 0xff8822, 1.8);
-    this.lights.addLight(width / 2, height * 0.29, 260, 0xcbb3ff, 0.45);
+    this.lights.addLight(width / 2, emblemY, 180, 0xff8822, 1.3);
+    this.lights.addLight(width / 2, height * 0.29, 260, 0xcbb3ff, 0.25);
 
     const dust = this.add.particles(width / 2, height, TEXTURE.PARTICLE_SPARK, {
       x: { min: 0, max: width },
@@ -160,7 +160,7 @@ export class MenuScene extends Phaser.Scene {
 
     // 1. Knight Card
     const knightBtn = this.add.container(width / 2 - cardSpacing, heroY).setDepth(DEPTH.UI);
-    const knightBg = this.add.rectangle(0, 0, cardW, cardH, 0x1e1528, 0.95).setStrokeStyle(2, 0xfbbf24);
+    const knightBg = this.add.rectangle(0, 0, cardW, cardH, 0x140e20, 0.95).setStrokeStyle(2, 0xfbbf24);
 
     const knightSprite = this.add.sprite(-cardW / 2 + 26, 22, ACTORS.HERO.idle.key);
     knightSprite.setOrigin(0.5, 1.0);
@@ -202,7 +202,7 @@ export class MenuScene extends Phaser.Scene {
 
     // 2. Ranger Card
     const rangerBtn = this.add.container(width / 2, heroY).setDepth(DEPTH.UI);
-    const rangerBg = this.add.rectangle(0, 0, cardW, cardH, 0x120d1c, 0.65).setStrokeStyle(1.5, 0x475569);
+    const rangerBg = this.add.rectangle(0, 0, cardW, cardH, 0x0a0814, 0.65).setStrokeStyle(1.5, 0x475569);
 
     const rangerSprite = this.add.sprite(-cardW / 2 + 26, 22, TEXTURE.RANGER_IDLE);
     rangerSprite.setOrigin(0.5, 1.0);
@@ -243,7 +243,7 @@ export class MenuScene extends Phaser.Scene {
 
     // 3. Wizard Card
     const wizardBtn = this.add.container(width / 2 + cardSpacing, heroY).setDepth(DEPTH.UI);
-    const wizardBg = this.add.rectangle(0, 0, cardW, cardH, 0x120d1c, 0.65).setStrokeStyle(1.5, 0x475569);
+    const wizardBg = this.add.rectangle(0, 0, cardW, cardH, 0x0a0814, 0.65).setStrokeStyle(1.5, 0x475569);
 
     const wizardSprite = this.add.sprite(-cardW / 2 + 26, 22, `${TEXTURE.WIZARD_IDLE}_f0`);
     wizardSprite.setOrigin(0.5, 1.0);
@@ -295,33 +295,33 @@ export class MenuScene extends Phaser.Scene {
 
     const updateHeroSelection = () => {
       // Reset all to unselected
-      knightBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+      knightBg.setFillStyle(0x0a0814, 0.6).setStrokeStyle(1.5, 0x475569);
       knightText.setColor('#8b8398');
       knightSprite.setAlpha(0.55);
       knightSword.setAlpha(0.55);
 
-      rangerBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+      rangerBg.setFillStyle(0x0a0814, 0.6).setStrokeStyle(1.5, 0x475569);
       rangerText.setColor('#8b8398');
       rangerSprite.setAlpha(0.55);
       rangerBow.setAlpha(0.55);
 
-      wizardBg.setFillStyle(0x120d1c, 0.6).setStrokeStyle(1.5, 0x475569);
+      wizardBg.setFillStyle(0x0a0814, 0.6).setStrokeStyle(1.5, 0x475569);
       wizardText.setColor('#8b8398');
       wizardSprite.setAlpha(0.55);
       wizardStaff.setAlpha(0.55);
 
       if (selectedHero === 'knight') {
-        knightBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0xfbbf24);
+        knightBg.setFillStyle(0x140e20, 0.95).setStrokeStyle(2, 0xfbbf24);
         knightText.setColor('#f0e2b8');
         knightSprite.setAlpha(1);
         knightSword.setAlpha(1);
       } else if (selectedHero === 'ranger') {
-        rangerBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0x4ade80);
+        rangerBg.setFillStyle(0x140e20, 0.95).setStrokeStyle(2, 0x4ade80);
         rangerText.setColor('#4ade80');
         rangerSprite.setAlpha(1);
         rangerBow.setAlpha(1);
       } else if (selectedHero === 'wizard') {
-        wizardBg.setFillStyle(0x1e1528, 0.95).setStrokeStyle(2, 0xc084fc);
+        wizardBg.setFillStyle(0x140e20, 0.95).setStrokeStyle(2, 0xc084fc);
         wizardText.setColor('#c084fc');
         wizardSprite.setAlpha(1);
         wizardStaff.setAlpha(1);
@@ -407,7 +407,7 @@ export class MenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const modal = this.add.container(0, 0).setDepth(DEPTH.UI + 200);
 
-    const backdrop = this.add.rectangle(width / 2, height / 2, width, height, 0x06040c, 0.94);
+    const backdrop = this.add.rectangle(width / 2, height / 2, width, height, 0x06040c, 0.97);
     backdrop.setInteractive();
 
     const title = this.add
@@ -636,7 +636,7 @@ export class MenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const modal = this.add.container(0, 0).setDepth(DEPTH.UI + 250);
 
-    const backdrop = this.add.rectangle(width / 2, height / 2, width, height, 0x06040c, 0.94);
+    const backdrop = this.add.rectangle(width / 2, height / 2, width, height, 0x06040c, 0.97);
     backdrop.setInteractive();
 
     const achMgr = AchievementManager.get();

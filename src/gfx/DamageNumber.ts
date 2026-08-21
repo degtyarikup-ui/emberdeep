@@ -4,8 +4,8 @@ import { DEPTH, FONT } from './registry';
 export type DamageType = 'normal' | 'crit' | 'fire' | 'lightning' | 'heal' | 'block';
 
 const DAMAGE_COLORS: Record<DamageType, string> = {
-  normal: '#ffffff',
-  crit: '#ffd700',
+  normal: '#d8d0c0',
+  crit: '#c8a830',
   fire: '#ff6600',
   lightning: '#00ccff',
   heal: '#44ff44',

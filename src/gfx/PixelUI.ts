@@ -50,9 +50,9 @@ export class PixelUI {
     ctx.fillRect(30, 1, 1, 30);
 
     // 3. Second Brass / Gold Inset Rim
-    ctx.fillStyle = '#b45309';
+    ctx.fillStyle = '#7a4a15';
     ctx.fillRect(2, 2, 28, 28);
-    ctx.fillStyle = '#f59e0b';
+    ctx.fillStyle = '#9a7020';
     ctx.fillRect(2, 2, 28, 1);
     ctx.fillRect(2, 2, 1, 28);
     ctx.fillStyle = '#78350f';
@@ -60,11 +60,11 @@ export class PixelUI {
     ctx.fillRect(29, 2, 1, 28);
 
     // 4. Main Deep Slate Interior
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = '#080c18';
     ctx.fillRect(4, 4, 24, 24);
 
     // Inner subtle texture
-    ctx.fillStyle = '#1e293b';
+    ctx.fillStyle = '#141c2a';
     ctx.fillRect(5, 5, 22, 22);
     ctx.fillStyle = '#0b1120';
     ctx.fillRect(6, 6, 20, 20);
@@ -77,7 +77,7 @@ export class PixelUI {
       [27, 27],
     ];
     bolts.forEach(([bx, by]) => {
-      ctx.fillStyle = '#1e293b';
+      ctx.fillStyle = '#141c2a';
       ctx.fillRect(bx - 1, by - 1, 3, 3);
       ctx.fillStyle = '#94a3b8';
       ctx.fillRect(bx, by, 1, 1);
@@ -103,13 +103,13 @@ export class PixelUI {
     ctx.fillRect(0, 0, 32, 16);
 
     // Top Gold Trim
-    ctx.fillStyle = '#f59e0b';
+    ctx.fillStyle = '#9a7020';
     ctx.fillRect(1, 1, 30, 2);
-    ctx.fillStyle = '#fbbf24';
+    ctx.fillStyle = '#a07820';
     ctx.fillRect(2, 1, 28, 1);
 
     // Body Gradient Slate
-    ctx.fillStyle = '#1e293b';
+    ctx.fillStyle = '#141c2a';
     ctx.fillRect(1, 3, 30, 10);
     ctx.fillStyle = '#334155';
     ctx.fillRect(1, 3, 30, 2);
@@ -196,9 +196,9 @@ export class PixelUI {
       ctx.fillRect(0, 0, 160, 18);
 
       // Outer Gold/Steel Bevel
-      ctx.fillStyle = '#b45309';
+      ctx.fillStyle = '#7a4a15';
       ctx.fillRect(1, 1, 158, 16);
-      ctx.fillStyle = '#fde047';
+      ctx.fillStyle = '#b89840';
       ctx.fillRect(1, 1, 158, 1);
       ctx.fillRect(1, 1, 1, 16);
       ctx.fillStyle = '#451a03';

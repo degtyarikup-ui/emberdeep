@@ -38,7 +38,7 @@ export class BossBar {
       fontFamily: FONT.TITLE,
       fontSize: '13px',
       fontStyle: '700',
-      color: '#f87171',
+      color: '#c85050',
     });
     this.titleText.setOrigin(0.5, 0.5);
     this.titleText.setStroke('#450a0a', 4);
@@ -50,7 +50,7 @@ export class BossBar {
       fontFamily: FONT.UI,
       fontSize: '8px',
       fontStyle: '700',
-      color: '#fbbf24',
+      color: '#a08020',
     });
     this.phaseText.setOrigin(0.5, 0.5);
     this.phaseText.setStroke('#000000', 3);

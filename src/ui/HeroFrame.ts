@@ -61,7 +61,7 @@ export class HeroFrame {
     const isRanger = heroClass === 'ranger';
     const isWizard = heroClass === 'wizard';
     const classLabel = isWizard ? 'ВОЛШЕБНИК ЭФИРА' : isRanger ? 'ЛУЧНИЦА ТЕНЕЙ' : 'РЫЦАРЬ ГОРНА';
-    const classColor = isWizard ? '#c084fc' : isRanger ? '#4ade80' : '#38bdf8';
+    const classColor = isWizard ? '#9a68cc' : isRanger ? '#38b068' : '#2a8ac0';
 
     this.classNameText = scene.add.text(64, 10, classLabel, {
       fontFamily: FONT.UI,
@@ -179,7 +179,7 @@ export class HeroFrame {
       this.classNameText.setColor('#ef4444');
     } else {
       this.hpBarFill.fillColor = 0xdc2626;
-      this.classNameText.setColor(player.heroClass === 'wizard' ? '#c084fc' : player.heroClass === 'ranger' ? '#4ade80' : '#38bdf8');
+      this.classNameText.setColor(player.heroClass === 'wizard' ? '#9a68cc' : player.heroClass === 'ranger' ? '#38b068' : '#2a8ac0');
     }
 
     this.goldText.setText(`${player.gold}`);

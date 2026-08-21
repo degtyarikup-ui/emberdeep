@@ -45,6 +45,15 @@ export const PALETTE = {
   cloakTrim: '#a9823c',
   cloakTrimLight: '#d9b45c',
 
+  abyssBlack: '#060408',
+  fogGray: '#1a1520',
+  ashGray: '#2a2530',
+  rustBrown: '#3d2218',
+  tarnishedGold: '#8a6e2f',
+  wornBrass: '#6b5420',
+  parchment: '#d4c4a0',
+  boneWhite: '#c8bca0',
+
   white: '#f3ece0',
 } as const;
 

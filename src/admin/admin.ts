@@ -6,6 +6,7 @@ import {
   formatRelativeTime,
   getAllFailedSteps,
   parseCommitMessage,
+  resolveAuthorInfo,
   type GitHubCommit,
   type GitHubDeployment,
   type GitHubRun,
@@ -68,6 +69,7 @@ interface DashboardState {
   errorMessage: string | null;
   lastLoadedTime: string;
   activeTab: 'commits' | 'runs';
+  authorFilter: 'all' | 'degtyarikup-ui' | 'MrKadoku';
 }
 
 class DashboardManager {
@@ -79,6 +81,7 @@ class DashboardManager {
     errorMessage: null,
     lastLoadedTime: '',
     activeTab: 'commits',
+    authorFilter: 'all',
   };
 
   private isAuthenticated = false;
@@ -101,6 +104,11 @@ class DashboardManager {
 
   public setTab(tab: 'commits' | 'runs'): void {
     this.state.activeTab = tab;
+    this.renderDashboard();
+  }
+
+  public setAuthorFilter(filter: 'all' | 'degtyarikup-ui' | 'MrKadoku'): void {
+    this.state.authorFilter = filter;
     this.renderDashboard();
   }
 
@@ -134,8 +142,8 @@ class DashboardManager {
 
     try {
       const [commitsRes, runsRes, deploysRes] = await Promise.all([
-        apiFetch<GitHubCommit[]>(`${API_BASE}/commits?per_page=20`),
-        apiFetch<{ workflow_runs: GitHubRun[] }>(`${API_BASE}/actions/runs?per_page=12`),
+        apiFetch<GitHubCommit[]>(`${API_BASE}/commits?per_page=35`),
+        apiFetch<{ workflow_runs: GitHubRun[] }>(`${API_BASE}/actions/runs?per_page=15`),
         apiFetch<GitHubDeployment[]>(`${API_BASE}/deployments?environment=github-pages&per_page=5`),
       ]);
 
@@ -273,19 +281,47 @@ class DashboardManager {
 
     const savedToken = localStorage.getItem(TOKEN_KEY) || '';
 
+    const headAuthorInfo = resolveAuthorInfo({
+      login: headCommit?.author?.login,
+      name: headCommit?.commit.author.name,
+      email: headCommit?.commit.author.email,
+    });
+
     const lastAuthorAvatar =
       headCommit?.author?.avatar_url ||
       'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-    const lastAuthorLogin = headCommit?.author?.login || headCommit?.commit.author.name || 'Неизвестно';
-    const lastAuthorName = headCommit?.commit.author.name || '';
-    const lastAuthorDisplay =
-      lastAuthorLogin === lastAuthorName || !lastAuthorName
-        ? `@${lastAuthorLogin}`
-        : `@${lastAuthorLogin} (${lastAuthorName})`;
     const lastCommitTitle = headCommit ? parseCommitMessage(headCommit.commit.message).title : '';
     const lastCommitTime = headCommit ? formatRelativeTime(headCommit.commit.author.date) : '';
 
     const failedRunsCount = this.state.runs.filter((r) => r.conclusion === 'failure').length;
+
+    // Filter commits by author
+    const degtyarikCount = this.state.commits.filter((c) =>
+      resolveAuthorInfo({ login: c.author?.login, name: c.commit.author.name, email: c.commit.author.email }).isDegtyarik
+    ).length;
+
+    const mrKadokuCount = this.state.commits.filter((c) =>
+      resolveAuthorInfo({ login: c.author?.login, name: c.commit.author.name, email: c.commit.author.email }).isMrKadoku
+    ).length;
+
+    const filteredCommits = this.state.commits.filter((c) => {
+      if (this.state.authorFilter === 'all') return true;
+      const info = resolveAuthorInfo({
+        login: c.author?.login,
+        name: c.commit.author.name,
+        email: c.commit.author.email,
+      });
+      if (this.state.authorFilter === 'degtyarikup-ui') return info.isDegtyarik;
+      if (this.state.authorFilter === 'MrKadoku') return info.isMrKadoku;
+      return true;
+    });
+
+    const pillClass =
+      headAuthorInfo.colorType === 'gold'
+        ? 'author-pill-gold'
+        : headAuthorInfo.colorType === 'blue'
+          ? 'author-pill-blue'
+          : 'author-pill-default';
 
     root.innerHTML = `
       <div class="dashboard-container">
@@ -294,7 +330,7 @@ class DashboardManager {
             <div class="logo-icon">E</div>
             <div>
               <h1 class="header-title">Emberdeep — Панель версий</h1>
-              <div class="header-subtitle">Отслеживание пушей, сборок GitHub Actions и деплоев на Pages</div>
+              <div class="header-subtitle">Команда: degtyarikup-ui & MrKadoku · Отслеживание пушей и CI/CD</div>
             </div>
           </div>
           <div class="header-actions">
@@ -313,12 +349,12 @@ class DashboardManager {
             ? `
           <div class="author-hero-banner">
             <div class="author-hero-left">
-              <img class="author-hero-avatar" src="${lastAuthorAvatar}" alt="${escapeHtml(lastAuthorLogin)}" />
+              <img class="author-hero-avatar" src="${lastAuthorAvatar}" alt="${escapeHtml(headAuthorInfo.displayName)}" />
               <div class="author-hero-info">
                 <div class="author-hero-label">Последний пуш сделал:</div>
                 <div class="author-hero-name">
-                  ${escapeHtml(lastAuthorDisplay)}
-                  <span class="author-pill">HEAD</span>
+                  <span>${escapeHtml(headAuthorInfo.displayName)}</span>
+                  <span class="author-pill ${pillClass}">HEAD</span>
                 </div>
                 <div class="author-hero-message" title="${escapeHtml(headCommit.commit.message)}">
                   «${escapeHtml(lastCommitTitle)}»
@@ -369,11 +405,11 @@ class DashboardManager {
 
           <div class="card">
             <div class="card-header">
-              <span class="card-title">Автор последнего пуша</span>
+              <span class="card-title">Автор последнего коммита</span>
               <span class="badge badge-pending">Main</span>
             </div>
             <div class="card-main-stat" style="font-size: 17px; font-weight: 600;">
-              ${escapeHtml(lastAuthorLogin)}
+              <span class="author-pill ${pillClass}">${escapeHtml(headAuthorInfo.tag)}</span>
             </div>
             <div class="card-desc">
               ${headCommit ? `${lastCommitTime} · ${headSha?.slice(0, 7)}` : 'Нет данных'}
@@ -441,30 +477,50 @@ class DashboardManager {
         ${
           this.state.activeTab === 'commits'
             ? `
+          <div class="filter-bar">
+            <span class="filter-label">Фильтр по автору:</span>
+            <button class="filter-btn ${this.state.authorFilter === 'all' ? 'active' : ''}" onclick="window.__adminSetAuthorFilter('all')">
+              Все (${this.state.commits.length})
+            </button>
+            <button class="filter-btn ${this.state.authorFilter === 'degtyarikup-ui' ? 'active' : ''}" onclick="window.__adminSetAuthorFilter('degtyarikup-ui')">
+              degtyarikup-ui (${degtyarikCount})
+            </button>
+            <button class="filter-btn ${this.state.authorFilter === 'MrKadoku' ? 'active' : ''}" onclick="window.__adminSetAuthorFilter('MrKadoku')">
+              MrKadoku (${mrKadokuCount})
+            </button>
+          </div>
+
           <div class="commit-list">
             ${
-              this.state.commits.length === 0
-                ? '<div class="card-desc">Загрузка коммитов...</div>'
-                : this.state.commits
+              filteredCommits.length === 0
+                ? '<div class="card-desc">Нет коммитов по выбранному фильтру.</div>'
+                : filteredCommits
                     .map((c) => {
                       const { title } = parseCommitMessage(c.commit.message);
                       const isDeployed = deployedSha && c.sha.startsWith(deployedSha.slice(0, 7));
                       const avatar =
                         c.author?.avatar_url ||
                         'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-                      const authorLogin = c.author?.login || c.commit.author.name;
-                      const authorName = c.commit.author.name;
-                      const authorLabel =
-                        authorLogin === authorName ? authorLogin : `${authorLogin} (${authorName})`;
+                      const authInfo = resolveAuthorInfo({
+                        login: c.author?.login,
+                        name: c.commit.author.name,
+                        email: c.commit.author.email,
+                      });
+                      const authorPillClass =
+                        authInfo.colorType === 'gold'
+                          ? 'author-pill-gold'
+                          : authInfo.colorType === 'blue'
+                            ? 'author-pill-blue'
+                            : 'author-pill-default';
 
                       return `
                 <div class="commit-item ${isDeployed ? 'is-deployed' : ''}">
                   <div class="commit-left">
-                    <img class="author-avatar" src="${avatar}" alt="${escapeHtml(authorLogin)}" />
+                    <img class="author-avatar" src="${avatar}" alt="${escapeHtml(authInfo.displayName)}" />
                     <div class="commit-details">
                       <div class="commit-message-title" title="${escapeHtml(c.commit.message)}">${escapeHtml(title)}</div>
                       <div class="commit-meta">
-                        <span class="author-pill">${escapeHtml(authorLabel)}</span>
+                        <span class="author-pill ${authorPillClass}">${escapeHtml(authInfo.tag)}</span>
                         <span>·</span>
                         <span>${formatRelativeTime(c.commit.author.date)}</span>
                       </div>
@@ -496,7 +552,15 @@ class DashboardManager {
                       const actorAvatar =
                         run.actor?.avatar_url ||
                         'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-                      const actorName = run.actor?.login || 'Система';
+                      const actorInfo = resolveAuthorInfo({
+                        login: run.actor?.login,
+                      });
+                      const actorPillClass =
+                        actorInfo.colorType === 'gold'
+                          ? 'author-pill-gold'
+                          : actorInfo.colorType === 'blue'
+                            ? 'author-pill-blue'
+                            : 'author-pill-default';
 
                       let statusBadge = `<span class="badge badge-pending">${run.status}</span>`;
                       if (isSuccess) {
@@ -511,11 +575,11 @@ class DashboardManager {
                 <div class="run-card ${isFailed ? 'is-failed' : isSuccess ? 'is-success' : isRunning ? 'is-running' : ''}">
                   <div class="run-card-header">
                     <div class="run-card-left">
-                      <img class="author-avatar" src="${actorAvatar}" alt="${escapeHtml(actorName)}" />
+                      <img class="author-avatar" src="${actorAvatar}" alt="${escapeHtml(actorInfo.displayName)}" />
                       <div>
                         <div class="run-card-title">${escapeHtml(run.display_title || run.name)}</div>
                         <div class="run-card-meta">
-                          <span class="author-pill">Автор: ${escapeHtml(actorName)}</span>
+                          <span class="author-pill ${actorPillClass}">Автор: ${escapeHtml(actorInfo.tag)}</span>
                           <span>·</span>
                           <span>${formatRelativeTime(run.updated_at)}</span>
                           ${duration ? `<span>·</span><span>Длительность: ${duration}</span>` : ''}
@@ -639,6 +703,7 @@ declare global {
     __adminRefresh: () => void;
     __adminLogout: () => void;
     __adminSetTab: (tab: 'commits' | 'runs') => void;
+    __adminSetAuthorFilter: (filter: 'all' | 'degtyarikup-ui' | 'MrKadoku') => void;
     __adminSubmitPin: (event: Event) => void;
     __adminSaveToken: () => void;
     __adminClearToken: () => void;
@@ -655,6 +720,10 @@ window.__adminLogout = () => {
 
 window.__adminSetTab = (tab: 'commits' | 'runs') => {
   dashboard.setTab(tab);
+};
+
+window.__adminSetAuthorFilter = (filter: 'all' | 'degtyarikup-ui' | 'MrKadoku') => {
+  dashboard.setAuthorFilter(filter);
 };
 
 window.__adminSubmitPin = (event: Event) => {

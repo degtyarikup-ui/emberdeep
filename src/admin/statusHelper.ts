@@ -68,6 +68,51 @@ export interface GitHubDeployment {
 
 export type DeploySyncState = 'synced' | 'building' | 'deploying' | 'pending' | 'failed' | 'unknown';
 
+export function resolveAuthorInfo(params: {
+  login?: string;
+  name?: string;
+  email?: string;
+}): {
+  displayName: string;
+  tag: string;
+  colorType: 'gold' | 'blue' | 'default';
+  isMrKadoku: boolean;
+  isDegtyarik: boolean;
+} {
+  const loginLower = (params.login || '').toLowerCase();
+  const emailLower = (params.email || '').toLowerCase();
+  const nameLower = (params.name || '').toLowerCase();
+
+  if (loginLower === 'mrkadoku' || emailLower.includes('ec1ipse') || nameLower.includes('kadoku')) {
+    return {
+      displayName: 'MrKadoku',
+      tag: '@MrKadoku',
+      colorType: 'blue',
+      isMrKadoku: true,
+      isDegtyarik: false,
+    };
+  }
+
+  if (loginLower === 'degtyarikup-ui' || emailLower.includes('degtyarik') || nameLower.includes('degtyarik')) {
+    return {
+      displayName: 'degtyarikup-ui',
+      tag: '@degtyarikup-ui',
+      colorType: 'gold',
+      isMrKadoku: false,
+      isDegtyarik: true,
+    };
+  }
+
+  const fallback = params.login || params.name || 'Developer';
+  return {
+    displayName: fallback,
+    tag: `@${fallback}`,
+    colorType: 'default',
+    isMrKadoku: false,
+    isDegtyarik: false,
+  };
+}
+
 export function parseCommitMessage(message: string): { title: string; body: string } {
   const parts = message.split('\n');
   const title = parts[0]?.trim() ?? '';

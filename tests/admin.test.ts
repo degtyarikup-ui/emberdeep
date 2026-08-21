@@ -6,6 +6,7 @@ import {
   formatRelativeTime,
   getAllFailedSteps,
   parseCommitMessage,
+  resolveAuthorInfo,
   type WorkflowJob,
 } from '../src/admin/statusHelper';
 
@@ -178,3 +179,24 @@ describe('statusHelper: getAllFailedSteps', () => {
     ]);
   });
 });
+
+describe('statusHelper: resolveAuthorInfo', () => {
+  it('resolves degtyarikup-ui', () => {
+    const res = resolveAuthorInfo({ login: 'degtyarikup-ui', email: 'degtyarik.up@gmail.com' });
+    expect(res.displayName).toBe('degtyarikup-ui');
+    expect(res.tag).toBe('@degtyarikup-ui');
+    expect(res.colorType).toBe('gold');
+    expect(res.isDegtyarik).toBe(true);
+    expect(res.isMrKadoku).toBe(false);
+  });
+
+  it('resolves MrKadoku by login and email', () => {
+    const res = resolveAuthorInfo({ login: 'MrKadoku', email: 'ec1ipse_god@mail.ru' });
+    expect(res.displayName).toBe('MrKadoku');
+    expect(res.tag).toBe('@MrKadoku');
+    expect(res.colorType).toBe('blue');
+    expect(res.isMrKadoku).toBe(true);
+    expect(res.isDegtyarik).toBe(false);
+  });
+});
+

@@ -142,6 +142,104 @@ body {
   transform: none;
 }
 
+/* Author Hero Banner */
+.author-hero-banner {
+  background: linear-gradient(135deg, #1f1636 0%, #150f24 100%);
+  border: 1px solid var(--border-gold);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 0 25px rgba(200, 155, 60, 0.15), 0 8px 30px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.author-hero-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+}
+
+.author-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  flex: 1;
+}
+
+.author-hero-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--border-gold);
+  box-shadow: 0 0 16px rgba(200, 155, 60, 0.3);
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+}
+
+.author-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.author-hero-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+.author-hero-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.author-hero-message {
+  font-size: 13px;
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border-left: 2px solid var(--accent-gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 600px;
+}
+
+.author-hero-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.author-pill {
+  background: rgba(200, 155, 60, 0.15);
+  border: 1px solid var(--border-gold);
+  color: var(--accent-gold);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
 /* Status Cards Grid */
 .status-grid {
   display: grid;

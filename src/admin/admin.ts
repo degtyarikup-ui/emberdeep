@@ -261,6 +261,18 @@ class DashboardManager {
 
     const savedToken = localStorage.getItem(TOKEN_KEY) || '';
 
+    const lastAuthorAvatar =
+      headCommit?.author?.avatar_url ||
+      'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
+    const lastAuthorLogin = headCommit?.author?.login || headCommit?.commit.author.name || 'Неизвестно';
+    const lastAuthorName = headCommit?.commit.author.name || '';
+    const lastAuthorDisplay =
+      lastAuthorLogin === lastAuthorName || !lastAuthorName
+        ? `@${lastAuthorLogin}`
+        : `@${lastAuthorLogin} (${lastAuthorName})`;
+    const lastCommitTitle = headCommit ? parseCommitMessage(headCommit.commit.message).title : '';
+    const lastCommitTime = headCommit ? formatRelativeTime(headCommit.commit.author.date) : '';
+
     root.innerHTML = `
       <div class="dashboard-container">
         <header class="dashboard-header">
@@ -281,6 +293,35 @@ class DashboardManager {
             </button>
           </div>
         </header>
+
+        ${
+          headCommit
+            ? `
+          <div class="author-hero-banner">
+            <div class="author-hero-left">
+              <img class="author-hero-avatar" src="${lastAuthorAvatar}" alt="${escapeHtml(lastAuthorLogin)}" />
+              <div class="author-hero-info">
+                <div class="author-hero-label">Последний пуш сделал:</div>
+                <div class="author-hero-name">
+                  ${escapeHtml(lastAuthorDisplay)}
+                  <span class="author-pill">HEAD</span>
+                </div>
+                <div class="author-hero-message" title="${escapeHtml(headCommit.commit.message)}">
+                  «${escapeHtml(lastCommitTitle)}»
+                </div>
+              </div>
+            </div>
+            <div class="author-hero-right">
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <a class="sha-tag" href="${headCommit.html_url}" target="_blank">${headSha?.slice(0, 7)}</a>
+                <span class="badge ${badgeClass}"><span class="badge-dot"></span>${escapeHtml(syncState.label)}</span>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted);">${lastCommitTime}</div>
+            </div>
+          </div>
+        `
+            : ''
+        }
 
         ${
           this.state.errorMessage
@@ -314,18 +355,14 @@ class DashboardManager {
 
           <div class="card">
             <div class="card-header">
-              <span class="card-title">Последний коммит в main</span>
-              <span class="badge badge-pending">HEAD</span>
+              <span class="card-title">Автор последнего пуша</span>
+              <span class="badge badge-pending">Main</span>
             </div>
-            <div class="card-main-stat">
-              ${
-                headSha
-                  ? `<a class="sha-tag" href="https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${headSha}" target="_blank">${headSha.slice(0, 7)}</a>`
-                  : '—'
-              }
+            <div class="card-main-stat" style="font-size: 17px; font-weight: 600;">
+              ${escapeHtml(lastAuthorLogin)}
             </div>
             <div class="card-desc">
-              ${headCommit ? `${escapeHtml(headCommit.commit.author.name)} · ${formatRelativeTime(headCommit.commit.author.date)}` : 'Нет данных'}
+              ${headCommit ? `${lastCommitTime} · ${headSha?.slice(0, 7)}` : 'Нет данных'}
             </div>
           </div>
 
@@ -389,16 +426,19 @@ class DashboardManager {
                     const avatar =
                       c.author?.avatar_url ||
                       'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-                    const authorName = c.author?.login || c.commit.author.name;
+                    const authorLogin = c.author?.login || c.commit.author.name;
+                    const authorName = c.commit.author.name;
+                    const authorLabel =
+                      authorLogin === authorName ? authorLogin : `${authorLogin} (${authorName})`;
 
                     return `
               <div class="commit-item ${isDeployed ? 'is-deployed' : ''}">
                 <div class="commit-left">
-                  <img class="author-avatar" src="${avatar}" alt="${escapeHtml(authorName)}" />
+                  <img class="author-avatar" src="${avatar}" alt="${escapeHtml(authorLogin)}" />
                   <div class="commit-details">
                     <div class="commit-message-title" title="${escapeHtml(c.commit.message)}">${escapeHtml(title)}</div>
                     <div class="commit-meta">
-                      <strong>${escapeHtml(authorName)}</strong>
+                      <span class="author-pill">${escapeHtml(authorLabel)}</span>
                       <span>·</span>
                       <span>${formatRelativeTime(c.commit.author.date)}</span>
                     </div>

@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateDeploySyncState,
+  calculateDuration,
   findFailedStep,
   formatRelativeTime,
+  getAllFailedSteps,
   parseCommitMessage,
   type WorkflowJob,
 } from '../src/admin/statusHelper';
@@ -132,5 +134,47 @@ describe('statusHelper: findFailedStep', () => {
       },
     ];
     expect(findFailedStep(jobs)).toBeNull();
+  });
+});
+
+describe('statusHelper: calculateDuration', () => {
+  it('calculates seconds duration', () => {
+    const start = '2026-08-21T12:00:00Z';
+    const end = '2026-08-21T12:00:35Z';
+    expect(calculateDuration(start, end)).toBe('35с');
+  });
+
+  it('calculates minutes and seconds duration', () => {
+    const start = '2026-08-21T12:00:00Z';
+    const end = '2026-08-21T12:01:25Z';
+    expect(calculateDuration(start, end)).toBe('1м 25с');
+  });
+
+  it('returns empty string on empty input', () => {
+    expect(calculateDuration(undefined)).toBe('');
+  });
+});
+
+describe('statusHelper: getAllFailedSteps', () => {
+  it('returns list of all failed steps', () => {
+    const jobs: WorkflowJob[] = [
+      {
+        id: 1,
+        name: 'build',
+        status: 'completed',
+        conclusion: 'failure',
+        steps: [
+          { name: 'npm ci', status: 'completed', conclusion: 'success', number: 1 },
+          { name: 'npm run lint', status: 'completed', conclusion: 'failure', number: 2 },
+          { name: 'npm run test', status: 'completed', conclusion: 'failure', number: 3 },
+        ],
+      },
+    ];
+
+    const result = getAllFailedSteps(jobs);
+    expect(result).toEqual([
+      { jobName: 'build', stepName: 'npm run lint', number: 2 },
+      { jobName: 'build', stepName: 'npm run test', number: 3 },
+    ]);
   });
 });

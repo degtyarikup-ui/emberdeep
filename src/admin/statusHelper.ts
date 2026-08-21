@@ -11,6 +11,9 @@ export interface WorkflowJob {
   status: 'queued' | 'in_progress' | 'completed';
   conclusion: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | null;
   steps?: WorkflowStep[];
+  started_at?: string;
+  completed_at?: string;
+  html_url?: string;
 }
 
 export interface GitHubCommit {
@@ -44,6 +47,13 @@ export interface GitHubRun {
   updated_at: string;
   run_started_at?: string;
   jobs_url: string;
+  actor?: {
+    login: string;
+    avatar_url: string;
+    html_url: string;
+  } | null;
+  display_title?: string;
+  jobs?: WorkflowJob[];
 }
 
 export interface GitHubDeployment {
@@ -84,6 +94,19 @@ export function formatRelativeTime(dateString: string, now: Date = new Date()): 
   if (days < 30) return `${days} дн. назад`;
 
   return target.toISOString().slice(0, 10);
+}
+
+export function calculateDuration(startStr?: string, endStr?: string): string {
+  if (!startStr) return '';
+  const start = new Date(startStr).getTime();
+  const end = endStr ? new Date(endStr).getTime() : Date.now();
+  if (isNaN(start) || isNaN(end)) return '';
+
+  const totalSec = Math.max(1, Math.round((end - start) / 1000));
+  if (totalSec < 60) return `${totalSec}с`;
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  return `${mins}м ${secs}с`;
 }
 
 export function calculateDeploySyncState(params: {
@@ -156,4 +179,25 @@ export function findFailedStep(jobs: WorkflowJob[]): {
     }
   }
   return null;
+}
+
+export function getAllFailedSteps(jobs: WorkflowJob[]): Array<{
+  jobName: string;
+  stepName: string;
+  number?: number;
+}> {
+  const result: Array<{ jobName: string; stepName: string; number?: number }> = [];
+  for (const job of jobs) {
+    if (job.conclusion === 'failure') {
+      const failedSteps = job.steps?.filter((s) => s.conclusion === 'failure') ?? [];
+      if (failedSteps.length > 0) {
+        for (const step of failedSteps) {
+          result.push({ jobName: job.name, stepName: step.name, number: step.number });
+        }
+      } else {
+        result.push({ jobName: job.name, stepName: job.name });
+      }
+    }
+  }
+  return result;
 }

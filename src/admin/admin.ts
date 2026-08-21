@@ -1,8 +1,10 @@
 import './admin.css';
 import {
   calculateDeploySyncState,
+  calculateDuration,
   findFailedStep,
   formatRelativeTime,
+  getAllFailedSteps,
   parseCommitMessage,
   type GitHubCommit,
   type GitHubDeployment,
@@ -60,23 +62,23 @@ async function apiFetch<T>(url: string): Promise<{ data: T | null; rateLimitRema
 
 interface DashboardState {
   commits: GitHubCommit[];
-  latestRun: GitHubRun | null;
-  latestJobs: WorkflowJob[];
+  runs: GitHubRun[];
   deployments: GitHubDeployment[];
   rateLimitRemaining: string;
   errorMessage: string | null;
   lastLoadedTime: string;
+  activeTab: 'commits' | 'runs';
 }
 
 class DashboardManager {
   private state: DashboardState = {
     commits: [],
-    latestRun: null,
-    latestJobs: [],
+    runs: [],
     deployments: [],
     rateLimitRemaining: '—',
     errorMessage: null,
     lastLoadedTime: '',
+    activeTab: 'commits',
   };
 
   private isAuthenticated = false;
@@ -95,6 +97,11 @@ class DashboardManager {
     } else {
       this.renderLockScreen();
     }
+  }
+
+  public setTab(tab: 'commits' | 'runs'): void {
+    this.state.activeTab = tab;
+    this.renderDashboard();
   }
 
   public tryLogin(pin: string): boolean {
@@ -127,28 +134,33 @@ class DashboardManager {
 
     try {
       const [commitsRes, runsRes, deploysRes] = await Promise.all([
-        apiFetch<GitHubCommit[]>(`${API_BASE}/commits?per_page=15`),
-        apiFetch<{ workflow_runs: GitHubRun[] }>(`${API_BASE}/actions/runs?per_page=5`),
+        apiFetch<GitHubCommit[]>(`${API_BASE}/commits?per_page=20`),
+        apiFetch<{ workflow_runs: GitHubRun[] }>(`${API_BASE}/actions/runs?per_page=12`),
         apiFetch<GitHubDeployment[]>(`${API_BASE}/deployments?environment=github-pages&per_page=5`),
       ]);
 
-      const latestRun = runsRes.data?.workflow_runs ? runsRes.data.workflow_runs[0] ?? null : this.state.latestRun;
+      const runs = runsRes.data?.workflow_runs ?? this.state.runs;
 
-      let latestJobs: WorkflowJob[] = [];
-      if (latestRun && latestRun.conclusion === 'failure') {
-        const jobsRes = await apiFetch<{ jobs: WorkflowJob[] }>(latestRun.jobs_url);
-        if (jobsRes.data?.jobs) {
-          latestJobs = jobsRes.data.jobs;
-        }
-      }
+      // Load detailed jobs for failed or in-progress runs
+      const runsWithJobs = await Promise.all(
+        runs.map(async (run) => {
+          if (run.conclusion === 'failure' || run.status === 'in_progress') {
+            const jobsRes = await apiFetch<{ jobs: WorkflowJob[] }>(run.jobs_url);
+            if (jobsRes.data?.jobs) {
+              return { ...run, jobs: jobsRes.data.jobs };
+            }
+          }
+          return run;
+        })
+      );
 
       this.state = {
+        ...this.state,
         commits: commitsRes.data ?? this.state.commits,
+        runs: runsWithJobs,
         rateLimitRemaining: commitsRes.rateLimitRemaining ?? this.state.rateLimitRemaining,
-        latestRun,
         deployments: deploysRes.data ?? this.state.deployments,
         errorMessage: commitsRes.error || runsRes.error || deploysRes.error || null,
-        latestJobs,
         lastLoadedTime: new Date().toLocaleTimeString(),
       };
     } finally {
@@ -163,8 +175,8 @@ class DashboardManager {
     if (this.refreshTimer) clearTimeout(this.refreshTimer);
     if (this.countdownInterval) clearInterval(this.countdownInterval);
 
-    const isBuilding =
-      this.state.latestRun?.status === 'in_progress' || this.state.latestRun?.status === 'queued';
+    const latestRun = this.state.runs[0];
+    const isBuilding = latestRun?.status === 'in_progress' || latestRun?.status === 'queued';
     this.secondsUntilNextRefresh = isBuilding ? 10 : 30;
 
     this.updateCountdownDisplay();
@@ -243,16 +255,16 @@ class DashboardManager {
     const headCommit = this.state.commits[0];
     const headSha = headCommit?.sha;
     const deployedSha = this.state.deployments[0]?.sha;
+    const latestRun = this.state.runs[0] ?? null;
 
     const syncState = calculateDeploySyncState({
       headSha,
       deployedSha,
-      latestRunStatus: this.state.latestRun?.status,
-      latestRunConclusion: this.state.latestRun?.conclusion,
+      latestRunStatus: latestRun?.status,
+      latestRunConclusion: latestRun?.conclusion,
     });
 
-    const failedStep =
-      this.state.latestRun?.conclusion === 'failure' ? findFailedStep(this.state.latestJobs) : null;
+    const failedStep = latestRun?.conclusion === 'failure' && latestRun.jobs ? findFailedStep(latestRun.jobs) : null;
 
     let badgeClass = 'badge-pending';
     if (syncState.state === 'synced') badgeClass = 'badge-success';
@@ -272,6 +284,8 @@ class DashboardManager {
         : `@${lastAuthorLogin} (${lastAuthorName})`;
     const lastCommitTitle = headCommit ? parseCommitMessage(headCommit.commit.message).title : '';
     const lastCommitTime = headCommit ? formatRelativeTime(headCommit.commit.author.date) : '';
+
+    const failedRunsCount = this.state.runs.filter((r) => r.conclusion === 'failure').length;
 
     root.innerHTML = `
       <div class="dashboard-container">
@@ -370,11 +384,11 @@ class DashboardManager {
             <div class="card-header">
               <span class="card-title">GitHub Actions CI</span>
               ${
-                this.state.latestRun
+                latestRun
                   ? `
-                <span class="badge ${this.state.latestRun.conclusion === 'success' ? 'badge-success' : this.state.latestRun.status === 'in_progress' ? 'badge-running' : this.state.latestRun.conclusion === 'failure' ? 'badge-failure' : 'badge-pending'}">
+                <span class="badge ${latestRun.conclusion === 'success' ? 'badge-success' : latestRun.status === 'in_progress' ? 'badge-running' : latestRun.conclusion === 'failure' ? 'badge-failure' : 'badge-pending'}">
                   <span class="badge-dot"></span>
-                  ${this.state.latestRun.status === 'in_progress' ? 'Сборка' : this.state.latestRun.conclusion === 'success' ? 'Успешно' : this.state.latestRun.conclusion === 'failure' ? 'Ошибка' : this.state.latestRun.status}
+                  ${latestRun.status === 'in_progress' ? 'Сборка' : latestRun.conclusion === 'success' ? 'Успешно' : latestRun.conclusion === 'failure' ? 'Ошибка' : latestRun.status}
                 </span>
               `
                   : ''
@@ -382,15 +396,15 @@ class DashboardManager {
             </div>
             <div class="card-main-stat" style="font-size: 16px;">
               ${
-                this.state.latestRun
-                  ? `<a href="${this.state.latestRun.html_url}" target="_blank" style="color: inherit; text-decoration: none;">Run #${this.state.latestRun.id}</a>`
+                latestRun
+                  ? `<a href="${latestRun.html_url}" target="_blank" style="color: inherit; text-decoration: none;">Run #${latestRun.id}</a>`
                   : '—'
               }
             </div>
             <div class="card-desc">
               ${
-                this.state.latestRun
-                  ? `Событие: ${this.state.latestRun.event} · ${formatRelativeTime(this.state.latestRun.updated_at)}`
+                latestRun
+                  ? `Событие: ${latestRun.event} · ${formatRelativeTime(latestRun.updated_at)}`
                   : 'Нет запусков'
               }
             </div>
@@ -401,10 +415,10 @@ class DashboardManager {
           failedStep
             ? `
           <div class="alert-banner">
-            <div class="alert-title">Ошибка при сборке в GitHub Actions</div>
+            <div class="alert-title">Ошибка в последней сборке GitHub Actions</div>
             <div class="alert-content">
               Упал шаг: <strong>${escapeHtml(failedStep.stepName)}</strong> (Job: ${escapeHtml(failedStep.jobName)})<br />
-              <a href="${this.state.latestRun?.html_url}" target="_blank" style="color: #fff; text-decoration: underline; margin-top: 6px; display: inline-block;">
+              <a href="${latestRun?.html_url}" target="_blank" style="color: #fff; text-decoration: underline; margin-top: 6px; display: inline-block;">
                 Открыть логи ошибки на GitHub Actions &rarr;
               </a>
             </div>
@@ -413,47 +427,167 @@ class DashboardManager {
             : ''
         }
 
-        <div class="section-title">История коммитов и пушей</div>
+        <div class="tab-nav">
+          <button class="tab-btn ${this.state.activeTab === 'commits' ? 'active' : ''}" onclick="window.__adminSetTab('commits')">
+            История пушей и коммитов
+            <span class="tab-badge">${this.state.commits.length}</span>
+          </button>
+          <button class="tab-btn ${this.state.activeTab === 'runs' ? 'active' : ''}" onclick="window.__adminSetTab('runs')">
+            История сборок и ошибки CI/CD
+            <span class="tab-badge ${failedRunsCount > 0 ? 'badge-error-count' : ''}">${this.state.runs.length}${failedRunsCount > 0 ? ` (${failedRunsCount} ошибок)` : ''}</span>
+          </button>
+        </div>
 
-        <div class="commit-list">
-          ${
-            this.state.commits.length === 0
-              ? '<div class="card-desc">Загрузка коммитов...</div>'
-              : this.state.commits
-                  .map((c) => {
-                    const { title } = parseCommitMessage(c.commit.message);
-                    const isDeployed = deployedSha && c.sha.startsWith(deployedSha.slice(0, 7));
-                    const avatar =
-                      c.author?.avatar_url ||
-                      'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-                    const authorLogin = c.author?.login || c.commit.author.name;
-                    const authorName = c.commit.author.name;
-                    const authorLabel =
-                      authorLogin === authorName ? authorLogin : `${authorLogin} (${authorName})`;
+        ${
+          this.state.activeTab === 'commits'
+            ? `
+          <div class="commit-list">
+            ${
+              this.state.commits.length === 0
+                ? '<div class="card-desc">Загрузка коммитов...</div>'
+                : this.state.commits
+                    .map((c) => {
+                      const { title } = parseCommitMessage(c.commit.message);
+                      const isDeployed = deployedSha && c.sha.startsWith(deployedSha.slice(0, 7));
+                      const avatar =
+                        c.author?.avatar_url ||
+                        'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
+                      const authorLogin = c.author?.login || c.commit.author.name;
+                      const authorName = c.commit.author.name;
+                      const authorLabel =
+                        authorLogin === authorName ? authorLogin : `${authorLogin} (${authorName})`;
 
-                    return `
-              <div class="commit-item ${isDeployed ? 'is-deployed' : ''}">
-                <div class="commit-left">
-                  <img class="author-avatar" src="${avatar}" alt="${escapeHtml(authorLogin)}" />
-                  <div class="commit-details">
-                    <div class="commit-message-title" title="${escapeHtml(c.commit.message)}">${escapeHtml(title)}</div>
-                    <div class="commit-meta">
-                      <span class="author-pill">${escapeHtml(authorLabel)}</span>
-                      <span>·</span>
-                      <span>${formatRelativeTime(c.commit.author.date)}</span>
+                      return `
+                <div class="commit-item ${isDeployed ? 'is-deployed' : ''}">
+                  <div class="commit-left">
+                    <img class="author-avatar" src="${avatar}" alt="${escapeHtml(authorLogin)}" />
+                    <div class="commit-details">
+                      <div class="commit-message-title" title="${escapeHtml(c.commit.message)}">${escapeHtml(title)}</div>
+                      <div class="commit-meta">
+                        <span class="author-pill">${escapeHtml(authorLabel)}</span>
+                        <span>·</span>
+                        <span>${formatRelativeTime(c.commit.author.date)}</span>
+                      </div>
                     </div>
                   </div>
+                  <div class="commit-right">
+                    ${isDeployed ? '<span class="deployed-chip">Сейчас на сайте</span>' : ''}
+                    <a class="sha-tag" href="${c.html_url}" target="_blank">${c.sha.slice(0, 7)}</a>
+                  </div>
                 </div>
-                <div class="commit-right">
-                  ${isDeployed ? '<span class="deployed-chip">Сейчас на сайте</span>' : ''}
-                  <a class="sha-tag" href="${c.html_url}" target="_blank">${c.sha.slice(0, 7)}</a>
+              `;
+                    })
+                    .join('')
+            }
+          </div>
+        `
+            : `
+          <div class="runs-list">
+            ${
+              this.state.runs.length === 0
+                ? '<div class="card-desc">Загрузка истории сборок...</div>'
+                : this.state.runs
+                    .map((run) => {
+                      const isFailed = run.conclusion === 'failure';
+                      const isSuccess = run.conclusion === 'success';
+                      const isRunning = run.status === 'in_progress' || run.status === 'queued';
+                      const duration = calculateDuration(run.run_started_at || run.created_at, run.updated_at);
+                      const failedSteps = run.jobs ? getAllFailedSteps(run.jobs) : [];
+                      const actorAvatar =
+                        run.actor?.avatar_url ||
+                        'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
+                      const actorName = run.actor?.login || 'Система';
+
+                      let statusBadge = `<span class="badge badge-pending">${run.status}</span>`;
+                      if (isSuccess) {
+                        statusBadge = '<span class="badge badge-success"><span class="badge-dot"></span>Успешно</span>';
+                      } else if (isFailed) {
+                        statusBadge = '<span class="badge badge-failure"><span class="badge-dot"></span>Ошибка сборки</span>';
+                      } else if (isRunning) {
+                        statusBadge = '<span class="badge badge-running"><span class="badge-dot"></span>Выполняется</span>';
+                      }
+
+                      return `
+                <div class="run-card ${isFailed ? 'is-failed' : isSuccess ? 'is-success' : isRunning ? 'is-running' : ''}">
+                  <div class="run-card-header">
+                    <div class="run-card-left">
+                      <img class="author-avatar" src="${actorAvatar}" alt="${escapeHtml(actorName)}" />
+                      <div>
+                        <div class="run-card-title">${escapeHtml(run.display_title || run.name)}</div>
+                        <div class="run-card-meta">
+                          <span class="author-pill">Автор: ${escapeHtml(actorName)}</span>
+                          <span>·</span>
+                          <span>${formatRelativeTime(run.updated_at)}</span>
+                          ${duration ? `<span>·</span><span>Длительность: ${duration}</span>` : ''}
+                          <span>·</span>
+                          <span>Событие: ${escapeHtml(run.event)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="commit-right">
+                      ${statusBadge}
+                      <a class="sha-tag" href="${run.html_url}" target="_blank">Run #${run.id}</a>
+                    </div>
+                  </div>
+
+                  ${
+                    isFailed && failedSteps.length > 0
+                      ? `
+                    <div class="run-error-details-box">
+                      <div><strong>Шаги, завершившиеся с ошибкой:</strong></div>
+                      ${failedSteps
+                        .map(
+                          (step) => `
+                        <div style="font-family: var(--font-mono); font-size: 12px; margin-left: 8px;">
+                          - [${escapeHtml(step.jobName)}] <strong>${escapeHtml(step.stepName)}</strong>
+                        </div>
+                      `
+                        )
+                        .join('')}
+                      <a href="${run.html_url}" target="_blank" style="color: #fff; text-decoration: underline; margin-top: 4px; font-size: 12px;">
+                        Открыть полный лог ошибки на GitHub Actions &rarr;
+                      </a>
+                    </div>
+                  `
+                      : ''
+                  }
+
+                  ${
+                    run.jobs && run.jobs.length > 0 && !isFailed
+                      ? `
+                    <div class="run-steps-container">
+                      ${run.jobs
+                        .map((job) => {
+                          const icon =
+                            job.conclusion === 'success'
+                              ? '<span class="step-status-icon step-status-success">✓</span>'
+                              : job.conclusion === 'failure'
+                                ? '<span class="step-status-icon step-status-failure">x</span>'
+                                : '<span class="step-status-icon step-status-skipped">·</span>';
+                          const jobDuration = calculateDuration(job.started_at, job.completed_at);
+                          return `
+                          <div class="step-item">
+                            <div class="step-name-box">
+                              ${icon}
+                              <span>Job: ${escapeHtml(job.name)}</span>
+                            </div>
+                            <span style="font-size: 11px; color: var(--text-muted);">${jobDuration}</span>
+                          </div>
+                        `;
+                        })
+                        .join('')}
+                    </div>
+                  `
+                      : ''
+                  }
                 </div>
-              </div>
-            `;
-                  })
-                  .join('')
-          }
-        </div>
+              `;
+                    })
+                    .join('')
+            }
+          </div>
+        `
+        }
 
         <details class="settings-box">
           <summary style="cursor: pointer; font-weight: 600; color: var(--accent-gold); font-size: 13px;">
@@ -504,6 +638,7 @@ declare global {
   interface Window {
     __adminRefresh: () => void;
     __adminLogout: () => void;
+    __adminSetTab: (tab: 'commits' | 'runs') => void;
     __adminSubmitPin: (event: Event) => void;
     __adminSaveToken: () => void;
     __adminClearToken: () => void;
@@ -516,6 +651,10 @@ window.__adminRefresh = () => {
 
 window.__adminLogout = () => {
   dashboard.logout();
+};
+
+window.__adminSetTab = (tab: 'commits' | 'runs') => {
+  dashboard.setTab(tab);
 };
 
 window.__adminSubmitPin = (event: Event) => {

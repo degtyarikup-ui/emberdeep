@@ -11,6 +11,7 @@ import { AchievementManager } from '../achievements/AchievementManager';
 import { I18n, t } from '../i18n';
 import { YandexSDK } from '../yandex/yandexSdk';
 import { registerDebugHotkey } from '../debug/hotkey';
+import { BUILD_LABEL } from '../buildInfo';
 
 function makeButton(
   scene: Phaser.Scene,
@@ -386,6 +387,19 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setDepth(DEPTH.UI);
     embersCount.setStroke('#0d0a10', 4);
+
+    // Build stamp, bottom-right. Deliberately dim and tiny: it is for us, not
+    // for players. GitHub Pages can serve a stale index.html for ten minutes
+    // after a deploy, so "is the site running my push?" needs a visible answer
+    // rather than a guess — compare this against the last commit on main.
+    this.add
+      .text(width - 8, height - 6, BUILD_LABEL, {
+        fontFamily: FONT.UI,
+        fontSize: '9px',
+        color: '#4a4458',
+      })
+      .setOrigin(1, 1)
+      .setDepth(DEPTH.UI);
 
     this.add
       .image(width - 28 - embersCount.width, 24 + embersCount.height / 2, TEXTURE.UI_EMBER_ICON)

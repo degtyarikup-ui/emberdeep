@@ -5,8 +5,11 @@ import { LobbyScene } from './scenes/LobbyScene';
 import { GameScene } from './scenes/GameScene';
 import { YandexSDK } from './yandex/yandexSdk';
 import { MetaManager } from './meta/MetaManager';
+import { logBuildInfo } from './buildInfo';
 
 async function bootstrap(): Promise<void> {
+  logBuildInfo();
+
   // Disable browser context menu across entire canvas area (§ 1.6)
   document.addEventListener('contextmenu', (e) => e.preventDefault());
 

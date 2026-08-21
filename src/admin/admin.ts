@@ -1,4 +1,5 @@
 import './admin.css';
+import { ICONS } from './icons';
 import {
   buildTimeline,
   calculateDeploySyncState,
@@ -208,7 +209,7 @@ class DashboardManager {
     if (loading) {
       btn.innerHTML = '<span class="loading-spinner"></span> Обновление...';
     } else {
-      btn.innerHTML = 'Обновить';
+      btn.innerHTML = `${ICONS.refresh} Обновить`;
     }
   }
 
@@ -219,6 +220,7 @@ class DashboardManager {
     root.innerHTML = `
       <div class="lock-screen-container">
         <div id="lock-card" class="lock-card ${errorMessage ? 'shake' : ''}">
+          <div style="color: var(--text-secondary); margin-bottom: 2px;">${ICONS.lock}</div>
           <h2 class="lock-title">Emberdeep Admin</h2>
           <div class="lock-subtitle">Введите 4-значный PIN-код</div>
           <form class="pin-form" onsubmit="window.__adminSubmitPin(event)">
@@ -305,33 +307,39 @@ class DashboardManager {
         <header class="dashboard-header">
           <div class="header-brand">
             <h1 class="header-title">Emberdeep</h1>
-            <span class="header-subtitle">Таймлайн активности (degtyarikup-ui & MrKadoku)</span>
+            <span class="header-subtitle">degtyarikup-ui & MrKadoku</span>
           </div>
           <div class="header-actions">
-            <a href="./" class="btn">Игра</a>
+            <a href="./" class="btn">${ICONS.play} Игра</a>
             <button id="refresh-btn" class="btn btn-primary" onclick="window.__adminRefresh()">
-              Обновить
+              ${ICONS.refresh} Обновить
             </button>
             <button class="btn" onclick="window.__adminLogout()" title="Выйти">
-              Выйти
+              ${ICONS.logout} Выйти
             </button>
           </div>
         </header>
 
         <div class="status-summary-bar">
           <div class="summary-item">
-            <span class="summary-label">Сайт:</span>
+            <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
+              ${ICONS.globe} Сайт:
+            </span>
             <span class="badge-dot ${dotClass}"></span>
             <span class="summary-value">${escapeHtml(syncState.label)}</span>
             ${deployedSha ? `<a class="sha-tag" href="https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${deployedSha}" target="_blank">${deployedSha.slice(0, 7)}</a>` : ''}
           </div>
           <div class="summary-item">
-            <span class="summary-label">Последний коммит:</span>
+            <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
+              ${ICONS.commit} Последний:
+            </span>
             <span class="summary-value">${escapeHtml(headAuthorInfo.displayName)}</span>
             ${headSha ? `<a class="sha-tag" href="${headCommit?.html_url}" target="_blank">${headSha.slice(0, 7)}</a>` : ''}
           </div>
           <div class="summary-item">
-            <span class="summary-label">CI:</span>
+            <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
+              ${ICONS.activity} CI:
+            </span>
             <span class="summary-value">${latestRun ? (latestRun.conclusion === 'success' ? 'Успешно' : latestRun.conclusion === 'failure' ? 'Ошибка' : latestRun.status) : '—'}</span>
           </div>
         </div>
@@ -348,29 +356,29 @@ class DashboardManager {
 
         <div class="filter-bar">
           <button class="filter-btn ${this.state.activeFilter === 'all' ? 'active' : ''}" onclick="window.__adminSetFilter('all')">
-            Все события (${allEvents.length})
+            ${ICONS.layers} Все (${allEvents.length})
           </button>
           <button class="filter-btn ${this.state.activeFilter === 'commits' ? 'active' : ''}" onclick="window.__adminSetFilter('commits')">
-            Коммиты (${this.state.commits.length})
+            ${ICONS.commit} Коммиты (${this.state.commits.length})
           </button>
           <button class="filter-btn ${this.state.activeFilter === 'runs' ? 'active' : ''}" onclick="window.__adminSetFilter('runs')">
-            Сборки CI (${this.state.runs.length})
+            ${ICONS.terminal} Сборки (${this.state.runs.length})
           </button>
           ${
             errorRunsCount > 0
               ? `
             <button class="filter-btn ${this.state.activeFilter === 'errors' ? 'active' : ''}" onclick="window.__adminSetFilter('errors')" style="color: #ef4444;">
-              Ошибки (${errorRunsCount})
+              ${ICONS.alert} Ошибки (${errorRunsCount})
             </button>
           `
               : ''
           }
           <span style="color: var(--text-tertiary); font-size: 11px; margin: 0 4px;">|</span>
           <button class="filter-btn ${this.state.activeFilter === 'degtyarikup-ui' ? 'active' : ''}" onclick="window.__adminSetFilter('degtyarikup-ui')">
-            degtyarikup-ui
+            ${ICONS.user} degtyarikup-ui
           </button>
           <button class="filter-btn ${this.state.activeFilter === 'MrKadoku' ? 'active' : ''}" onclick="window.__adminSetFilter('MrKadoku')">
-            MrKadoku
+            ${ICONS.user} MrKadoku
           </button>
         </div>
 
@@ -383,8 +391,8 @@ class DashboardManager {
         </div>
 
         <details class="settings-box">
-          <summary style="cursor: pointer; color: var(--text-secondary);">
-            GitHub API Token (опционально)
+          <summary style="cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+            ${ICONS.key} GitHub API Token (опционально)
           </summary>
           <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px;">
             Укажите персональный токен, если исчерпан лимит 60 запросов/час.
@@ -423,7 +431,9 @@ function renderTimelineRow(ev: TimelineEvent): string {
           <img class="avatar-icon" src="${ev.authorAvatar}" alt="" />
           <div class="timeline-content">
             <div class="timeline-title-line">
-              <span class="type-pill">Коммит</span>
+              <span class="type-pill" style="display: inline-flex; align-items: center; gap: 3px;">
+                ${ICONS.commit} коммит
+              </span>
               <span class="timeline-title">${escapeHtml(ev.title)}</span>
               ${ev.isDeployed ? '<span class="deployed-chip">На сайте</span>' : ''}
             </div>
@@ -449,7 +459,7 @@ function renderTimelineRow(ev: TimelineEvent): string {
     : isFailed
       ? 'run-icon-error'
       : 'run-icon-running';
-  const iconSymbol = isSuccess ? '✓' : isFailed ? 'x' : '·';
+  const iconSymbol = isSuccess ? ICONS.check : isFailed ? ICONS.x : '·';
 
   return `
     <div class="timeline-row">
@@ -457,7 +467,9 @@ function renderTimelineRow(ev: TimelineEvent): string {
         <div class="run-icon ${iconClass}">${iconSymbol}</div>
         <div class="timeline-content">
           <div class="timeline-title-line">
-            <span class="type-pill">Сборка CI</span>
+            <span class="type-pill" style="display: inline-flex; align-items: center; gap: 3px;">
+              ${ICONS.terminal} сборка
+            </span>
             <span class="timeline-title">${escapeHtml(ev.title)}</span>
             <span style="font-size: 11px; color: ${isSuccess ? 'var(--color-success)' : isFailed ? 'var(--color-error)' : 'var(--color-warning)'};">
               ${escapeHtml(ev.statusLabel || '')}

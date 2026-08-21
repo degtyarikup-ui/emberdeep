@@ -249,5 +249,67 @@ describe('statusHelper: buildTimeline', () => {
     expect(timeline[1].id).toBe('run-101'); // 10:03
     expect(timeline[2].id).toBe('commit-aaa1111'); // 10:00
   });
+
+  it('attributes build to the commit author (e.g. MrKadoku)', () => {
+    const commits: GitHubCommit[] = [
+      {
+        sha: 'kadoku1',
+        commit: {
+          message: 'feat: add dark forest expansion',
+          author: { name: 'MrKadoku', email: 'ec1ipse_god@mail.ru', date: '2026-08-21T12:26:00Z' },
+        },
+        author: { login: 'MrKadoku', avatar_url: 'https://github.com/MrKadoku.png', html_url: '' },
+        html_url: 'https://github.com/.../kadoku1',
+      },
+    ];
+
+    const runs: GitHubRun[] = [
+      {
+        id: 202,
+        name: 'Deploy',
+        head_sha: 'kadoku1',
+        head_branch: 'main',
+        event: 'workflow_dispatch',
+        status: 'completed',
+        conclusion: 'success',
+        html_url: 'https://github.com/.../run/202',
+        created_at: '2026-08-21T12:27:00Z',
+        updated_at: '2026-08-21T12:28:00Z',
+        jobs_url: '',
+      },
+    ];
+
+    const timeline = buildTimeline({ commits, runs });
+    expect(timeline[0].id).toBe('run-202');
+    expect(timeline[0].authorName).toBe('MrKadoku');
+    expect(timeline[0].authorAvatar).toBe('https://github.com/MrKadoku.png');
+  });
+
+  it('omits empty scheduled checks where build was skipped', () => {
+    const commits: GitHubCommit[] = [];
+    const runs: GitHubRun[] = [
+      {
+        id: 303,
+        name: 'Deploy',
+        head_sha: 'any111',
+        head_branch: 'main',
+        event: 'schedule',
+        status: 'completed',
+        conclusion: 'success',
+        html_url: 'https://github.com/.../run/303',
+        created_at: '2026-08-21T14:00:00Z',
+        updated_at: '2026-08-21T14:00:08Z',
+        jobs_url: '',
+        jobs: [
+          { id: 1, name: 'check', status: 'completed', conclusion: 'success' },
+          { id: 2, name: 'build', status: 'completed', conclusion: 'skipped' },
+        ],
+      },
+    ];
+
+    const timeline = buildTimeline({ commits, runs });
+    expect(timeline.length).toBe(0);
+  });
 });
+
 

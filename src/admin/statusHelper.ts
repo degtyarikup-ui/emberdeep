@@ -312,24 +312,24 @@ export function buildTimeline(params: {
   }
 
   for (const run of params.runs) {
-    // If this was an automated scheduled check that skipped build, omit it from the main timeline
+    // If this was an automated scheduled check that skipped build, omit it from the timeline
     const buildJob = run.jobs?.find((j) => j.name.toLowerCase().includes('build'));
-    const isSkippedNoop = run.event === 'schedule' && buildJob?.conclusion === 'skipped' && run.conclusion === 'success';
-    if (isSkippedNoop) {
+    const isSkippedByJob = buildJob && buildJob.conclusion === 'skipped';
+    const isShortNoopSchedule = run.event === 'schedule' && run.conclusion === 'success' && (!run.jobs || isSkippedByJob);
+    if (isSkippedByJob || isShortNoopSchedule) {
       continue;
     }
 
     const matchedCommit = run.head_sha ? commitMap.get(run.head_sha) : undefined;
     const authorParam = {
-      login: matchedCommit?.author?.login || run.head_commit?.author?.name || run.actor?.login,
-      name: matchedCommit?.commit.author.name || run.head_commit?.author?.name || run.actor?.login,
+      login: matchedCommit?.author?.login || run.head_commit?.author?.name || (run.event === 'schedule' ? undefined : run.actor?.login),
+      name: matchedCommit?.commit.author.name || run.head_commit?.author?.name || (run.event === 'schedule' ? undefined : run.actor?.login),
       email: matchedCommit?.commit.author.email || run.head_commit?.author?.email,
     };
     const actorInfo = resolveAuthorInfo(authorParam);
     const authorAvatar =
       matchedCommit?.author?.avatar_url ||
-      (actorInfo.isMrKadoku ? 'https://github.com/MrKadoku.png' : actorInfo.isDegtyarik ? 'https://github.com/degtyarikup-ui.png' : run.actor?.avatar_url) ||
-      'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
+      (actorInfo.isMrKadoku ? 'https://github.com/MrKadoku.png' : actorInfo.isDegtyarik ? 'https://github.com/degtyarikup-ui.png' : (run.event === 'schedule' ? '' : run.actor?.avatar_url || ''));
 
     const isFailed = run.conclusion === 'failure';
     const isSuccess = run.conclusion === 'success';

@@ -316,13 +316,6 @@ class DashboardManager {
       return true;
     });
 
-    const pillClass =
-      headAuthorInfo.colorType === 'gold'
-        ? 'author-pill-gold'
-        : headAuthorInfo.colorType === 'blue'
-          ? 'author-pill-blue'
-          : 'author-pill-default';
-
     root.innerHTML = `
       <div class="dashboard-container">
         <header class="dashboard-header">
@@ -351,10 +344,9 @@ class DashboardManager {
             <div class="author-hero-left">
               <img class="author-hero-avatar" src="${lastAuthorAvatar}" alt="${escapeHtml(headAuthorInfo.displayName)}" />
               <div class="author-hero-info">
-                <div class="author-hero-label">Последний пуш сделал:</div>
+                <div class="author-hero-label">Последний пуш:</div>
                 <div class="author-hero-name">
                   <span>${escapeHtml(headAuthorInfo.displayName)}</span>
-                  <span class="author-pill ${pillClass}">HEAD</span>
                 </div>
                 <div class="author-hero-message" title="${escapeHtml(headCommit.commit.message)}">
                   «${escapeHtml(lastCommitTitle)}»
@@ -408,8 +400,9 @@ class DashboardManager {
               <span class="card-title">Автор последнего коммита</span>
               <span class="badge badge-pending">Main</span>
             </div>
-            <div class="card-main-stat" style="font-size: 17px; font-weight: 600;">
-              <span class="author-pill ${pillClass}">${escapeHtml(headAuthorInfo.tag)}</span>
+            <div class="card-main-stat" style="font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+              <img class="author-avatar" style="width: 26px; height: 26px;" src="${lastAuthorAvatar}" alt="" />
+              <span>${escapeHtml(headAuthorInfo.displayName)}</span>
             </div>
             <div class="card-desc">
               ${headCommit ? `${lastCommitTime} · ${headSha?.slice(0, 7)}` : 'Нет данных'}
@@ -506,12 +499,6 @@ class DashboardManager {
                         name: c.commit.author.name,
                         email: c.commit.author.email,
                       });
-                      const authorPillClass =
-                        authInfo.colorType === 'gold'
-                          ? 'author-pill-gold'
-                          : authInfo.colorType === 'blue'
-                            ? 'author-pill-blue'
-                            : 'author-pill-default';
 
                       return `
                 <div class="commit-item ${isDeployed ? 'is-deployed' : ''}">
@@ -520,7 +507,7 @@ class DashboardManager {
                     <div class="commit-details">
                       <div class="commit-message-title" title="${escapeHtml(c.commit.message)}">${escapeHtml(title)}</div>
                       <div class="commit-meta">
-                        <span class="author-pill ${authorPillClass}">${escapeHtml(authInfo.tag)}</span>
+                        <span class="author-name">${escapeHtml(authInfo.displayName)}</span>
                         <span>·</span>
                         <span>${formatRelativeTime(c.commit.author.date)}</span>
                       </div>
@@ -555,12 +542,6 @@ class DashboardManager {
                       const actorInfo = resolveAuthorInfo({
                         login: run.actor?.login,
                       });
-                      const actorPillClass =
-                        actorInfo.colorType === 'gold'
-                          ? 'author-pill-gold'
-                          : actorInfo.colorType === 'blue'
-                            ? 'author-pill-blue'
-                            : 'author-pill-default';
 
                       let statusBadge = `<span class="badge badge-pending">${run.status}</span>`;
                       if (isSuccess) {
@@ -579,7 +560,7 @@ class DashboardManager {
                       <div>
                         <div class="run-card-title">${escapeHtml(run.display_title || run.name)}</div>
                         <div class="run-card-meta">
-                          <span class="author-pill ${actorPillClass}">Автор: ${escapeHtml(actorInfo.tag)}</span>
+                          <span class="author-name">${escapeHtml(actorInfo.displayName)}</span>
                           <span>·</span>
                           <span>${formatRelativeTime(run.updated_at)}</span>
                           ${duration ? `<span>·</span><span>Длительность: ${duration}</span>` : ''}

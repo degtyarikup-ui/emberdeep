@@ -197,6 +197,17 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     return this.hp;
   }
 
+  /** Check if this enemy currently has an active elemental status. */
+  hasStatus(element: ElementType): boolean {
+    switch (element) {
+      case 'fire': return this.statusState.burningDuration > 0;
+      case 'frost': return this.statusState.slowDuration > 0 || this.statusState.frozenDuration > 0;
+      case 'lightning': return this.statusState.shockDuration > 0;
+      case 'poison': return this.statusState.poisonDuration > 0;
+      default: return false;
+    }
+  }
+
   /** Returns true if this hit killed it. */
   takeDamage(amount: number, fromX: number, fromY: number): boolean {
     if (this.aiState === 'dead' || this.hitLock > 0) return false;

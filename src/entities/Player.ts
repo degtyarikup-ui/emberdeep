@@ -9,6 +9,8 @@ import { MetaManager } from '../meta/MetaManager';
 import { EntityAnimController, AnimStateName } from '../gfx/AnimationManager';
 import { ElementalSlotConfig, ElementType, ELEMENT_COLORS } from '../combat/ElementalSystem';
 import { ITEMS } from '../items/registry';
+import type { Enemy } from './Enemy';
+import type { BossEnemy } from './BossEnemy';
 
 const KNIGHT_SPEED = 130;
 const RANGER_SPEED = 145;

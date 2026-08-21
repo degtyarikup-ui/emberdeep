@@ -1544,7 +1544,7 @@ export class GameScene extends Phaser.Scene {
       if (inSlashCone(this.boss.x, this.boss.y - 14, 62, 1.45)) {
         const isCrit = Math.random() < player.critChance;
         const bossDmgMultiplier = player.bossDamageMultiplier;
-        const executeMultiplier = (player.hasExecutionerAxe && (this.boss.hp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
+        const executeMultiplier = (player.hasExecutionerAxe && (this.boss.currentHp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
         const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1) * bossDmgMultiplier * executeMultiplier));
 
         const killed = this.boss.takeDamage(dmg, player.x, player.y);
@@ -1581,7 +1581,7 @@ export class GameScene extends Phaser.Scene {
       if (enemy.isDead) continue;
       if (inSlashCone(enemy.x, enemy.y - 8, 54, 1.45)) {
         const isCrit = Math.random() < player.critChance;
-        const executeMultiplier = (player.hasExecutionerAxe && (enemy.hp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
+        const executeMultiplier = (player.hasExecutionerAxe && (enemy.currentHp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
         const moltenMultiplier = (player.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
         const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1) * executeMultiplier * moltenMultiplier));
 
@@ -1690,7 +1690,7 @@ export class GameScene extends Phaser.Scene {
       const radius = res.radius ?? 65;
       const baseWhirlDmg = res.damage ?? 3;
       const bossDmgMultiplier = player.bossDamageMultiplier;
-      const executeMultiplier = (player.hasExecutionerAxe && this.boss && (this.boss.hp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
+      const executeMultiplier = (player.hasExecutionerAxe && this.boss && (this.boss.currentHp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
       const dmg = Math.max(1, Math.round(baseWhirlDmg * bossDmgMultiplier * executeMultiplier));
       if (player === this.myPlayer) this.worldCam.shake(90, 0.003);
 
@@ -1731,7 +1731,7 @@ export class GameScene extends Phaser.Scene {
         if (enemy.isDead) continue;
         const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
         if (dist <= radius) {
-          const enemyExec = (player.hasExecutionerAxe && (enemy.hp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
+          const enemyExec = (player.hasExecutionerAxe && (enemy.currentHp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
           const enemyMolten = (player.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
           const finalDmg = Math.max(1, Math.round(baseWhirlDmg * enemyExec * enemyMolten));
           const killed = enemy.takeDamage(finalDmg, player.x, player.y);
@@ -1843,7 +1843,7 @@ export class GameScene extends Phaser.Scene {
           }
           const isCrit = Math.random() < this.myPlayer.critChance;
           const bossDmgMultiplier = this.myPlayer.bossDamageMultiplier;
-          const executeMultiplier = (this.myPlayer.hasExecutionerAxe && (this.boss.hp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
+          const executeMultiplier = (this.myPlayer.hasExecutionerAxe && (this.boss.currentHp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
           const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1) * bossDmgMultiplier * executeMultiplier));
           const killed = this.boss.takeDamage(dmg, arrow.x, arrow.y);
 
@@ -1888,7 +1888,7 @@ export class GameScene extends Phaser.Scene {
             SoundFX.playArrowHit();
           }
           const isCrit = Math.random() < this.myPlayer.critChance;
-          const executeMultiplier = (this.myPlayer.hasExecutionerAxe && (enemy.hp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
+          const executeMultiplier = (this.myPlayer.hasExecutionerAxe && (enemy.currentHp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
           const moltenMultiplier = (this.myPlayer.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
           const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1) * executeMultiplier * moltenMultiplier));
           const killed = enemy.takeDamage(dmg, arrow.x, arrow.y);

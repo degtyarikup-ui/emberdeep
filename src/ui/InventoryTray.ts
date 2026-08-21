@@ -54,16 +54,8 @@ export class InventoryTray {
   ): Phaser.GameObjects.Container {
     const slot = this.scene.add.container(x, y);
 
-    // Determine rarity tier for slot frame
-    let tier: 'common' | 'uncommon' | 'rare' | 'legendary' = 'common';
-    if (item.element) {
-      tier = 'uncommon';
-    }
-    if (item.id === 'immortal_crown' || item.id === 'leech_fang' || item.id === 'crit_dagger') {
-      tier = 'legendary';
-    } else if (item.id === 'whetstone' || item.id === 'boots') {
-      tier = 'rare';
-    }
+    const tier: 'common' | 'uncommon' | 'rare' | 'legendary' =
+      item.tier === 'legendary' ? 'legendary' : item.tier === 'uncommon' ? 'uncommon' : 'common';
 
     const slotBg = PixelUI.createSlot(this.scene, 0, 0, size, tier);
     slot.add(slotBg);

@@ -316,10 +316,8 @@ export class StatsModal {
   ): Phaser.GameObjects.Container {
     const slot = this.scene.add.container(x, y);
 
-    let tier: 'common' | 'uncommon' | 'rare' | 'legendary' = 'common';
-    if (item.tier === 'legendary') tier = 'legendary';
-    else if (item.tier === 'uncommon') tier = 'uncommon';
-    else tier = 'common';
+    const tier: 'common' | 'uncommon' | 'rare' | 'legendary' =
+      item.tier === 'legendary' ? 'legendary' : item.tier === 'uncommon' ? 'uncommon' : 'common';
 
     const slotBg = PixelUI.createSlot(this.scene, 0, 0, size, tier);
     slot.add(slotBg);

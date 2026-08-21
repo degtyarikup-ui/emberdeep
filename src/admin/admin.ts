@@ -145,7 +145,7 @@ class DashboardManager {
 
       const runsWithJobs = await Promise.all(
         runs.map(async (run) => {
-          if (run.conclusion === 'failure' || run.status === 'in_progress') {
+          if (run.conclusion === 'failure' || run.status === 'in_progress' || run.event === 'schedule') {
             const jobsRes = await apiFetch<{ jobs: WorkflowJob[] }>(run.jobs_url);
             if (jobsRes.data?.jobs) {
               return { ...run, jobs: jobsRes.data.jobs };
@@ -454,17 +454,22 @@ function renderTimelineRow(ev: TimelineEvent): string {
   // Workflow run
   const isFailed = ev.status === 'failure';
   const isSuccess = ev.status === 'success';
-  const iconClass = isSuccess
-    ? 'run-icon-success'
+  const isRunning = ev.status === 'in_progress' || ev.status === 'queued';
+  const statusBadgeClass = isSuccess
+    ? 'avatar-status-success'
     : isFailed
-      ? 'run-icon-error'
-      : 'run-icon-running';
-  const iconSymbol = isSuccess ? ICONS.check : isFailed ? ICONS.x : '·';
+      ? 'avatar-status-error'
+      : isRunning
+        ? 'avatar-status-running'
+        : 'avatar-status-pending';
 
   return `
     <div class="timeline-row">
       <div class="timeline-left">
-        <div class="run-icon ${iconClass}">${iconSymbol}</div>
+        <div class="avatar-wrapper">
+          <img class="avatar-icon" src="${ev.authorAvatar}" alt="" />
+          <span class="avatar-status-badge ${statusBadgeClass}"></span>
+        </div>
         <div class="timeline-content">
           <div class="timeline-title-line">
             <span class="type-pill" style="display: inline-flex; align-items: center; gap: 3px;">

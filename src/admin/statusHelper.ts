@@ -52,6 +52,14 @@ export interface GitHubRun {
     avatar_url: string;
     html_url: string;
   } | null;
+  head_commit?: {
+    id: string;
+    message: string;
+    author: {
+      name: string;
+      email: string;
+    };
+  } | null;
   display_title?: string;
   jobs?: WorkflowJob[];
 }
@@ -275,8 +283,10 @@ export function buildTimeline(params: {
   deployedSha?: string;
 }): TimelineEvent[] {
   const events: TimelineEvent[] = [];
+  const commitMap = new Map<string, GitHubCommit>();
 
   for (const c of params.commits) {
+    commitMap.set(c.sha, c);
     const authInfo = resolveAuthorInfo({
       login: c.author?.login,
       name: c.commit.author.name,
@@ -292,7 +302,7 @@ export function buildTimeline(params: {
       dateStr: c.commit.author.date,
       authorName: authInfo.displayName,
       authorAvatar:
-        c.author?.avatar_url || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
+        c.author?.avatar_url || (authInfo.isMrKadoku ? 'https://github.com/MrKadoku.png' : 'https://github.com/degtyarikup-ui.png'),
       title: parsed.title,
       body: parsed.body,
       sha: c.sha.slice(0, 7),
@@ -302,6 +312,25 @@ export function buildTimeline(params: {
   }
 
   for (const run of params.runs) {
+    // If this was an automated scheduled check that skipped build, omit it from the main timeline
+    const buildJob = run.jobs?.find((j) => j.name.toLowerCase().includes('build'));
+    const isSkippedNoop = run.event === 'schedule' && buildJob?.conclusion === 'skipped' && run.conclusion === 'success';
+    if (isSkippedNoop) {
+      continue;
+    }
+
+    const matchedCommit = run.head_sha ? commitMap.get(run.head_sha) : undefined;
+    const authorParam = {
+      login: matchedCommit?.author?.login || run.head_commit?.author?.name || run.actor?.login,
+      name: matchedCommit?.commit.author.name || run.head_commit?.author?.name || run.actor?.login,
+      email: matchedCommit?.commit.author.email || run.head_commit?.author?.email,
+    };
+    const actorInfo = resolveAuthorInfo(authorParam);
+    const authorAvatar =
+      matchedCommit?.author?.avatar_url ||
+      (actorInfo.isMrKadoku ? 'https://github.com/MrKadoku.png' : actorInfo.isDegtyarik ? 'https://github.com/degtyarikup-ui.png' : run.actor?.avatar_url) ||
+      'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
+
     const isFailed = run.conclusion === 'failure';
     const isSuccess = run.conclusion === 'success';
     const isRunning = run.status === 'in_progress' || run.status === 'queued';
@@ -313,7 +342,6 @@ export function buildTimeline(params: {
         : isRunning
           ? 'Идет сборка'
           : 'В очереди';
-    const actorInfo = resolveAuthorInfo({ login: run.actor?.login });
     const duration = calculateDuration(run.run_started_at || run.created_at, run.updated_at);
     const failedSteps = run.jobs ? getAllFailedSteps(run.jobs) : [];
 
@@ -323,15 +351,14 @@ export function buildTimeline(params: {
       date: new Date(run.updated_at || run.created_at),
       dateStr: run.updated_at || run.created_at,
       authorName: actorInfo.displayName,
-      authorAvatar:
-        run.actor?.avatar_url || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
-      title: run.display_title || run.name,
+      authorAvatar,
+      title: run.display_title || matchedCommit?.commit.message || run.name,
       status,
       statusLabel,
       sha: run.head_sha ? run.head_sha.slice(0, 7) : undefined,
       url: run.html_url,
       duration,
-      eventTrigger: run.event,
+      eventTrigger: run.event === 'schedule' ? 'auto-deploy' : run.event,
       failedSteps,
       jobs: run.jobs,
     });

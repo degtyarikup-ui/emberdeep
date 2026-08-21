@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildTimeline,
   calculateDeploySyncState,
   calculateDuration,
   findFailedStep,
@@ -7,6 +8,8 @@ import {
   getAllFailedSteps,
   parseCommitMessage,
   resolveAuthorInfo,
+  type GitHubCommit,
+  type GitHubRun,
   type WorkflowJob,
 } from '../src/admin/statusHelper';
 
@@ -197,6 +200,54 @@ describe('statusHelper: resolveAuthorInfo', () => {
     expect(res.colorType).toBe('blue');
     expect(res.isMrKadoku).toBe(true);
     expect(res.isDegtyarik).toBe(false);
+  });
+});
+
+describe('statusHelper: buildTimeline', () => {
+  it('combines commits and runs chronologically', () => {
+    const commits: GitHubCommit[] = [
+      {
+        sha: 'aaa1111',
+        commit: {
+          message: 'feat: add first feature',
+          author: { name: 'degtyarikup-ui', email: 'degtyarik.up@gmail.com', date: '2026-08-21T10:00:00Z' },
+        },
+        author: { login: 'degtyarikup-ui', avatar_url: '', html_url: '' },
+        html_url: 'https://github.com/.../aaa1111',
+      },
+      {
+        sha: 'bbb2222',
+        commit: {
+          message: 'feat: add second feature',
+          author: { name: 'MrKadoku', email: 'ec1ipse_god@mail.ru', date: '2026-08-21T12:00:00Z' },
+        },
+        author: { login: 'MrKadoku', avatar_url: '', html_url: '' },
+        html_url: 'https://github.com/.../bbb2222',
+      },
+    ];
+
+    const runs: GitHubRun[] = [
+      {
+        id: 101,
+        name: 'Deploy',
+        head_sha: 'aaa1111',
+        head_branch: 'main',
+        event: 'push',
+        status: 'completed',
+        conclusion: 'success',
+        html_url: 'https://github.com/.../run/101',
+        created_at: '2026-08-21T10:02:00Z',
+        updated_at: '2026-08-21T10:03:00Z',
+        jobs_url: '',
+      },
+    ];
+
+    const timeline = buildTimeline({ commits, runs, deployedSha: 'bbb2222' });
+    expect(timeline.length).toBe(3);
+    expect(timeline[0].id).toBe('commit-bbb2222'); // 12:00
+    expect(timeline[0].isDeployed).toBe(true);
+    expect(timeline[1].id).toBe('run-101'); // 10:03
+    expect(timeline[2].id).toBe('commit-aaa1111'); // 10:00
   });
 });
 

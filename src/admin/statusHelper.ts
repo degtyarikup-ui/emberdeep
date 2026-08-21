@@ -170,7 +170,7 @@ export function calculateDeploySyncState(params: {
     return {
       state: 'building',
       label: 'Идет сборка',
-      description: 'GitHub Actions в процессе выполнения проверки и сборки.',
+      description: 'GitHub Actions выполняет проверку и деплой.',
     };
   }
 
@@ -245,4 +245,97 @@ export function getAllFailedSteps(jobs: WorkflowJob[]): Array<{
     }
   }
   return result;
+}
+
+export type TimelineEventType = 'commit' | 'run';
+
+export interface TimelineEvent {
+  id: string;
+  type: TimelineEventType;
+  date: Date;
+  dateStr: string;
+  authorName: string;
+  authorAvatar: string;
+  title: string;
+  body?: string;
+  status?: 'success' | 'failure' | 'in_progress' | 'queued';
+  statusLabel?: string;
+  sha?: string;
+  url: string;
+  duration?: string;
+  isDeployed?: boolean;
+  eventTrigger?: string;
+  failedSteps?: Array<{ jobName: string; stepName: string }>;
+  jobs?: WorkflowJob[];
+}
+
+export function buildTimeline(params: {
+  commits: GitHubCommit[];
+  runs: GitHubRun[];
+  deployedSha?: string;
+}): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  for (const c of params.commits) {
+    const authInfo = resolveAuthorInfo({
+      login: c.author?.login,
+      name: c.commit.author.name,
+      email: c.commit.author.email,
+    });
+    const parsed = parseCommitMessage(c.commit.message);
+    const isDeployed = params.deployedSha ? c.sha.startsWith(params.deployedSha.slice(0, 7)) : false;
+
+    events.push({
+      id: `commit-${c.sha}`,
+      type: 'commit',
+      date: new Date(c.commit.author.date),
+      dateStr: c.commit.author.date,
+      authorName: authInfo.displayName,
+      authorAvatar:
+        c.author?.avatar_url || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
+      title: parsed.title,
+      body: parsed.body,
+      sha: c.sha.slice(0, 7),
+      url: c.html_url,
+      isDeployed,
+    });
+  }
+
+  for (const run of params.runs) {
+    const isFailed = run.conclusion === 'failure';
+    const isSuccess = run.conclusion === 'success';
+    const isRunning = run.status === 'in_progress' || run.status === 'queued';
+    const status = isSuccess ? 'success' : isFailed ? 'failure' : isRunning ? 'in_progress' : 'queued';
+    const statusLabel = isSuccess
+      ? 'Сборка успешна'
+      : isFailed
+        ? 'Сборка упала'
+        : isRunning
+          ? 'Идет сборка'
+          : 'В очереди';
+    const actorInfo = resolveAuthorInfo({ login: run.actor?.login });
+    const duration = calculateDuration(run.run_started_at || run.created_at, run.updated_at);
+    const failedSteps = run.jobs ? getAllFailedSteps(run.jobs) : [];
+
+    events.push({
+      id: `run-${run.id}`,
+      type: 'run',
+      date: new Date(run.updated_at || run.created_at),
+      dateStr: run.updated_at || run.created_at,
+      authorName: actorInfo.displayName,
+      authorAvatar:
+        run.actor?.avatar_url || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
+      title: run.display_title || run.name,
+      status,
+      statusLabel,
+      sha: run.head_sha ? run.head_sha.slice(0, 7) : undefined,
+      url: run.html_url,
+      duration,
+      eventTrigger: run.event,
+      failedSteps,
+      jobs: run.jobs,
+    });
+  }
+
+  return events.sort((a, b) => b.date.getTime() - a.date.getTime());
 }

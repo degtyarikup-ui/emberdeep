@@ -1,15 +1,13 @@
 import './admin.css';
 import {
+  buildTimeline,
   calculateDeploySyncState,
-  calculateDuration,
-  findFailedStep,
   formatRelativeTime,
-  getAllFailedSteps,
-  parseCommitMessage,
   resolveAuthorInfo,
   type GitHubCommit,
   type GitHubDeployment,
   type GitHubRun,
+  type TimelineEvent,
   type WorkflowJob,
 } from './statusHelper';
 
@@ -19,6 +17,8 @@ const API_BASE = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
 const TOKEN_KEY = 'emberdeep_gh_token';
 const AUTH_KEY = 'emberdeep_admin_auth';
 const REQUIRED_PIN = '2255';
+
+type EventFilter = 'all' | 'commits' | 'runs' | 'errors' | 'degtyarikup-ui' | 'MrKadoku';
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem(TOKEN_KEY)?.trim();
@@ -41,7 +41,7 @@ async function apiFetch<T>(url: string): Promise<{ data: T | null; rateLimitRema
         return {
           data: null,
           rateLimitRemaining,
-          error: 'Лимит запросов GitHub API исчерпан (403). Укажите GitHub Token в настройках ниже.',
+          error: 'Лимит запросов GitHub API исчерпан (403). Укажите GitHub Token в настройках.',
         };
       }
       return {
@@ -68,8 +68,7 @@ interface DashboardState {
   rateLimitRemaining: string;
   errorMessage: string | null;
   lastLoadedTime: string;
-  activeTab: 'commits' | 'runs';
-  authorFilter: 'all' | 'degtyarikup-ui' | 'MrKadoku';
+  activeFilter: EventFilter;
 }
 
 class DashboardManager {
@@ -80,8 +79,7 @@ class DashboardManager {
     rateLimitRemaining: '—',
     errorMessage: null,
     lastLoadedTime: '',
-    activeTab: 'commits',
-    authorFilter: 'all',
+    activeFilter: 'all',
   };
 
   private isAuthenticated = false;
@@ -102,13 +100,8 @@ class DashboardManager {
     }
   }
 
-  public setTab(tab: 'commits' | 'runs'): void {
-    this.state.activeTab = tab;
-    this.renderDashboard();
-  }
-
-  public setAuthorFilter(filter: 'all' | 'degtyarikup-ui' | 'MrKadoku'): void {
-    this.state.authorFilter = filter;
+  public setFilter(filter: EventFilter): void {
+    this.state.activeFilter = filter;
     this.renderDashboard();
   }
 
@@ -270,13 +263,6 @@ class DashboardManager {
       latestRunConclusion: latestRun?.conclusion,
     });
 
-    const failedStep = latestRun?.conclusion === 'failure' && latestRun.jobs ? findFailedStep(latestRun.jobs) : null;
-
-    let badgeClass = 'badge-pending';
-    if (syncState.state === 'synced') badgeClass = 'badge-success';
-    else if (syncState.state === 'failed') badgeClass = 'badge-failure';
-    else if (syncState.state === 'building') badgeClass = 'badge-running';
-
     const savedToken = localStorage.getItem(TOKEN_KEY) || '';
 
     const headAuthorInfo = resolveAuthorInfo({
@@ -285,42 +271,44 @@ class DashboardManager {
       email: headCommit?.commit.author.email,
     });
 
-    const lastAuthorAvatar =
-      headCommit?.author?.avatar_url ||
-      'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-    const lastCommitTime = headCommit ? formatRelativeTime(headCommit.commit.author.date) : '';
+    const allEvents = buildTimeline({
+      commits: this.state.commits,
+      runs: this.state.runs,
+      deployedSha,
+    });
 
-    const failedRunsCount = this.state.runs.filter((r) => r.conclusion === 'failure').length;
-
-    const degtyarikCount = this.state.commits.filter((c) =>
-      resolveAuthorInfo({ login: c.author?.login, name: c.commit.author.name, email: c.commit.author.email }).isDegtyarik
-    ).length;
-
-    const mrKadokuCount = this.state.commits.filter((c) =>
-      resolveAuthorInfo({ login: c.author?.login, name: c.commit.author.name, email: c.commit.author.email }).isMrKadoku
-    ).length;
-
-    const filteredCommits = this.state.commits.filter((c) => {
-      if (this.state.authorFilter === 'all') return true;
-      const info = resolveAuthorInfo({
-        login: c.author?.login,
-        name: c.commit.author.name,
-        email: c.commit.author.email,
-      });
-      if (this.state.authorFilter === 'degtyarikup-ui') return info.isDegtyarik;
-      if (this.state.authorFilter === 'MrKadoku') return info.isMrKadoku;
+    const filteredEvents = allEvents.filter((ev) => {
+      if (this.state.activeFilter === 'all') return true;
+      if (this.state.activeFilter === 'commits') return ev.type === 'commit';
+      if (this.state.activeFilter === 'runs') return ev.type === 'run';
+      if (this.state.activeFilter === 'errors') return ev.type === 'run' && ev.status === 'failure';
+      if (this.state.activeFilter === 'degtyarikup-ui') {
+        const info = resolveAuthorInfo({ login: ev.authorName });
+        return info.isDegtyarik;
+      }
+      if (this.state.activeFilter === 'MrKadoku') {
+        const info = resolveAuthorInfo({ login: ev.authorName });
+        return info.isMrKadoku;
+      }
       return true;
     });
+
+    const errorRunsCount = this.state.runs.filter((r) => r.conclusion === 'failure').length;
+
+    let dotClass = 'dot-pending';
+    if (syncState.state === 'synced') dotClass = 'dot-success';
+    else if (syncState.state === 'failed') dotClass = 'dot-error';
+    else if (syncState.state === 'building') dotClass = 'dot-running';
 
     root.innerHTML = `
       <div class="dashboard-container">
         <header class="dashboard-header">
           <div class="header-brand">
             <h1 class="header-title">Emberdeep</h1>
-            <div class="header-subtitle">Панель активности и деплоев (degtyarikup-ui & MrKadoku)</div>
+            <span class="header-subtitle">Таймлайн активности (degtyarikup-ui & MrKadoku)</span>
           </div>
           <div class="header-actions">
-            <a href="./" class="btn">Открыть игру</a>
+            <a href="./" class="btn">Игра</a>
             <button id="refresh-btn" class="btn btn-primary" onclick="window.__adminRefresh()">
               Обновить
             </button>
@@ -330,284 +318,78 @@ class DashboardManager {
           </div>
         </header>
 
+        <div class="status-summary-bar">
+          <div class="summary-item">
+            <span class="summary-label">Сайт:</span>
+            <span class="badge-dot ${dotClass}"></span>
+            <span class="summary-value">${escapeHtml(syncState.label)}</span>
+            ${deployedSha ? `<a class="sha-tag" href="https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${deployedSha}" target="_blank">${deployedSha.slice(0, 7)}</a>` : ''}
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Последний коммит:</span>
+            <span class="summary-value">${escapeHtml(headAuthorInfo.displayName)}</span>
+            ${headSha ? `<a class="sha-tag" href="${headCommit?.html_url}" target="_blank">${headSha.slice(0, 7)}</a>` : ''}
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">CI:</span>
+            <span class="summary-value">${latestRun ? (latestRun.conclusion === 'success' ? 'Успешно' : latestRun.conclusion === 'failure' ? 'Ошибка' : latestRun.status) : '—'}</span>
+          </div>
+        </div>
+
         ${
           this.state.errorMessage
             ? `
-          <div class="alert-banner">
-            <div class="alert-title">Ошибка при загрузке данных</div>
-            <div class="alert-content">${escapeHtml(this.state.errorMessage)}</div>
+          <div class="timeline-error-box" style="margin-bottom: 8px;">
+            ${escapeHtml(this.state.errorMessage)}
           </div>
         `
             : ''
         }
 
-        <div class="status-grid">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Сайт (GitHub Pages)</span>
-              <span class="badge ${badgeClass}">
-                <span class="badge-dot"></span>
-                ${escapeHtml(syncState.label)}
-              </span>
-            </div>
-            <div class="card-main-stat">
-              ${
-                deployedSha
-                  ? `<a class="sha-tag" href="https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${deployedSha}" target="_blank">${deployedSha.slice(0, 7)}</a>`
-                  : '—'
-              }
-            </div>
-            <div class="card-desc">${escapeHtml(syncState.description)}</div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Последний коммит в main</span>
-              <span class="badge badge-pending">HEAD</span>
-            </div>
-            <div class="card-main-stat">
-              <img class="author-avatar" style="width: 22px; height: 22px;" src="${lastAuthorAvatar}" alt="" />
-              <span>${escapeHtml(headAuthorInfo.displayName)}</span>
-              ${headSha ? `<a class="sha-tag" href="${headCommit?.html_url}" target="_blank">${headSha.slice(0, 7)}</a>` : ''}
-            </div>
-            <div class="card-desc">
-              ${headCommit ? `${lastCommitTime} · «${escapeHtml(parseCommitMessage(headCommit.commit.message).title)}»` : 'Нет данных'}
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">GitHub Actions CI</span>
-              ${
-                latestRun
-                  ? `
-                <span class="badge ${latestRun.conclusion === 'success' ? 'badge-success' : latestRun.status === 'in_progress' ? 'badge-running' : latestRun.conclusion === 'failure' ? 'badge-failure' : 'badge-pending'}">
-                  <span class="badge-dot"></span>
-                  ${latestRun.status === 'in_progress' ? 'Сборка' : latestRun.conclusion === 'success' ? 'Успешно' : latestRun.conclusion === 'failure' ? 'Ошибка' : latestRun.status}
-                </span>
-              `
-                  : ''
-              }
-            </div>
-            <div class="card-main-stat" style="font-size: 14px;">
-              ${
-                latestRun
-                  ? `<a href="${latestRun.html_url}" target="_blank" style="color: inherit; text-decoration: none;">Run #${latestRun.id}</a>`
-                  : '—'
-              }
-            </div>
-            <div class="card-desc">
-              ${
-                latestRun
-                  ? `${escapeHtml(latestRun.event)} · ${formatRelativeTime(latestRun.updated_at)}`
-                  : 'Нет запусков'
-              }
-            </div>
-          </div>
-        </div>
-
-        ${
-          failedStep
-            ? `
-          <div class="alert-banner">
-            <div class="alert-title">Ошибка в последней сборке GitHub Actions</div>
-            <div class="alert-content">
-              Упал шаг: <strong>${escapeHtml(failedStep.stepName)}</strong> (Job: ${escapeHtml(failedStep.jobName)}) ·
-              <a href="${latestRun?.html_url}" target="_blank" style="color: #fff; text-decoration: underline;">
-                Логи на GitHub &rarr;
-              </a>
-            </div>
-          </div>
-        `
-            : ''
-        }
-
-        <div class="tab-nav">
-          <button class="tab-btn ${this.state.activeTab === 'commits' ? 'active' : ''}" onclick="window.__adminSetTab('commits')">
-            Коммиты
-            <span class="tab-badge">${this.state.commits.length}</span>
+        <div class="filter-bar">
+          <button class="filter-btn ${this.state.activeFilter === 'all' ? 'active' : ''}" onclick="window.__adminSetFilter('all')">
+            Все события (${allEvents.length})
           </button>
-          <button class="tab-btn ${this.state.activeTab === 'runs' ? 'active' : ''}" onclick="window.__adminSetTab('runs')">
-            Сборки & Ошибки
-            <span class="tab-badge ${failedRunsCount > 0 ? 'badge-error-count' : ''}">${this.state.runs.length}${failedRunsCount > 0 ? ` (${failedRunsCount} ошибок)` : ''}</span>
+          <button class="filter-btn ${this.state.activeFilter === 'commits' ? 'active' : ''}" onclick="window.__adminSetFilter('commits')">
+            Коммиты (${this.state.commits.length})
+          </button>
+          <button class="filter-btn ${this.state.activeFilter === 'runs' ? 'active' : ''}" onclick="window.__adminSetFilter('runs')">
+            Сборки CI (${this.state.runs.length})
+          </button>
+          ${
+            errorRunsCount > 0
+              ? `
+            <button class="filter-btn ${this.state.activeFilter === 'errors' ? 'active' : ''}" onclick="window.__adminSetFilter('errors')" style="color: #ef4444;">
+              Ошибки (${errorRunsCount})
+            </button>
+          `
+              : ''
+          }
+          <span style="color: var(--text-tertiary); font-size: 11px; margin: 0 4px;">|</span>
+          <button class="filter-btn ${this.state.activeFilter === 'degtyarikup-ui' ? 'active' : ''}" onclick="window.__adminSetFilter('degtyarikup-ui')">
+            degtyarikup-ui
+          </button>
+          <button class="filter-btn ${this.state.activeFilter === 'MrKadoku' ? 'active' : ''}" onclick="window.__adminSetFilter('MrKadoku')">
+            MrKadoku
           </button>
         </div>
 
-        ${
-          this.state.activeTab === 'commits'
-            ? `
-          <div class="filter-bar">
-            <span class="filter-label">Автор:</span>
-            <button class="filter-btn ${this.state.authorFilter === 'all' ? 'active' : ''}" onclick="window.__adminSetAuthorFilter('all')">
-              Все (${this.state.commits.length})
-            </button>
-            <button class="filter-btn ${this.state.authorFilter === 'degtyarikup-ui' ? 'active' : ''}" onclick="window.__adminSetAuthorFilter('degtyarikup-ui')">
-              degtyarikup-ui (${degtyarikCount})
-            </button>
-            <button class="filter-btn ${this.state.authorFilter === 'MrKadoku' ? 'active' : ''}" onclick="window.__adminSetAuthorFilter('MrKadoku')">
-              MrKadoku (${mrKadokuCount})
-            </button>
-          </div>
-
-          <div class="commit-list">
-            ${
-              filteredCommits.length === 0
-                ? '<div class="card-desc" style="padding: 12px 0;">Нет коммитов по выбранному фильтру.</div>'
-                : filteredCommits
-                    .map((c) => {
-                      const { title } = parseCommitMessage(c.commit.message);
-                      const isDeployed = deployedSha && c.sha.startsWith(deployedSha.slice(0, 7));
-                      const avatar =
-                        c.author?.avatar_url ||
-                        'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-                      const authInfo = resolveAuthorInfo({
-                        login: c.author?.login,
-                        name: c.commit.author.name,
-                        email: c.commit.author.email,
-                      });
-
-                      return `
-                <div class="commit-item">
-                  <div class="commit-left">
-                    <img class="author-avatar" src="${avatar}" alt="" />
-                    <div class="commit-details">
-                      <div class="commit-message-title" title="${escapeHtml(c.commit.message)}">${escapeHtml(title)}</div>
-                      <div class="commit-meta">
-                        <span class="author-name">${escapeHtml(authInfo.displayName)}</span>
-                        <span>·</span>
-                        <span>${formatRelativeTime(c.commit.author.date)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="commit-right">
-                    ${isDeployed ? '<span class="deployed-chip">На сайте</span>' : ''}
-                    <a class="sha-tag" href="${c.html_url}" target="_blank">${c.sha.slice(0, 7)}</a>
-                  </div>
-                </div>
-              `;
-                    })
-                    .join('')
-            }
-          </div>
-        `
-            : `
-          <div class="runs-list">
-            ${
-              this.state.runs.length === 0
-                ? '<div class="card-desc" style="padding: 12px 0;">Загрузка истории сборок...</div>'
-                : this.state.runs
-                    .map((run) => {
-                      const isFailed = run.conclusion === 'failure';
-                      const isSuccess = run.conclusion === 'success';
-                      const isRunning = run.status === 'in_progress' || run.status === 'queued';
-                      const duration = calculateDuration(run.run_started_at || run.created_at, run.updated_at);
-                      const failedSteps = run.jobs ? getAllFailedSteps(run.jobs) : [];
-                      const actorAvatar =
-                        run.actor?.avatar_url ||
-                        'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-                      const actorInfo = resolveAuthorInfo({
-                        login: run.actor?.login,
-                      });
-
-                      let statusBadge = `<span class="badge badge-pending">${run.status}</span>`;
-                      if (isSuccess) {
-                        statusBadge = '<span class="badge badge-success"><span class="badge-dot"></span>Успешно</span>';
-                      } else if (isFailed) {
-                        statusBadge = '<span class="badge badge-failure"><span class="badge-dot"></span>Ошибка</span>';
-                      } else if (isRunning) {
-                        statusBadge = '<span class="badge badge-running"><span class="badge-dot"></span>Сборка</span>';
-                      }
-
-                      return `
-                <div class="run-card ${isFailed ? 'is-failed' : ''}">
-                  <div class="run-card-header">
-                    <div class="run-card-left">
-                      <img class="author-avatar" src="${actorAvatar}" alt="" />
-                      <div>
-                        <div class="run-card-title">${escapeHtml(run.display_title || run.name)}</div>
-                        <div class="run-card-meta">
-                          <span class="author-name">${escapeHtml(actorInfo.displayName)}</span>
-                          <span>·</span>
-                          <span>${formatRelativeTime(run.updated_at)}</span>
-                          ${duration ? `<span>·</span><span>${duration}</span>` : ''}
-                          <span>·</span>
-                          <span>${escapeHtml(run.event)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="commit-right">
-                      ${statusBadge}
-                      <a class="sha-tag" href="${run.html_url}" target="_blank">#${run.id}</a>
-                    </div>
-                  </div>
-
-                  ${
-                    isFailed && failedSteps.length > 0
-                      ? `
-                    <div class="run-error-details-box">
-                      <div><strong>Ошибка на шаге:</strong></div>
-                      ${failedSteps
-                        .map(
-                          (step) => `
-                        <div style="font-family: var(--font-mono); font-size: 11px;">
-                          [${escapeHtml(step.jobName)}] ${escapeHtml(step.stepName)}
-                        </div>
-                      `
-                        )
-                        .join('')}
-                      <a href="${run.html_url}" target="_blank" style="color: #fff; text-decoration: underline; font-size: 11px; margin-top: 2px;">
-                        Открыть логи на GitHub &rarr;
-                      </a>
-                    </div>
-                  `
-                      : ''
-                  }
-
-                  ${
-                    run.jobs && run.jobs.length > 0 && !isFailed
-                      ? `
-                    <div class="run-steps-container">
-                      ${run.jobs
-                        .map((job) => {
-                          const icon =
-                            job.conclusion === 'success'
-                              ? '<span class="step-status-icon step-status-success">✓</span>'
-                              : job.conclusion === 'failure'
-                                ? '<span class="step-status-icon step-status-failure">x</span>'
-                                : '<span class="step-status-icon step-status-skipped">·</span>';
-                          const jobDuration = calculateDuration(job.started_at, job.completed_at);
-                          return `
-                          <div class="step-item">
-                            <div class="step-name-box">
-                              ${icon}
-                              <span>${escapeHtml(job.name)}</span>
-                            </div>
-                            <span style="font-size: 11px; color: var(--text-tertiary);">${jobDuration}</span>
-                          </div>
-                        `;
-                        })
-                        .join('')}
-                    </div>
-                  `
-                      : ''
-                  }
-                </div>
-              `;
-                    })
-                    .join('')
-            }
-          </div>
-        `
-        }
+        <div class="timeline-feed">
+          ${
+            filteredEvents.length === 0
+              ? '<div style="padding: 24px; text-align: center; color: var(--text-tertiary); font-size: 13px;">Нет событий по выбранному фильтру.</div>'
+              : filteredEvents.map((ev) => renderTimelineRow(ev)).join('')
+          }
+        </div>
 
         <details class="settings-box">
-          <summary style="cursor: pointer; font-size: 12px; color: var(--text-secondary);">
+          <summary style="cursor: pointer; color: var(--text-secondary);">
             GitHub API Token (опционально)
           </summary>
           <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px;">
-            Укажите токен, если исчерпан публичный лимит 60 запросов/час.
+            Укажите персональный токен, если исчерпан лимит 60 запросов/час.
           </div>
-          <div class="settings-row" style="margin-top: 6px;">
+          <div class="settings-row">
             <input
               id="gh-token-input"
               type="password"
@@ -633,6 +415,81 @@ class DashboardManager {
   }
 }
 
+function renderTimelineRow(ev: TimelineEvent): string {
+  if (ev.type === 'commit') {
+    return `
+      <div class="timeline-row">
+        <div class="timeline-left">
+          <img class="avatar-icon" src="${ev.authorAvatar}" alt="" />
+          <div class="timeline-content">
+            <div class="timeline-title-line">
+              <span class="type-pill">Коммит</span>
+              <span class="timeline-title">${escapeHtml(ev.title)}</span>
+              ${ev.isDeployed ? '<span class="deployed-chip">На сайте</span>' : ''}
+            </div>
+            <div class="timeline-meta">
+              <span class="author-name">${escapeHtml(ev.authorName)}</span>
+              <span>·</span>
+              <span>${formatRelativeTime(ev.dateStr)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-right">
+          <a class="sha-tag" href="${ev.url}" target="_blank">${ev.sha}</a>
+        </div>
+      </div>
+    `;
+  }
+
+  // Workflow run
+  const isFailed = ev.status === 'failure';
+  const isSuccess = ev.status === 'success';
+  const iconClass = isSuccess
+    ? 'run-icon-success'
+    : isFailed
+      ? 'run-icon-error'
+      : 'run-icon-running';
+  const iconSymbol = isSuccess ? '✓' : isFailed ? 'x' : '·';
+
+  return `
+    <div class="timeline-row">
+      <div class="timeline-left">
+        <div class="run-icon ${iconClass}">${iconSymbol}</div>
+        <div class="timeline-content">
+          <div class="timeline-title-line">
+            <span class="type-pill">Сборка CI</span>
+            <span class="timeline-title">${escapeHtml(ev.title)}</span>
+            <span style="font-size: 11px; color: ${isSuccess ? 'var(--color-success)' : isFailed ? 'var(--color-error)' : 'var(--color-warning)'};">
+              ${escapeHtml(ev.statusLabel || '')}
+            </span>
+          </div>
+          <div class="timeline-meta">
+            <span class="author-name">${escapeHtml(ev.authorName)}</span>
+            <span>·</span>
+            <span>${formatRelativeTime(ev.dateStr)}</span>
+            ${ev.duration ? `<span>·</span><span>${ev.duration}</span>` : ''}
+            <span>·</span>
+            <span>Событие: ${escapeHtml(ev.eventTrigger || '')}</span>
+          </div>
+          ${
+            isFailed && ev.failedSteps && ev.failedSteps.length > 0
+              ? `
+            <div class="timeline-error-box">
+              <div><strong>Упал шаг:</strong> ${ev.failedSteps.map((s) => `[${escapeHtml(s.jobName)}] ${escapeHtml(s.stepName)}`).join(', ')}</div>
+              <div><a href="${ev.url}" target="_blank">Открыть лог ошибки на GitHub &rarr;</a></div>
+            </div>
+          `
+              : ''
+          }
+        </div>
+      </div>
+      <div class="timeline-right">
+        <a class="sha-tag" href="${ev.url}" target="_blank">#${ev.id.replace('run-', '')}</a>
+      </div>
+    </div>
+  `;
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -649,8 +506,7 @@ declare global {
   interface Window {
     __adminRefresh: () => void;
     __adminLogout: () => void;
-    __adminSetTab: (tab: 'commits' | 'runs') => void;
-    __adminSetAuthorFilter: (filter: 'all' | 'degtyarikup-ui' | 'MrKadoku') => void;
+    __adminSetFilter: (filter: EventFilter) => void;
     __adminSubmitPin: (event: Event) => void;
     __adminSaveToken: () => void;
     __adminClearToken: () => void;
@@ -665,12 +521,8 @@ window.__adminLogout = () => {
   dashboard.logout();
 };
 
-window.__adminSetTab = (tab: 'commits' | 'runs') => {
-  dashboard.setTab(tab);
-};
-
-window.__adminSetAuthorFilter = (filter: 'all' | 'degtyarikup-ui' | 'MrKadoku') => {
-  dashboard.setAuthorFilter(filter);
+window.__adminSetFilter = (filter: EventFilter) => {
+  dashboard.setFilter(filter);
 };
 
 window.__adminSubmitPin = (event: Event) => {

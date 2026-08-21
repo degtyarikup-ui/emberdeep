@@ -149,7 +149,6 @@ class DashboardManager {
 
       const runs = runsRes.data?.workflow_runs ?? this.state.runs;
 
-      // Load detailed jobs for failed or in-progress runs
       const runsWithJobs = await Promise.all(
         runs.map(async (run) => {
           if (run.conclusion === 'failure' || run.status === 'in_progress') {
@@ -216,7 +215,7 @@ class DashboardManager {
     if (loading) {
       btn.innerHTML = '<span class="loading-spinner"></span> Обновление...';
     } else {
-      btn.innerHTML = 'Обновить данные';
+      btn.innerHTML = 'Обновить';
     }
   }
 
@@ -227,9 +226,8 @@ class DashboardManager {
     root.innerHTML = `
       <div class="lock-screen-container">
         <div id="lock-card" class="lock-card ${errorMessage ? 'shake' : ''}">
-          <div class="lock-logo">E</div>
           <h2 class="lock-title">Emberdeep Admin</h2>
-          <div class="lock-subtitle">Доступ для разработчиков. Введите 4-значный PIN-код:</div>
+          <div class="lock-subtitle">Введите 4-значный PIN-код</div>
           <form class="pin-form" onsubmit="window.__adminSubmitPin(event)">
             <input
               id="pin-input"
@@ -242,7 +240,7 @@ class DashboardManager {
               autofocus
             />
             <div id="pin-error" class="lock-error">${escapeHtml(errorMessage)}</div>
-            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px;">
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 8px;">
               Войти
             </button>
           </form>
@@ -290,12 +288,10 @@ class DashboardManager {
     const lastAuthorAvatar =
       headCommit?.author?.avatar_url ||
       'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
-    const lastCommitTitle = headCommit ? parseCommitMessage(headCommit.commit.message).title : '';
     const lastCommitTime = headCommit ? formatRelativeTime(headCommit.commit.author.date) : '';
 
     const failedRunsCount = this.state.runs.filter((r) => r.conclusion === 'failure').length;
 
-    // Filter commits by author
     const degtyarikCount = this.state.commits.filter((c) =>
       resolveAuthorInfo({ login: c.author?.login, name: c.commit.author.name, email: c.commit.author.email }).isDegtyarik
     ).length;
@@ -320,56 +316,25 @@ class DashboardManager {
       <div class="dashboard-container">
         <header class="dashboard-header">
           <div class="header-brand">
-            <div class="logo-icon">E</div>
-            <div>
-              <h1 class="header-title">Emberdeep — Панель версий</h1>
-              <div class="header-subtitle">Команда: degtyarikup-ui & MrKadoku · Отслеживание пушей и CI/CD</div>
-            </div>
+            <h1 class="header-title">Emberdeep</h1>
+            <div class="header-subtitle">Панель активности и деплоев (degtyarikup-ui & MrKadoku)</div>
           </div>
           <div class="header-actions">
             <a href="./" class="btn">Открыть игру</a>
             <button id="refresh-btn" class="btn btn-primary" onclick="window.__adminRefresh()">
-              Обновить данные
+              Обновить
             </button>
-            <button class="btn" onclick="window.__adminLogout()" title="Выйти из админки">
+            <button class="btn" onclick="window.__adminLogout()" title="Выйти">
               Выйти
             </button>
           </div>
         </header>
 
         ${
-          headCommit
-            ? `
-          <div class="author-hero-banner">
-            <div class="author-hero-left">
-              <img class="author-hero-avatar" src="${lastAuthorAvatar}" alt="${escapeHtml(headAuthorInfo.displayName)}" />
-              <div class="author-hero-info">
-                <div class="author-hero-label">Последний пуш:</div>
-                <div class="author-hero-name">
-                  <span>${escapeHtml(headAuthorInfo.displayName)}</span>
-                </div>
-                <div class="author-hero-message" title="${escapeHtml(headCommit.commit.message)}">
-                  «${escapeHtml(lastCommitTitle)}»
-                </div>
-              </div>
-            </div>
-            <div class="author-hero-right">
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <a class="sha-tag" href="${headCommit.html_url}" target="_blank">${headSha?.slice(0, 7)}</a>
-                <span class="badge ${badgeClass}"><span class="badge-dot"></span>${escapeHtml(syncState.label)}</span>
-              </div>
-              <div style="font-size: 12px; color: var(--text-muted);">${lastCommitTime}</div>
-            </div>
-          </div>
-        `
-            : ''
-        }
-
-        ${
           this.state.errorMessage
             ? `
           <div class="alert-banner">
-            <div class="alert-title">Внимание при загрузке</div>
+            <div class="alert-title">Ошибка при загрузке данных</div>
             <div class="alert-content">${escapeHtml(this.state.errorMessage)}</div>
           </div>
         `
@@ -379,7 +344,7 @@ class DashboardManager {
         <div class="status-grid">
           <div class="card">
             <div class="card-header">
-              <span class="card-title">Статус деплоя</span>
+              <span class="card-title">Сайт (GitHub Pages)</span>
               <span class="badge ${badgeClass}">
                 <span class="badge-dot"></span>
                 ${escapeHtml(syncState.label)}
@@ -397,15 +362,16 @@ class DashboardManager {
 
           <div class="card">
             <div class="card-header">
-              <span class="card-title">Автор последнего коммита</span>
-              <span class="badge badge-pending">Main</span>
+              <span class="card-title">Последний коммит в main</span>
+              <span class="badge badge-pending">HEAD</span>
             </div>
-            <div class="card-main-stat" style="font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
-              <img class="author-avatar" style="width: 26px; height: 26px;" src="${lastAuthorAvatar}" alt="" />
+            <div class="card-main-stat">
+              <img class="author-avatar" style="width: 22px; height: 22px;" src="${lastAuthorAvatar}" alt="" />
               <span>${escapeHtml(headAuthorInfo.displayName)}</span>
+              ${headSha ? `<a class="sha-tag" href="${headCommit?.html_url}" target="_blank">${headSha.slice(0, 7)}</a>` : ''}
             </div>
             <div class="card-desc">
-              ${headCommit ? `${lastCommitTime} · ${headSha?.slice(0, 7)}` : 'Нет данных'}
+              ${headCommit ? `${lastCommitTime} · «${escapeHtml(parseCommitMessage(headCommit.commit.message).title)}»` : 'Нет данных'}
             </div>
           </div>
 
@@ -423,7 +389,7 @@ class DashboardManager {
                   : ''
               }
             </div>
-            <div class="card-main-stat" style="font-size: 16px;">
+            <div class="card-main-stat" style="font-size: 14px;">
               ${
                 latestRun
                   ? `<a href="${latestRun.html_url}" target="_blank" style="color: inherit; text-decoration: none;">Run #${latestRun.id}</a>`
@@ -433,7 +399,7 @@ class DashboardManager {
             <div class="card-desc">
               ${
                 latestRun
-                  ? `Событие: ${latestRun.event} · ${formatRelativeTime(latestRun.updated_at)}`
+                  ? `${escapeHtml(latestRun.event)} · ${formatRelativeTime(latestRun.updated_at)}`
                   : 'Нет запусков'
               }
             </div>
@@ -446,9 +412,9 @@ class DashboardManager {
           <div class="alert-banner">
             <div class="alert-title">Ошибка в последней сборке GitHub Actions</div>
             <div class="alert-content">
-              Упал шаг: <strong>${escapeHtml(failedStep.stepName)}</strong> (Job: ${escapeHtml(failedStep.jobName)})<br />
-              <a href="${latestRun?.html_url}" target="_blank" style="color: #fff; text-decoration: underline; margin-top: 6px; display: inline-block;">
-                Открыть логи ошибки на GitHub Actions &rarr;
+              Упал шаг: <strong>${escapeHtml(failedStep.stepName)}</strong> (Job: ${escapeHtml(failedStep.jobName)}) ·
+              <a href="${latestRun?.html_url}" target="_blank" style="color: #fff; text-decoration: underline;">
+                Логи на GitHub &rarr;
               </a>
             </div>
           </div>
@@ -458,11 +424,11 @@ class DashboardManager {
 
         <div class="tab-nav">
           <button class="tab-btn ${this.state.activeTab === 'commits' ? 'active' : ''}" onclick="window.__adminSetTab('commits')">
-            История пушей и коммитов
+            Коммиты
             <span class="tab-badge">${this.state.commits.length}</span>
           </button>
           <button class="tab-btn ${this.state.activeTab === 'runs' ? 'active' : ''}" onclick="window.__adminSetTab('runs')">
-            История сборок и ошибки CI/CD
+            Сборки & Ошибки
             <span class="tab-badge ${failedRunsCount > 0 ? 'badge-error-count' : ''}">${this.state.runs.length}${failedRunsCount > 0 ? ` (${failedRunsCount} ошибок)` : ''}</span>
           </button>
         </div>
@@ -471,7 +437,7 @@ class DashboardManager {
           this.state.activeTab === 'commits'
             ? `
           <div class="filter-bar">
-            <span class="filter-label">Фильтр по автору:</span>
+            <span class="filter-label">Автор:</span>
             <button class="filter-btn ${this.state.authorFilter === 'all' ? 'active' : ''}" onclick="window.__adminSetAuthorFilter('all')">
               Все (${this.state.commits.length})
             </button>
@@ -486,7 +452,7 @@ class DashboardManager {
           <div class="commit-list">
             ${
               filteredCommits.length === 0
-                ? '<div class="card-desc">Нет коммитов по выбранному фильтру.</div>'
+                ? '<div class="card-desc" style="padding: 12px 0;">Нет коммитов по выбранному фильтру.</div>'
                 : filteredCommits
                     .map((c) => {
                       const { title } = parseCommitMessage(c.commit.message);
@@ -501,9 +467,9 @@ class DashboardManager {
                       });
 
                       return `
-                <div class="commit-item ${isDeployed ? 'is-deployed' : ''}">
+                <div class="commit-item">
                   <div class="commit-left">
-                    <img class="author-avatar" src="${avatar}" alt="${escapeHtml(authInfo.displayName)}" />
+                    <img class="author-avatar" src="${avatar}" alt="" />
                     <div class="commit-details">
                       <div class="commit-message-title" title="${escapeHtml(c.commit.message)}">${escapeHtml(title)}</div>
                       <div class="commit-meta">
@@ -514,7 +480,7 @@ class DashboardManager {
                     </div>
                   </div>
                   <div class="commit-right">
-                    ${isDeployed ? '<span class="deployed-chip">Сейчас на сайте</span>' : ''}
+                    ${isDeployed ? '<span class="deployed-chip">На сайте</span>' : ''}
                     <a class="sha-tag" href="${c.html_url}" target="_blank">${c.sha.slice(0, 7)}</a>
                   </div>
                 </div>
@@ -528,7 +494,7 @@ class DashboardManager {
           <div class="runs-list">
             ${
               this.state.runs.length === 0
-                ? '<div class="card-desc">Загрузка истории сборок...</div>'
+                ? '<div class="card-desc" style="padding: 12px 0;">Загрузка истории сборок...</div>'
                 : this.state.runs
                     .map((run) => {
                       const isFailed = run.conclusion === 'failure';
@@ -547,31 +513,31 @@ class DashboardManager {
                       if (isSuccess) {
                         statusBadge = '<span class="badge badge-success"><span class="badge-dot"></span>Успешно</span>';
                       } else if (isFailed) {
-                        statusBadge = '<span class="badge badge-failure"><span class="badge-dot"></span>Ошибка сборки</span>';
+                        statusBadge = '<span class="badge badge-failure"><span class="badge-dot"></span>Ошибка</span>';
                       } else if (isRunning) {
-                        statusBadge = '<span class="badge badge-running"><span class="badge-dot"></span>Выполняется</span>';
+                        statusBadge = '<span class="badge badge-running"><span class="badge-dot"></span>Сборка</span>';
                       }
 
                       return `
-                <div class="run-card ${isFailed ? 'is-failed' : isSuccess ? 'is-success' : isRunning ? 'is-running' : ''}">
+                <div class="run-card ${isFailed ? 'is-failed' : ''}">
                   <div class="run-card-header">
                     <div class="run-card-left">
-                      <img class="author-avatar" src="${actorAvatar}" alt="${escapeHtml(actorInfo.displayName)}" />
+                      <img class="author-avatar" src="${actorAvatar}" alt="" />
                       <div>
                         <div class="run-card-title">${escapeHtml(run.display_title || run.name)}</div>
                         <div class="run-card-meta">
                           <span class="author-name">${escapeHtml(actorInfo.displayName)}</span>
                           <span>·</span>
                           <span>${formatRelativeTime(run.updated_at)}</span>
-                          ${duration ? `<span>·</span><span>Длительность: ${duration}</span>` : ''}
+                          ${duration ? `<span>·</span><span>${duration}</span>` : ''}
                           <span>·</span>
-                          <span>Событие: ${escapeHtml(run.event)}</span>
+                          <span>${escapeHtml(run.event)}</span>
                         </div>
                       </div>
                     </div>
                     <div class="commit-right">
                       ${statusBadge}
-                      <a class="sha-tag" href="${run.html_url}" target="_blank">Run #${run.id}</a>
+                      <a class="sha-tag" href="${run.html_url}" target="_blank">#${run.id}</a>
                     </div>
                   </div>
 
@@ -579,18 +545,18 @@ class DashboardManager {
                     isFailed && failedSteps.length > 0
                       ? `
                     <div class="run-error-details-box">
-                      <div><strong>Шаги, завершившиеся с ошибкой:</strong></div>
+                      <div><strong>Ошибка на шаге:</strong></div>
                       ${failedSteps
                         .map(
                           (step) => `
-                        <div style="font-family: var(--font-mono); font-size: 12px; margin-left: 8px;">
-                          - [${escapeHtml(step.jobName)}] <strong>${escapeHtml(step.stepName)}</strong>
+                        <div style="font-family: var(--font-mono); font-size: 11px;">
+                          [${escapeHtml(step.jobName)}] ${escapeHtml(step.stepName)}
                         </div>
                       `
                         )
                         .join('')}
-                      <a href="${run.html_url}" target="_blank" style="color: #fff; text-decoration: underline; margin-top: 4px; font-size: 12px;">
-                        Открыть полный лог ошибки на GitHub Actions &rarr;
+                      <a href="${run.html_url}" target="_blank" style="color: #fff; text-decoration: underline; font-size: 11px; margin-top: 2px;">
+                        Открыть логи на GitHub &rarr;
                       </a>
                     </div>
                   `
@@ -614,9 +580,9 @@ class DashboardManager {
                           <div class="step-item">
                             <div class="step-name-box">
                               ${icon}
-                              <span>Job: ${escapeHtml(job.name)}</span>
+                              <span>${escapeHtml(job.name)}</span>
                             </div>
-                            <span style="font-size: 11px; color: var(--text-muted);">${jobDuration}</span>
+                            <span style="font-size: 11px; color: var(--text-tertiary);">${jobDuration}</span>
                           </div>
                         `;
                         })
@@ -635,13 +601,13 @@ class DashboardManager {
         }
 
         <details class="settings-box">
-          <summary style="cursor: pointer; font-weight: 600; color: var(--accent-gold); font-size: 13px;">
-            Настройки GitHub API Token (опционально)
+          <summary style="cursor: pointer; font-size: 12px; color: var(--text-secondary);">
+            GitHub API Token (опционально)
           </summary>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-            Если исчерпан публичный лимит (60 запросов/час), вы можете ввести GitHub Personal Access Token (classic или fine-grained с правами чтения). Он сохраняется только в вашем браузере (localStorage).
+          <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px;">
+            Укажите токен, если исчерпан публичный лимит 60 запросов/час.
           </div>
-          <div class="settings-row" style="margin-top: 8px;">
+          <div class="settings-row" style="margin-top: 6px;">
             <input
               id="gh-token-input"
               type="password"
@@ -656,9 +622,9 @@ class DashboardManager {
 
         <footer class="footer-info">
           <div>
-            Репозиторий: <a href="https://github.com/${REPO_OWNER}/${REPO_NAME}" target="_blank">${REPO_OWNER}/${REPO_NAME}</a>
+            <a href="https://github.com/${REPO_OWNER}/${REPO_NAME}" target="_blank">${REPO_OWNER}/${REPO_NAME}</a>
             <span> · </span>
-            Осталось запросов API: <strong>${escapeHtml(this.state.rateLimitRemaining)}</strong>
+            Лимит API: <strong>${escapeHtml(this.state.rateLimitRemaining)}</strong>
           </div>
           <div id="auto-refresh-counter">Обновление через ${this.secondsUntilNextRefresh}с</div>
         </footer>

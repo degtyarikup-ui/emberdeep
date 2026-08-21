@@ -220,6 +220,15 @@ body {
   background: var(--bg-hover);
 }
 
+.timeline-row.is-deployed {
+  background: rgba(34, 197, 94, 0.04);
+  border-left: 2px solid var(--color-success);
+}
+
+.timeline-row.is-deployed:hover {
+  background: rgba(34, 197, 94, 0.07);
+}
+
 .timeline-left {
   display: flex;
   align-items: flex-start;

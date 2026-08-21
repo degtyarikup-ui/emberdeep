@@ -425,7 +425,7 @@ class DashboardManager {
 function renderTimelineRow(ev: TimelineEvent): string {
   if (ev.type === 'commit') {
     return `
-      <div class="timeline-row">
+      <div class="timeline-row ${ev.isDeployed ? 'is-deployed' : ''}">
         <div class="timeline-left">
           <img class="avatar-icon" src="${ev.authorAvatar}" alt="" />
           <div class="timeline-content">

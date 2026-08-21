@@ -307,7 +307,6 @@ class DashboardManager {
         <header class="dashboard-header">
           <div class="header-brand">
             <h1 class="header-title">Emberdeep</h1>
-            <span class="header-subtitle">degtyarikup-ui & MrKadoku</span>
           </div>
           <div class="header-actions">
             <a href="./" class="btn">${ICONS.play} Игра</a>
@@ -485,8 +484,7 @@ function renderTimelineRow(ev: TimelineEvent): string {
             <span>·</span>
             <span>${formatRelativeTime(ev.dateStr)}</span>
             ${ev.duration ? `<span>·</span><span>${ev.duration}</span>` : ''}
-            <span>·</span>
-            <span>Событие: ${escapeHtml(ev.eventTrigger || '')}</span>
+            ${ev.eventTrigger ? `<span>·</span><span>${escapeHtml(ev.eventTrigger)}</span>` : ''}
           </div>
           ${
             isFailed && ev.failedSteps && ev.failedSteps.length > 0

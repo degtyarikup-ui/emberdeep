@@ -101,7 +101,7 @@ function carveRoadV(grid: number[][], xMid: number, y0: number, y1: number, widt
 }
 
 // =========================================================================
-// LEVEL 1: «Темный Лес» (Deep Primeval Forest, River, Woodcutter Hamlet)
+// LEVEL 1: «Темный Лес» (Massive Primeval Forest, Winding River, Campsite & Ancient Altar)
 // =========================================================================
 function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(FLOOR));
@@ -115,14 +115,14 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     }
   }
 
-  // Meandering forest river with gentle center bend
+  // Meandering forest river
   const riverCenters = new Array(ROWS).fill(29);
-  riverCenters[15] = 29;
-  riverCenters[16] = 28;
-  riverCenters[17] = 28;
-  riverCenters[18] = 27;
-  riverCenters[19] = 27;
-  for (let r = 20; r < ROWS; r++) riverCenters[r] = 26;
+  for (let r = 0; r < ROWS; r++) {
+    if (r < 10) riverCenters[r] = 29;
+    else if (r < 18) riverCenters[r] = 28;
+    else if (r < 28) riverCenters[r] = 27;
+    else riverCenters[r] = 28;
+  }
 
   for (let r = 0; r < ROWS; r++) {
     const rc = riverCenters[r];
@@ -135,36 +135,35 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
 
   // 2 Wooden bridges crossing the river
   for (let c = 24; c <= 34; c++) {
-    binary[11][c] = BRIDGE_TOP;
-    binary[12][c] = BRIDGE_BOT;
+    binary[9][c] = BRIDGE_TOP;
+    binary[10][c] = BRIDGE_BOT;
   }
-  for (let c = 21; c <= 31; c++) {
-    binary[25][c] = BRIDGE_TOP;
-    binary[26][c] = BRIDGE_BOT;
+  for (let c = 22; c <= 32; c++) {
+    binary[28][c] = BRIDGE_TOP;
+    binary[29][c] = BRIDGE_BOT;
   }
 
-  // West Bank: Woodcutter's Hamlet & Campfire Clearings
-  carveRect(binary, 4, 14, 12, 10, PATH); // Village Green & Campfire
-  carveRect(binary, 8, 5, 12, 8, FLOOR);   // North Cabin Glade
-  carveRect(binary, 8, 25, 12, 8, FLOOR);  // South Orchard
+  // West Bank: Hunters' Encampment, North Ancient Oak Grove, South Mushroom Marsh
+  carveRect(binary, 4, 15, 14, 9, PATH);  // Hunters' Encampment
+  carveRect(binary, 5, 4, 15, 9, FLOOR);  // North Ancient Oak Grove
+  carveRect(binary, 5, 25, 15, 9, FLOOR); // South Mushroom Marsh
 
-  // East Bank: Wild Forest Glades & Ancient Altar Clearing
-  carveRect(binary, 36, 5, 12, 8, FLOOR);   // North-East Pine Grove
-  carveRect(binary, 36, 24, 12, 9, FLOOR);  // South-East Shaded Clearing
-  carveRect(binary, 46, 12, 11, 14, PATH);  // East Grand Altar Clearing
-  carveRect(binary, 42, 12, 5, 13, PATH);   // Forest trail connecting East clearings
+  // East Bank: North-East Pine Woods, South-East Druid Graveyard, Grand Altar Clearing
+  carveRect(binary, 35, 4, 15, 9, FLOOR);  // North-East Pine Woods
+  carveRect(binary, 35, 25, 15, 9, FLOOR); // South-East Druid Graveyard
+  carveRect(binary, 46, 13, 12, 13, PATH); // Grand Altar Clearing
+  carveRect(binary, 40, 16, 8, 7, PATH);   // Central trail to Altar Clearing
 
-  // Orthogonal Dirt Roads (3-tile wide roads with full autotiling)
-  carveRoadV(binary, 14, 8, 18, 3);
-  carveRoadH(binary, 8, 14, 18, 3);
-  carveRoadV(binary, 14, 20, 28, 3);
-  carveRoadH(binary, 8, 14, 20, 3);
+  // Orthogonal Roads (3-tile wide roads with full autotiling)
+  carveRoadV(binary, 11, 5, 17, 3);
+  carveRoadV(binary, 11, 21, 33, 3);
+  carveRoadH(binary, 11, 24, 9, 3);
+  carveRoadH(binary, 11, 22, 29, 3);
 
-  carveRoadH(binary, 14, 24, 11, 3);
-  carveRoadH(binary, 14, 21, 25, 3);
-
-  carveRoadH(binary, 34, 46, 11, 3);
-  carveRoadH(binary, 31, 46, 25, 3);
+  carveRoadH(binary, 34, 46, 9, 3);
+  carveRoadH(binary, 32, 46, 29, 3);
+  carveRoadV(binary, 45, 9, 15, 3);
+  carveRoadV(binary, 45, 23, 29, 3);
 
   const rand = prand(1001 + depth * 19);
   const data: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(TILE_INDEX.GRASS_1));
@@ -244,107 +243,115 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   }
 
   const trees: TreeObject[] = [
-    { col: 4, row: 4, kind: 'oak' },
-    { col: 7, row: 3, kind: 'pine' },
-    { col: 18, row: 3, kind: 'oak' },
-    { col: 22, row: 4, kind: 'pine' },
-    { col: 25, row: 6, kind: 'pine' },
-    { col: 34, row: 3, kind: 'oak' },
-    { col: 38, row: 4, kind: 'pine' },
-    { col: 50, row: 4, kind: 'pine' },
-    { col: 54, row: 4, kind: 'oak' },
-    { col: 4, row: 34, kind: 'oak' },
-    { col: 7, row: 35, kind: 'pine' },
-    { col: 18, row: 35, kind: 'pine' },
-    { col: 22, row: 34, kind: 'oak' },
-    { col: 26, row: 32, kind: 'pine' },
-    { col: 34, row: 35, kind: 'oak' },
-    { col: 38, row: 34, kind: 'pine' },
-    { col: 50, row: 34, kind: 'pine' },
-    { col: 54, row: 35, kind: 'oak' },
-    { col: 6, row: 18, kind: 'oak' },
-    { col: 16, row: 17, kind: 'pine' },
-    { col: 36, row: 17, kind: 'pine' },
-    { col: 45, row: 9, kind: 'oak' },
-    { col: 45, row: 29, kind: 'pine' },
+    // North and South dense forest edge
+    { col: 4, row: 3, kind: 'oak' }, { col: 8, row: 3, kind: 'pine' }, { col: 12, row: 3, kind: 'oak' },
+    { col: 16, row: 3, kind: 'pine' }, { col: 20, row: 3, kind: 'oak' }, { col: 36, row: 3, kind: 'pine' },
+    { col: 40, row: 3, kind: 'oak' }, { col: 44, row: 3, kind: 'pine' }, { col: 48, row: 3, kind: 'oak' },
+    { col: 52, row: 3, kind: 'pine' }, { col: 56, row: 3, kind: 'oak' },
+    { col: 4, row: 34, kind: 'oak' }, { col: 8, row: 34, kind: 'pine' }, { col: 12, row: 34, kind: 'oak' },
+    { col: 16, row: 34, kind: 'pine' }, { col: 20, row: 34, kind: 'oak' }, { col: 36, row: 34, kind: 'pine' },
+    { col: 40, row: 34, kind: 'oak' }, { col: 44, row: 34, kind: 'pine' }, { col: 48, row: 34, kind: 'oak' },
+    { col: 52, row: 34, kind: 'pine' }, { col: 56, row: 34, kind: 'oak' },
+    // Groves & Clearings
+    { col: 3, row: 8, kind: 'oak' }, { col: 3, row: 12, kind: 'pine' }, { col: 3, row: 25, kind: 'oak' },
+    { col: 3, row: 29, kind: 'pine' }, { col: 20, row: 8, kind: 'oak' }, { col: 20, row: 14, kind: 'pine' },
+    { col: 20, row: 22, kind: 'oak' }, { col: 20, row: 28, kind: 'pine' }, { col: 33, row: 6, kind: 'pine' },
+    { col: 33, row: 14, kind: 'oak' }, { col: 33, row: 22, kind: 'pine' }, { col: 33, row: 29, kind: 'oak' },
+    { col: 47, row: 11, kind: 'pine' }, { col: 55, row: 11, kind: 'oak' }, { col: 47, row: 26, kind: 'pine' },
+    { col: 55, row: 26, kind: 'oak' },
   ];
 
   const decorations: DecorationObject[] = [
-    { col: 10, row: 7, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
-    { col: 10, row: 27, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
-    { col: 6, row: 9, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 7, row: 9, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 6, row: 29, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 7, row: 29, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 14, row: 8, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 14, row: 28, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 6, row: 16, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 7, row: 16, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 15, row: 19, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 38, row: 7, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
-    { col: 44, row: 7, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 38, row: 27, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
-    { col: 44, row: 27, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 24, row: 15, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 34, row: 20, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 16, row: 11, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 36, row: 11, key: TEXTURE.PROP_BUSH, solid: false },
+    // Hunters' Encampment Props
+    { col: 12, row: 18, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
+    { col: 12, row: 22, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
+    { col: 4, row: 17, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 4, row: 18, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 4, row: 20, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 4, row: 21, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 15, row: 18, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    { col: 15, row: 22, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    { col: 5, row: 16, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 5, row: 22, key: TEXTURE.PROP_BARREL, solid: true },
+    // North Oak Grove Props
+    { col: 8, row: 8, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 14, row: 10, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 8, row: 6, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 16, row: 8, key: TEXTURE.PROP_BUSH, solid: false },
+    // South Mushroom Marsh Props
+    { col: 8, row: 28, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
+    { col: 14, row: 28, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
+    { col: 8, row: 30, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 16, row: 30, key: TEXTURE.PROP_LUPINE, solid: false },
+    // North-East Pine Woods Props
+    { col: 38, row: 8, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 42, row: 6, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 36, row: 6, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 46, row: 8, key: TEXTURE.PROP_BUSH, solid: false },
+    // South-East Druid Graveyard Props
+    { col: 38, row: 27, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 42, row: 27, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 38, row: 31, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 42, row: 31, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 36, row: 30, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 46, row: 30, key: TEXTURE.PROP_LUPINE, solid: false },
   ];
 
   const bonfires = [
-    { col: 10, row: 18 },
+    { col: 8, row: 19 },
     { col: 42, row: 19 },
+    { col: 50, row: 19 },
   ];
 
   const torches = [
-    { col: 24, row: 10 },
-    { col: 34, row: 10 },
-    { col: 21, row: 24 },
-    { col: 31, row: 24 },
-    { col: 48, row: 11 },
-    { col: 55, row: 11 },
-    { col: 48, row: 27 },
-    { col: 55, row: 27 },
+    { col: 24, row: 8 },
+    { col: 34, row: 8 },
+    { col: 23, row: 28 },
+    { col: 33, row: 28 },
+    { col: 48, row: 13 },
+    { col: 55, row: 13 },
+    { col: 48, row: 25 },
+    { col: 55, row: 25 },
   ];
 
   const chests = [
-    { col: 8, row: 6 },
-    { col: 8, row: 30 },
-    { col: 41, row: 7 },
-    { col: 41, row: 29 },
-    { col: 53, row: 19 },
+    { col: 6, row: 6 },
+    { col: 6, row: 31 },
+    { col: 45, row: 6 },
+    { col: 45, row: 31 },
+    { col: 55, row: 22 },
   ];
 
   const shrines = [
-    { col: 41, row: 5, kind: 'blood' as const },
-    { col: 41, row: 27, kind: 'chance' as const },
+    { col: 16, row: 6, kind: 'chance' as const },
+    { col: 40, row: 29, kind: 'blood' as const },
   ];
 
   const flasks = [
-    { col: 14, row: 9, key: PROP.FLASK_RED },
-    { col: 14, row: 29, key: PROP.FLASK_BLUE },
-    { col: 48, row: 14, key: PROP.FLASK_RED },
+    { col: 12, row: 16, key: PROP.FLASK_RED },
+    { col: 37, row: 10, key: PROP.FLASK_BLUE },
+    { col: 48, row: 21, key: PROP.FLASK_RED },
   ];
 
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
-    { col: 16, row: 10, kind: 'imp' },
-    { col: 16, row: 26, kind: 'imp' },
-    { col: 25, row: 11, kind: 'skeleton' },
-    { col: 26, row: 25, kind: 'imp' },
-    { col: 39, row: 8, kind: 'skeleton' },
-    { col: 44, row: 8, kind: 'imp' },
-    { col: 39, row: 28, kind: 'skeleton' },
-    { col: 44, row: 28, kind: 'imp' },
-    { col: 48, row: 16, kind: 'imp' },
-    { col: 53, row: 16, kind: 'skeleton' },
-    { col: 48, row: 22, kind: 'imp' },
-    { col: 53, row: 22, kind: 'skeleton' },
+    { col: 10, row: 6, kind: 'imp' },
+    { col: 12, row: 8, kind: 'skeleton' },
+    { col: 10, row: 30, kind: 'imp' },
+    { col: 12, row: 28, kind: 'imp' },
+    { col: 26, row: 9, kind: 'skeleton' },
+    { col: 26, row: 29, kind: 'skeleton' },
+    { col: 40, row: 8, kind: 'skeleton' },
+    { col: 44, row: 10, kind: 'imp' },
+    { col: 40, row: 28, kind: 'skeleton' },
+    { col: 44, row: 28, kind: 'skeleton' },
+    { col: 49, row: 16, kind: 'imp' },
+    { col: 49, row: 22, kind: 'skeleton' },
   ];
 
   return {
     biome,
     data,
-    spawn: { col: 8, row: 18 },
+    spawn: { col: 6, row: 19 },
     torches,
     bonfires,
     trees,
@@ -352,8 +359,8 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     flasks,
     chests,
     shrines,
-    altar: { col: 51, row: 19 },
-    exit: { col: 55, row: 19 },
+    altar: { col: 52, row: 19 },
+    exit: { col: 56, row: 19 },
     enemies,
   };
 }

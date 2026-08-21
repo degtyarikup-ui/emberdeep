@@ -105,18 +105,19 @@ vendor/                исходные арт-паки — библиотека
 
 ### Уровни и биомы
 
-[`src/world/level1.ts`](src/world/level1.ts) (~890 строк) и [`src/world/biomes.ts`](src/world/biomes.ts).
+[`src/world/level1.ts`](src/world/level1.ts) и [`src/world/biomes.ts`](src/world/biomes.ts).
 
-**Уровни свёрстаны вручную, а не сгенерированы процедурно.** Есть четыре функции-строителя, по одной на биом, с захардкоженными координатами рек, мостов, зданий, комнат, алтаря и выхода. Случайность только в разбросе мелкого декора — через детерминированный `prand(seed)` из `gfx/shapes.ts`, засеянный от `depth`.
+**Уровни свёрстаны вручную, а не сгенерированы процедурно.** Есть пять функций-строителей, по одной на биом, с захардкоженными координатами рек, мостов, зданий, комнат, алтаря и выхода. Случайность только в разбросе мелкого декора — через детерминированный `prand(seed)` из `gfx/shapes.ts`, засеянный от `depth`.
 
 `buildLevel1(depth)` выбирает строителя по `getBiomeForDepth(depth).id`:
 
 | Биом | Глубина | Строитель |
 |---|---|---|
-| `ruins` — Лесной Хутор и Руины | 1 | `buildForestHamletLevel` |
-| `catacombs` — Катакомбы Тюрьмы | 2 | `buildPrisonDungeonLevel` |
-| `magma` — Горный Каньон и Шахты | 3 | `buildCanyonMinesLevel` |
-| `void` — Замерзший Астральный Пик | 4+ | `buildGlacialAbyssLevel` |
+| `forest` — Темный Лес | 1 | `buildDarkForestLevel` |
+| `ruins` — Руины | 2 | `buildAncientRuinsLevel` |
+| `catacombs` — Катакомбы | 3 | `buildPrisonCatacombsLevel` |
+| `depths` — Глубины Катакомб | 4 | `buildCatacombDepthsLevel` |
+| `void` — Бездна | 5+ | `buildAstralAbyssLevel` |
 
 Сетка `COLS=60 × ROWS=38`, тайл `TILE_SIZE=32`. Строители работают на семантической сетке (`FLOOR/WALL/PATH/WATER_DEEP/BRIDGE/SNOW/ICE/RAIL/...`), затем 8-соседский автотайлинг превращает её в индексы `TILE_INDEX`. Возвращается `LevelData`: `biome, data, spawn, torches, bonfires, trees, decorations, flasks, chests, shrines, altar, exit, enemies`.
 

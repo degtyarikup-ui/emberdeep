@@ -337,23 +337,29 @@ class SoundFXManager {
     const filter = ctx.createBiquadFilter();
 
     if (depth === 1) {
-      // Ruins: Gentle nocturnal forest wind & leafy rustling
+      // Forest: Gentle nocturnal forest wind & leafy rustling
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(320, t);
       this.ambientGain.gain.setValueAtTime(0.28, t);
     } else if (depth === 2) {
+      // Ruins: Cold wind howling through ancient crumbling stone arches
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(280, t);
+      filter.Q.setValueAtTime(2.0, t);
+      this.ambientGain.gain.setValueAtTime(0.30, t);
+    } else if (depth === 3) {
       // Catacombs: Cold resonant underground air draft
       filter.type = 'bandpass';
       filter.frequency.setValueAtTime(220, t);
       filter.Q.setValueAtTime(2.5, t);
       this.ambientGain.gain.setValueAtTime(0.32, t);
-    } else if (depth === 3) {
-      // Magma: Heavy volcanic magma rumble
+    } else if (depth === 4) {
+      // Depths: Heavy subterranean ore rumble & creaking mine timbers
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(140, t);
       this.ambientGain.gain.setValueAtTime(0.38, t);
     } else {
-      // Void: Hollow eerie cosmic ether
+      // Abyss / Void: Hollow eerie cosmic ether
       filter.type = 'bandpass';
       filter.frequency.setValueAtTime(360, t);
       filter.Q.setValueAtTime(4.0, t);

@@ -202,12 +202,62 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   get attackDamage(): number {
     const metaDmg = MetaManager.get().getBonuses().damageMultiplier;
     const base = this.heroClass === 'knight' ? 2 : 1;
-    return (base + (this.items['whetstone'] || 0) * 0.3) * metaDmg;
+    const whetstoneBonus = (this.items['whetstone'] || 0) * 0.3;
+    const prismBonus = (this.items['prismatic_prism'] || 0) * 0.25;
+    return (base + whetstoneBonus) * (1 + prismBonus) * metaDmg;
   }
 
   get critChance(): number {
     const metaCrit = MetaManager.get().getBonuses().extraCrit;
     return (this.items['crit_dagger'] || 0) * 0.15 + metaCrit;
+  }
+
+  get attackCooldownMultiplier(): number {
+    const wristbandBonus = (this.items['berserker_wristband'] || 0) * 0.20;
+    return Math.max(0.4, 1 - wristbandBonus);
+  }
+
+  get specialCooldownMultiplier(): number {
+    const hourglassBonus = (this.items['chrono_hourglass'] || 0) * 0.25;
+    return Math.max(0.4, 1 - hourglassBonus);
+  }
+
+  get goldMultiplier(): number {
+    const midasBonus = (this.items['midas_coin'] || 0) * 0.50;
+    const luckyBonus = (this.items['lucky_horseshoe'] || 0) * 0.15;
+    return 1 + midasBonus + luckyBonus;
+  }
+
+  get thornsDamage(): number {
+    return (this.items['iron_pauldrons'] || 0) * 4;
+  }
+
+  get bossDamageMultiplier(): number {
+    return 1 + (this.items['giant_slayer_ring'] || 0) * 0.60;
+  }
+
+  get hasExecutionerAxe(): boolean {
+    return (this.items['executioner_axe'] || 0) > 0;
+  }
+
+  get projectilePierceBonus(): number {
+    return (this.items['prismatic_prism'] || 0) * 1;
+  }
+
+  get hasPrismaticPrism(): boolean {
+    return (this.items['prismatic_prism'] || 0) > 0;
+  }
+
+  get hasThunderTalisman(): boolean {
+    return (this.items['thunder_talisman'] || 0) > 0;
+  }
+
+  get hasMoltenCore(): boolean {
+    return (this.items['molten_core'] || 0) > 0;
+  }
+
+  get hasBlizzardRing(): boolean {
+    return (this.items['blizzard_ring'] || 0) > 0;
   }
 
   get leechChance(): number {
@@ -226,8 +276,33 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return this.items['immortal_crown'] || 0;
   }
 
+  bloodChaliceKills = 0;
+  radiantShieldActive = false;
+  radiantShieldTimer = 0;
+  private shieldRing?: Phaser.GameObjects.Arc;
+
+  onEnemyKilled(): boolean {
+    if ((this.items['blood_chalice'] || 0) > 0) {
+      this.bloodChaliceKills += 1;
+      if (this.bloodChaliceKills >= 10) {
+        this.bloodChaliceKills = 0;
+        this.heal(1);
+        return true;
+      }
+    }
+    return false;
+  }
+
   addItem(itemId: string): void {
     this.items[itemId] = (this.items[itemId] || 0) + 1;
+    if (itemId === 'titan_heart') {
+      this.maxHp += 1;
+      this.hp = Math.min(this.maxHp, this.hp + 1);
+    }
+    if (itemId === 'radiant_shield') {
+      this.radiantShieldActive = true;
+      this.radiantShieldTimer = 0;
+    }
     this.updateElementalSlots();
   }
 
@@ -243,7 +318,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   addGold(amount: number): void {
-    this.gold += amount;
+    this.gold += Math.round(amount * this.goldMultiplier);
   }
 
   get isInvulnerable(): boolean {
@@ -270,9 +345,37 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Returns true if damage was actually applied (false while invulnerable or in godMode). */
   takeDamage(amount: number, fromX: number, fromY: number): boolean {
     if (this.godMode || this.invuln > 0 || this.dying) return false;
+
+    // Radiant Shield barrier absorbs 1 full hit
+    if (this.radiantShieldActive) {
+      this.radiantShieldActive = false;
+      this.radiantShieldTimer = 0;
+      this.invuln = 400; // brief grace period
+      SoundFX.playEnergyHit();
+      if (this.shieldRing) {
+        this.scene.tweens.add({
+          targets: this.shieldRing,
+          scaleX: 2.2,
+          scaleY: 2.2,
+          alpha: 0,
+          duration: 200,
+          onComplete: () => {
+            this.shieldRing?.destroy();
+            this.shieldRing = undefined;
+          },
+        });
+      }
+      return false;
+    }
+
     this.hp = Math.max(0, this.hp - amount);
     this.invuln = INVULN_DURATION;
     this.knockbackLock = KNOCKBACK_LOCK;
+
+    // Iron Pauldrons Thorns trigger
+    if (this.thornsDamage > 0) {
+      this.triggerThornsBurst();
+    }
     
     // Hit reaction
     this.setTint(0xff4422);
@@ -295,6 +398,47 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body.setVelocity((dx / len) * 150, (dy / len) * 150);
 
     return true;
+  }
+
+  private triggerThornsBurst(): void {
+    if (!this.scene) return;
+    SoundFX.playSwordSwing();
+    const ring = this.scene.add.circle(this.x, this.y - 14, 36, 0x94a3b8, 0.4);
+    ring.setStrokeStyle(2, 0xe2e8f0, 0.9);
+    ring.setDepth(DEPTH.YSORT_BASE + this.y + 10);
+    const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+    if (worldLayer) worldLayer.add(ring);
+    this.scene.tweens.add({
+      targets: ring,
+      scaleX: 1.8,
+      scaleY: 1.8,
+      alpha: 0,
+      duration: 220,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+    const gameScene = this.scene as unknown as { enemies?: Enemy[]; boss?: BossEnemy; spawnDamageNumber?: (x: number, y: number, text: string, color?: string) => void };
+    if (gameScene.enemies) {
+      for (const enemy of gameScene.enemies) {
+        if (enemy.isDead) continue;
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+        if (dist <= 64) {
+          enemy.takeDamage(this.thornsDamage, this.x, this.y);
+          if (gameScene.spawnDamageNumber) {
+            gameScene.spawnDamageNumber(enemy.x, enemy.y - 10, `ШИПЫ -${this.thornsDamage}`, '#94a3b8');
+          }
+        }
+      }
+    }
+    if (gameScene.boss && !gameScene.boss.isDead) {
+      const dist = Phaser.Math.Distance.Between(this.x, this.y, gameScene.boss.x, gameScene.boss.y);
+      if (dist <= 72) {
+        gameScene.boss.takeDamage(this.thornsDamage, this.x, this.y);
+        if (gameScene.spawnDamageNumber) {
+          gameScene.spawnDamageNumber(gameScene.boss.x, gameScene.boss.y - 16, `ШИПЫ -${this.thornsDamage}`, '#94a3b8');
+        }
+      }
+    }
   }
 
   heal(amount: number): void {
@@ -339,12 +483,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Returns attack result or null if on cooldown. */
   tryAttack(targetX?: number, targetY?: number): AttackResult | null {
     if (this.attackCooldown > 0 || this.dying) return null;
-    this.attackCooldown =
+    const baseCd =
       this.heroClass === 'knight'
         ? KNIGHT_ATTACK_COOLDOWN
         : this.heroClass === 'ranger'
         ? RANGER_ATTACK_COOLDOWN
         : WIZARD_ATTACK_COOLDOWN;
+    this.attackCooldown = baseCd * this.attackCooldownMultiplier;
     this.attackLock = ATTACK_LOCK;
 
     const dir = this.flipX ? -1 : 1;
@@ -353,6 +498,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       angle = Phaser.Math.Angle.Between(this.x, this.y - 14, targetX, targetY);
       this.setFlipX(Math.cos(angle) < 0);
     }
+
+    const pierce = 1 + this.projectilePierceBonus;
 
     if (this.heroClass === 'ranger') {
       SoundFX.playArrowShoot();
@@ -364,7 +511,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         spawnY,
         angle,
         Math.max(1, Math.round(this.attackDamage)),
-        1,
+        pierce,
         360
       );
       if (this.elementalSlots.attack) {
@@ -383,7 +530,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         spawnY,
         angle,
         Math.max(1, Math.round(this.attackDamage)),
-        1,
+        pierce,
         340,
         this.elementalSlots.attack,
         false
@@ -399,7 +546,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Triggers special ability (Knight Whirlwind, Ranger Arrow Volley, or Wizard Arcane Supernova). */
   trySpecial(targetX?: number, targetY?: number): SpecialResult | null {
     if (this.specialCooldown > 0 || this.dying) return null;
-    this.specialCooldown = this.specialMaxCooldown;
+    this.specialCooldown = this.specialMaxCooldown * this.specialCooldownMultiplier;
+
+    const pierce = 2 + this.projectilePierceBonus;
 
     if (this.heroClass === 'ranger') {
       SoundFX.playArrowShoot();
@@ -426,7 +575,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
           spawnY,
           angle,
           Math.max(1, Math.round(this.attackDamage * 1.5)),
-          2, // pierce 2 targets
+          pierce,
           380
         );
         if (this.elementalSlots.skill) {
@@ -452,9 +601,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
           spawnX,
           spawnY,
           angle,
-          Math.max(2, Math.round(this.attackDamage * 1.6)),
-          2, // pierce 2 targets
-          310,
+          Math.max(1, Math.round(this.attackDamage * 1.3)),
+          pierce,
+          320,
           this.elementalSlots.skill,
           true
         );
@@ -839,6 +988,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   override destroy(fromScene?: boolean): void {
+    if (this.shieldRing) this.shieldRing.destroy(fromScene);
     this.sword.destroy(fromScene);
     if (this.shadow) this.shadow.destroy(fromScene);
     this.label.destroy(fromScene);
@@ -854,6 +1004,37 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.specialCooldown > 0) this.specialCooldown -= delta;
     if (this.attackLock > 0) this.attackLock -= delta;
     if (this.knockbackLock > 0) this.knockbackLock -= delta;
+
+    // Radiant Shield regeneration and visual barrier
+    if ((this.items['radiant_shield'] || 0) > 0) {
+      if (!this.radiantShieldActive) {
+        this.radiantShieldTimer += delta;
+        if (this.radiantShieldTimer >= 15000) {
+          this.radiantShieldActive = true;
+          this.radiantShieldTimer = 0;
+          SoundFX.playPowerUp();
+        }
+      }
+      if (this.radiantShieldActive) {
+        if (!this.shieldRing || !this.shieldRing.active) {
+          this.shieldRing = this.scene.add.circle(this.x, this.y - 14, 20);
+          this.shieldRing.setStrokeStyle(2, 0x67e8f9, 0.85);
+          this.shieldRing.setFillStyle(0x67e8f9, 0.15);
+          this.shieldRing.setDepth(DEPTH.YSORT_BASE + this.y + 18);
+          const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+          if (worldLayer) worldLayer.add(this.shieldRing);
+        } else {
+          this.shieldRing.setPosition(this.x, this.y - 14);
+          this.shieldRing.setDepth(DEPTH.YSORT_BASE + this.y + 18);
+          this.shieldRing.setVisible(true);
+        }
+      } else if (this.shieldRing) {
+        this.shieldRing.setVisible(false);
+      }
+    } else if (this.shieldRing) {
+      this.shieldRing.destroy();
+      this.shieldRing = undefined;
+    }
 
     this.setAlpha(this.invuln > 0 && Math.floor(this.invuln / 90) % 2 === 0 ? 0.4 : 1);
 

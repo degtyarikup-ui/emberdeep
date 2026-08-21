@@ -200,7 +200,8 @@ export class StatsModal {
     const items = player.items;
 
     const whetstoneBonus = (items.whetstone ?? 0) * 20;
-    const totalDmgPercent = Math.round((100 + whetstoneBonus) * metaBonuses.damageMultiplier);
+    const prismBonus = (items.prismatic_prism ?? 0) * 25;
+    const totalDmgPercent = Math.round((100 + whetstoneBonus + prismBonus) * metaBonuses.damageMultiplier);
 
     const critBonus = (items.crit_dagger ?? 0) * 15;
     const totalCrit = Math.round(5 + critBonus + metaBonuses.extraCrit * 100);
@@ -208,14 +209,25 @@ export class StatsModal {
     const bootsBonus = (items.boots ?? 0) * 15;
     const totalSpeedPercent = Math.round((100 + bootsBonus) * metaBonuses.speedMultiplier);
 
+    const atkSpeedBonus = (items.berserker_wristband ?? 0) * 20;
+    const cooldownReduction = (items.chrono_hourglass ?? 0) * 25;
+
+    const shieldStatus = player.radiantShieldActive
+      ? 'ЩИТ [АКТИВЕН]'
+      : items.radiant_shield
+      ? 'ЩИТ [ЗАРЯД]'
+      : items.immortal_crown
+      ? `КОРОНА x${items.immortal_crown}`
+      : 'НЕТ';
+
     const statsList = [
       { iconIdx: 0, label: 'ЗДОРОВЬЕ (HP):', val: `${player.hp} / ${player.maxHp}`, col: '#ef4444' },
       { iconIdx: 1, label: 'СИЛА АТАКИ:', val: `${totalDmgPercent}%`, col: '#f87171' },
       { iconIdx: 2, label: 'ШАНС КРИТА:', val: `${totalCrit}%`, col: '#fbbf24' },
       { iconIdx: 3, label: 'СКОРОСТЬ БЕГА:', val: `${totalSpeedPercent}%`, col: '#4ade80' },
-      { iconIdx: 4, label: 'ВАМПИРИЗМ:', val: items.leech_fang ? '15% УРОНА' : 'НЕТ', col: items.leech_fang ? '#c084fc' : '#64748b' },
-      { iconIdx: 5, label: 'БЕССМЕРТИЕ:', val: items.immortal_crown ? `ДА (x${items.immortal_crown})` : 'НЕТ', col: items.immortal_crown ? '#fde047' : '#64748b' },
-      { iconIdx: 6, label: 'ЗОЛОТО:', val: `${player.gold}`, col: '#fbbf24' },
+      { iconIdx: 4, label: 'СКОР. АТАКИ / КД:', val: `+${atkSpeedBonus}% / -${cooldownReduction}%`, col: '#c084fc' },
+      { iconIdx: 5, label: 'БАХИ ЗАЩИТЫ:', val: shieldStatus, col: '#67e8f9' },
+      { iconIdx: 6, label: `ЗОЛОТО (x${player.goldMultiplier.toFixed(1)}):`, val: `${player.gold}`, col: '#fbbf24' },
       { iconIdx: 7, label: 'ЭМБЕРЫ БЕЗДНЫ:', val: `${meta.embers}`, col: '#f97316' },
     ];
 
@@ -305,9 +317,9 @@ export class StatsModal {
     const slot = this.scene.add.container(x, y);
 
     let tier: 'common' | 'uncommon' | 'rare' | 'legendary' = 'common';
-    if (item.element) tier = 'uncommon';
-    if (item.id === 'immortal_crown' || item.id === 'leech_fang' || item.id === 'crit_dagger') tier = 'legendary';
-    else if (item.id === 'whetstone' || item.id === 'boots') tier = 'rare';
+    if (item.tier === 'legendary') tier = 'legendary';
+    else if (item.tier === 'uncommon') tier = 'uncommon';
+    else tier = 'common';
 
     const slotBg = PixelUI.createSlot(this.scene, 0, 0, size, tier);
     slot.add(slotBg);

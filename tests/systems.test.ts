@@ -72,11 +72,19 @@ describe('item registry', () => {
     }
   });
 
-  it('has at least one item in every tier, so no roll bucket is empty', () => {
-    // getRandomItem picks a tier first and then an item from it; an empty
-    // bucket would return undefined and crash the caller.
+  it('has at least 28 unique items covering common, uncommon, and legendary tiers', () => {
+    expect(ITEM_LIST.length).toBeGreaterThanOrEqual(28);
     for (const tier of ['common', 'uncommon', 'legendary']) {
       expect(ITEM_LIST.filter((i) => i.tier === tier).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('ensures all items with elements define valid elementSlots', () => {
+    for (const item of ITEM_LIST) {
+      if (item.element) {
+        expect(['fire', 'frost', 'lightning', 'poison']).toContain(item.element);
+        expect(['attack', 'skill', 'dash', 'onKill']).toContain(item.elementSlot);
+      }
     }
   });
 

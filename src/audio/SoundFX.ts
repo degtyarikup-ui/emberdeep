@@ -1336,6 +1336,46 @@ class SoundFXManager {
     osc.start(t);
     osc.stop(t + 0.12);
   }
+
+  playPowerUp(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(880, t + 0.22);
+
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.22);
+  }
+
+  playIceShatter(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1200, t);
+    osc.frequency.exponentialRampToValueAtTime(300, t + 0.16);
+
+    gain.gain.setValueAtTime(0.32, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.16);
+  }
 }
 
 export const SoundFX = new SoundFXManager();

@@ -15,6 +15,7 @@ import { InputPayload, WorldSnapshot, PlayerSnapshot, EnemySnapshot, BossSnapsho
 import { SoundFX } from '../audio/SoundFX';
 import { ItemDef } from '../items/types';
 import { getRandomItem } from '../items/registry';
+import { ITEM_SPRITE_MAP } from '../gfx/UIAtlas';
 import { AchievementManager } from '../achievements/AchievementManager';
 import { MetaManager } from '../meta/MetaManager';
 import { ParticleFactory } from '../gfx/ParticleFactory';
@@ -168,6 +169,7 @@ export class GameScene extends Phaser.Scene {
   private boneSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private woodSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private fireSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private iceSpark!: Phaser.GameObjects.Particles.ParticleEmitter;
   private lightningGfx!: Phaser.GameObjects.Graphics;
   private solids!: Phaser.Physics.Arcade.StaticGroup;
 
@@ -715,6 +717,18 @@ export class GameScene extends Phaser.Scene {
     });
     this.fireSpark.setDepth(DEPTH.YSORT_BASE + worldH + 15);
     world.add(this.fireSpark);
+
+    this.iceSpark = this.add.particles(0, 0, TEXTURE.PARTICLE_SPARK, {
+      lifespan: { min: 250, max: 480 },
+      speed: { min: 60, max: 190 },
+      scale: { start: 1.8, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: [0x38bdf8, 0x7dd3fc, 0xffffff],
+      blendMode: 'ADD',
+      emitting: false,
+    });
+    this.iceSpark.setDepth(DEPTH.YSORT_BASE + worldH + 15);
+    world.add(this.iceSpark);
 
     this.lightningGfx = this.add.graphics();
     this.lightningGfx.setDepth(DEPTH.YSORT_BASE + worldH + 16);
@@ -1529,7 +1543,9 @@ export class GameScene extends Phaser.Scene {
     if (this.boss && !this.boss.isDead) {
       if (inSlashCone(this.boss.x, this.boss.y - 14, 62, 1.45)) {
         const isCrit = Math.random() < player.critChance;
-        const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1)));
+        const bossDmgMultiplier = player.bossDamageMultiplier;
+        const executeMultiplier = (player.hasExecutionerAxe && (this.boss.hp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
+        const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1) * bossDmgMultiplier * executeMultiplier));
 
         const killed = this.boss.takeDamage(dmg, player.x, player.y);
 
@@ -1565,7 +1581,9 @@ export class GameScene extends Phaser.Scene {
       if (enemy.isDead) continue;
       if (inSlashCone(enemy.x, enemy.y - 8, 54, 1.45)) {
         const isCrit = Math.random() < player.critChance;
-        const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1)));
+        const executeMultiplier = (player.hasExecutionerAxe && (enemy.hp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
+        const moltenMultiplier = (player.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
+        const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1) * executeMultiplier * moltenMultiplier));
 
         const killed = enemy.takeDamage(dmg, player.x, player.y);
 
@@ -1582,8 +1600,8 @@ export class GameScene extends Phaser.Scene {
             this.spawnDamageNumber(enemy.x, enemy.y, `КРИТ! -${dmg}`, '#f87171');
             this.worldCam.shake(70, 0.002);
           }
-          if (player.stormTargets > 0) {
-            this.triggerChainLightning(enemy, player.stormTargets, Math.round(dmg * 0.75));
+          if (player.hasThunderTalisman || player.stormTargets > 0) {
+            this.triggerChainLightning(enemy, Math.max(2, player.stormTargets), Math.round(dmg * 0.75));
           }
         } else {
           SoundFX.playEnemyHit(enemy.kind);
@@ -1609,10 +1627,20 @@ export class GameScene extends Phaser.Scene {
           AchievementManager.get().enemiesKilled += 1;
           AchievementManager.get().unlock('first_blood', this);
 
-          // Elemental on-kill trigger
-          if (player.elementalSlots.onKill === 'fire') {
+          // Blood Chalice heal
+          if (player.onEnemyKilled()) {
+            this.buildHeartsUI();
+            this.spawnDamageNumber(player.x, player.y - 12, '+1 HP', '#ec4899');
+          }
+
+          // Elemental & Artifact on-kill triggers
+          if (player.elementalSlots.onKill === 'fire' || player.hasOilLamp) {
             this.triggerOilExplosion(enemy.x, enemy.y);
-          } else if (player.elementalSlots.onKill === 'poison') {
+          }
+          if (player.hasBlizzardRing || player.elementalSlots.onKill === 'frost') {
+            this.triggerBlizzardShatter(enemy.x, enemy.y);
+          }
+          if (player.elementalSlots.onKill === 'poison') {
             for (const other of this.enemies) {
               if (other === enemy || other.isDead) continue;
               if (Phaser.Math.Distance.Between(enemy.x, enemy.y, other.x, other.y) < 64) {
@@ -1622,10 +1650,12 @@ export class GameScene extends Phaser.Scene {
           }
 
           // Enemy drops coins
-          const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+          const baseCoins = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+          const coinCount = Math.round(baseCoins * player.goldMultiplier);
           this.spawnCoins(enemy.x, enemy.y, coinCount);
 
-          if (Math.random() < 0.2) {
+          const emberChance = (player.items['lucky_horseshoe'] ? 0.30 : 0.20);
+          if (Math.random() < emberChance) {
             MetaManager.get().addEmbers(1);
             this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 УГОЛЬ', '#f97316');
           }
@@ -1635,11 +1665,6 @@ export class GameScene extends Phaser.Scene {
             player.heal(1);
             this.buildHeartsUI();
             this.spawnDamageNumber(player.x, player.y - 12, '+1 HP', '#4ade80');
-          }
-
-          // Oil Lamp death fire explosion
-          if (player.hasOilLamp) {
-            this.triggerOilExplosion(enemy.x, enemy.y);
           }
         }
       }
@@ -1663,7 +1688,10 @@ export class GameScene extends Phaser.Scene {
 
     if (res.kind === 'whirlwind') {
       const radius = res.radius ?? 65;
-      const dmg = res.damage ?? 3;
+      const baseWhirlDmg = res.damage ?? 3;
+      const bossDmgMultiplier = player.bossDamageMultiplier;
+      const executeMultiplier = (player.hasExecutionerAxe && this.boss && (this.boss.hp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
+      const dmg = Math.max(1, Math.round(baseWhirlDmg * bossDmgMultiplier * executeMultiplier));
       if (player === this.myPlayer) this.worldCam.shake(90, 0.003);
 
       for (const prop of this.destructibles) {
@@ -1703,7 +1731,10 @@ export class GameScene extends Phaser.Scene {
         if (enemy.isDead) continue;
         const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
         if (dist <= radius) {
-          const killed = enemy.takeDamage(dmg, player.x, player.y);
+          const enemyExec = (player.hasExecutionerAxe && (enemy.hp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
+          const enemyMolten = (player.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
+          const finalDmg = Math.max(1, Math.round(baseWhirlDmg * enemyExec * enemyMolten));
+          const killed = enemy.takeDamage(finalDmg, player.x, player.y);
 
           if (res.element) {
             const combo = enemy.applyElement(res.element, 3500, 2);
@@ -1712,7 +1743,7 @@ export class GameScene extends Phaser.Scene {
             }
           }
 
-          if (player === this.myPlayer) this.spawnDamageNumber(enemy.x, enemy.y, `-${dmg}`, '#67e8f9');
+          if (player === this.myPlayer) this.spawnDamageNumber(enemy.x, enemy.y, `-${finalDmg}`, '#67e8f9');
           this.hitSpark.setPosition(enemy.x, enemy.y);
           this.hitSpark.explode(8);
 
@@ -1730,10 +1761,32 @@ export class GameScene extends Phaser.Scene {
             AchievementManager.get().enemiesKilled += 1;
             AchievementManager.get().unlock('first_blood', this);
 
-            const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+            if (player.onEnemyKilled()) {
+              this.buildHeartsUI();
+              this.spawnDamageNumber(player.x, player.y - 12, '+1 HP', '#ec4899');
+            }
+
+            if (player.elementalSlots.onKill === 'fire' || player.hasOilLamp) {
+              this.triggerOilExplosion(enemy.x, enemy.y);
+            }
+            if (player.hasBlizzardRing || player.elementalSlots.onKill === 'frost') {
+              this.triggerBlizzardShatter(enemy.x, enemy.y);
+            }
+            if (player.elementalSlots.onKill === 'poison') {
+              for (const other of this.enemies) {
+                if (other === enemy || other.isDead) continue;
+                if (Phaser.Math.Distance.Between(enemy.x, enemy.y, other.x, other.y) < 64) {
+                  other.applyElement('poison', 3500, 2);
+                }
+              }
+            }
+
+            const baseCoins = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+            const coinCount = Math.round(baseCoins * player.goldMultiplier);
             this.spawnCoins(enemy.x, enemy.y, coinCount);
 
-            if (Math.random() < 0.2) {
+            const emberChance = (player.items['lucky_horseshoe'] ? 0.30 : 0.20);
+            if (Math.random() < emberChance) {
               MetaManager.get().addEmbers(1);
               this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 УГОЛЬ', '#f97316');
             }
@@ -1742,9 +1795,6 @@ export class GameScene extends Phaser.Scene {
               player.heal(1);
               this.buildHeartsUI();
               this.spawnDamageNumber(player.x, player.y - 12, '+1 HP', '#4ade80');
-            }
-            if (player.hasOilLamp) {
-              this.triggerOilExplosion(enemy.x, enemy.y);
             }
           }
         }
@@ -1792,7 +1842,9 @@ export class GameScene extends Phaser.Scene {
             SoundFX.playArrowHit();
           }
           const isCrit = Math.random() < this.myPlayer.critChance;
-          const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1)));
+          const bossDmgMultiplier = this.myPlayer.bossDamageMultiplier;
+          const executeMultiplier = (this.myPlayer.hasExecutionerAxe && (this.boss.hp / this.boss.maxHp) < 0.35) ? 1.5 : 1.0;
+          const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1) * bossDmgMultiplier * executeMultiplier));
           const killed = this.boss.takeDamage(dmg, arrow.x, arrow.y);
 
           if (isCrit) {
@@ -1836,7 +1888,9 @@ export class GameScene extends Phaser.Scene {
             SoundFX.playArrowHit();
           }
           const isCrit = Math.random() < this.myPlayer.critChance;
-          const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1)));
+          const executeMultiplier = (this.myPlayer.hasExecutionerAxe && (enemy.hp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
+          const moltenMultiplier = (this.myPlayer.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
+          const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1) * executeMultiplier * moltenMultiplier));
           const killed = enemy.takeDamage(dmg, arrow.x, arrow.y);
 
           const elem = (arrow as EnergyProjectile).element ?? this.myPlayer.elementalSlots.attack;
@@ -1850,8 +1904,8 @@ export class GameScene extends Phaser.Scene {
           if (isCrit) {
             SoundFX.playCritHit();
             this.spawnDamageNumber(enemy.x, enemy.y, `КРИТ! -${dmg}`, '#f87171');
-            if (this.myPlayer.stormTargets > 0) {
-              this.triggerChainLightning(enemy, this.myPlayer.stormTargets, Math.round(dmg * 0.75));
+            if (this.myPlayer.hasThunderTalisman || this.myPlayer.stormTargets > 0) {
+              this.triggerChainLightning(enemy, Math.max(2, this.myPlayer.stormTargets), Math.round(dmg * 0.75));
             }
           } else {
             const hitCol = arrow instanceof EnergyProjectile ? '#c084fc' : '#ffe28a';
@@ -1875,10 +1929,32 @@ export class GameScene extends Phaser.Scene {
             AchievementManager.get().enemiesKilled += 1;
             AchievementManager.get().unlock('first_blood', this);
 
-            const coinCount = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+            if (this.myPlayer.onEnemyKilled()) {
+              this.buildHeartsUI();
+              this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 12, '+1 HP', '#ec4899');
+            }
+
+            if (this.myPlayer.elementalSlots.onKill === 'fire' || this.myPlayer.hasOilLamp) {
+              this.triggerOilExplosion(enemy.x, enemy.y);
+            }
+            if (this.myPlayer.hasBlizzardRing || this.myPlayer.elementalSlots.onKill === 'frost') {
+              this.triggerBlizzardShatter(enemy.x, enemy.y);
+            }
+            if (this.myPlayer.elementalSlots.onKill === 'poison') {
+              for (const other of this.enemies) {
+                if (other === enemy || other.isDead) continue;
+                if (Phaser.Math.Distance.Between(enemy.x, enemy.y, other.x, other.y) < 64) {
+                  other.applyElement('poison', 3500, 2);
+                }
+              }
+            }
+
+            const baseCoins = enemy.kind === 'skeleton' ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(2, 4);
+            const coinCount = Math.round(baseCoins * this.myPlayer.goldMultiplier);
             this.spawnCoins(enemy.x, enemy.y, coinCount);
 
-            if (Math.random() < 0.2) {
+            const emberChance = (this.myPlayer.items['lucky_horseshoe'] ? 0.30 : 0.20);
+            if (Math.random() < emberChance) {
               MetaManager.get().addEmbers(1);
               this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 УГОЛЬ', '#f97316');
             }
@@ -1887,9 +1963,6 @@ export class GameScene extends Phaser.Scene {
               this.myPlayer.heal(1);
               this.buildHeartsUI();
               this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 12, '+1 HP', '#4ade80');
-            }
-            if (this.myPlayer.hasOilLamp) {
-              this.triggerOilExplosion(enemy.x, enemy.y);
             }
           }
 
@@ -1952,6 +2025,25 @@ export class GameScene extends Phaser.Scene {
         this.spawnDamageNumber(enemy.x, enemy.y, 'ОГОНЬ -2', '#fb923c');
         if (dead) {
           SoundFX.playEnemyDeath(enemy.kind);
+          this.killCount += 1;
+        }
+      }
+    }
+  }
+
+  private triggerBlizzardShatter(sourceX: number, sourceY: number): void {
+    SoundFX.playIceShatter();
+    this.iceSpark.setPosition(sourceX, sourceY - 8);
+    this.iceSpark.explode(24);
+    for (const other of this.enemies) {
+      if (other.isDead) continue;
+      const d = Phaser.Math.Distance.Between(sourceX, sourceY, other.x, other.y);
+      if (d <= 58) {
+        const dead = other.takeDamage(2, sourceX, sourceY);
+        other.applyElement('frost', 3000, 1.5);
+        this.spawnDamageNumber(other.x, other.y, 'ЛЕД -2', '#38bdf8');
+        if (dead) {
+          SoundFX.playEnemyDeath(other.kind);
           this.killCount += 1;
         }
       }
@@ -2873,9 +2965,17 @@ export class GameScene extends Phaser.Scene {
             }
 
             // Rising item float effect
-            const itemSprite = this.add.sprite(chest.x, chest.y - 12, TEXTURE.PROPS, item.icon);
+            const iconCoord = ITEM_SPRITE_MAP[item.id];
+            let itemSprite: Phaser.GameObjects.Sprite;
+            if (iconCoord) {
+              const frameIndex = iconCoord.row * 11 + iconCoord.col;
+              itemSprite = this.add.sprite(chest.x, chest.y - 12, TEXTURE.ITEMS_32ROGUES, frameIndex);
+              itemSprite.setScale(1.2);
+            } else {
+              itemSprite = this.add.sprite(chest.x, chest.y - 12, TEXTURE.PROPS, item.icon);
+              itemSprite.setScale(1.4);
+            }
             itemSprite.setOrigin(0.5, 0.5);
-            itemSprite.setScale(1.4);
             itemSprite.setDepth(DEPTH.YSORT_BASE + chest.y + 10);
             this.worldLayer.add(itemSprite);
             this.tweens.add({
@@ -2975,6 +3075,29 @@ export class GameScene extends Phaser.Scene {
                 this.hitSpark.setPosition(shrine.x, shrine.y - 12);
                 this.hitSpark.explode(20);
 
+                const iconCoord = ITEM_SPRITE_MAP[item.id];
+                let shrineItemSprite: Phaser.GameObjects.Sprite;
+                if (iconCoord) {
+                  const frameIndex = iconCoord.row * 11 + iconCoord.col;
+                  shrineItemSprite = this.add.sprite(shrine.x, shrine.y - 12, TEXTURE.ITEMS_32ROGUES, frameIndex);
+                  shrineItemSprite.setScale(1.2);
+                } else {
+                  shrineItemSprite = this.add.sprite(shrine.x, shrine.y - 12, TEXTURE.PROPS, item.icon);
+                  shrineItemSprite.setScale(1.4);
+                }
+                shrineItemSprite.setOrigin(0.5, 0.5);
+                shrineItemSprite.setDepth(DEPTH.YSORT_BASE + shrine.y + 10);
+                this.worldLayer.add(shrineItemSprite);
+                this.tweens.add({
+                  targets: shrineItemSprite,
+                  y: shrine.y - 32,
+                  alpha: 0,
+                  scale: 1.8,
+                  duration: 1100,
+                  ease: 'Cubic.easeOut',
+                  onComplete: () => shrineItemSprite.destroy(),
+                });
+
                 if (shrine.usesLeft <= 0) {
                   shrine.prompt.setText('(ИСТОЩЕНО)');
                   shrine.prompt.setColor('#64748b');
@@ -3012,8 +3135,16 @@ export class GameScene extends Phaser.Scene {
     const bg = this.add.rectangle(0, 0, 360, 44, 0x0f0b1a, 0.92);
     bg.setStrokeStyle(2, Phaser.Display.Color.HexStringToColor(item.color).color);
 
-    const icon = this.add.sprite(-150, 0, TEXTURE.PROPS, item.icon);
-    icon.setScale(1.5);
+    const iconCoord = ITEM_SPRITE_MAP[item.id];
+    let icon: Phaser.GameObjects.Sprite;
+    if (iconCoord) {
+      const frameIndex = iconCoord.row * 11 + iconCoord.col;
+      icon = this.add.sprite(-150, 0, TEXTURE.ITEMS_32ROGUES, frameIndex);
+      icon.setScale(1.2);
+    } else {
+      icon = this.add.sprite(-150, 0, TEXTURE.PROPS, item.icon);
+      icon.setScale(1.5);
+    }
 
     const title = this.add.text(-125, -14, item.name, {
       fontFamily: FONT.UI,

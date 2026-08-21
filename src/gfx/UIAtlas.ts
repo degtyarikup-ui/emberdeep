@@ -6,23 +6,41 @@ import { TEXTURE } from './registry';
  * Each icon is exactly 32x32 px.
  */
 export const ITEM_SPRITE_MAP: Record<string, { col: number; row: number }> = {
-  // Swords & Blades
-  whetstone: { col: 4, row: 4 }, // Blacksmith hammer / stone
-  crit_dagger: { col: 7, row: 0 }, // Magic dagger
-  fire_blade: { col: 10, row: 0 }, // Flame sword
-  frost_edge: { col: 8, row: 0 }, // Crystal sword
-  // Boots & Movement
+  // Common
+  whetstone: { col: 4, row: 4 }, // Blacksmith stone / hammer
   boots: { col: 1, row: 13 }, // Leather boots
+  crit_dagger: { col: 7, row: 0 }, // Magic dagger
+  titan_heart: { col: 6, row: 15 }, // Ruby Heart Gem
+  midas_coin: { col: 0, row: 17 }, // Golden Coin Stack
+  iron_pauldrons: { col: 2, row: 14 }, // Spiked Iron Armor / Pauldrons
+  lucky_horseshoe: { col: 3, row: 17 }, // Lucky Golden Horseshoe
+  berserker_wristband: { col: 0, row: 15 }, // Spiked Berserker Ring
+
+  // Uncommon & Elemental
+  fire_blade: { col: 10, row: 0 }, // Flame sword
   fire_dash: { col: 3, row: 13 }, // Flame greaves
-  frost_dash: { col: 4, row: 13 }, // Ice boots
-  lightning_dash: { col: 2, row: 13 }, // Winged boots
-  // Accessories & Magic
-  storm_earring: { col: 2, row: 15 }, // Magic earring / amulet
-  venom_vial: { col: 4, row: 18 }, // Poison potion bottle
-  leech_fang: { col: 6, row: 0 }, // Sanguine fang/dagger
   oil_lamp: { col: 5, row: 18 }, // Oil potion / lamp
+  molten_core: { col: 7, row: 22 }, // Blazing Magma Core / Ore
+  frost_edge: { col: 8, row: 0 }, // Crystal frost sword
+  frost_dash: { col: 4, row: 13 }, // Ice boots
+  blizzard_ring: { col: 8, row: 15 }, // Sapphire Ice Ring
+  storm_earring: { col: 2, row: 15 }, // Lightning earring / amulet
+  lightning_dash: { col: 2, row: 13 }, // Winged boots
+  thunder_talisman: { col: 3, row: 15 }, // Golden Thunder Talisman
+  venom_vial: { col: 4, row: 18 }, // Poison potion bottle
+  leech_fang: { col: 6, row: 0 }, // Sanguine vampire fang
+  toxic_mist_dash: { col: 5, row: 13 }, // Venom boots
+  chrono_hourglass: { col: 1, row: 24 }, // Golden Hourglass of Time
+  executioner_axe: { col: 2, row: 1 }, // Heavy Executioner Battleaxe
+
+  // Legendary
   immortal_crown: { col: 4, row: 12 }, // Golden Crown
-  // Weapons for classes
+  radiant_shield: { col: 3, row: 11 }, // Golden Radiant Shield
+  blood_chalice: { col: 7, row: 17 }, // Royal Sanguine Chalice
+  giant_slayer_ring: { col: 5, row: 15 }, // Onyx Giant Slayer Ring
+  prismatic_prism: { col: 9, row: 22 }, // Prismatic Diamond Crystal
+
+  // Weapons & Actions
   knight_sword: { col: 3, row: 0 }, // Longsword
   ranger_bow: { col: 0, row: 9 }, // Hunting Bow
   wizard_staff: { col: 0, row: 10 }, // Magic Staff

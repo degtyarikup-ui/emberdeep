@@ -6,7 +6,7 @@ import { SoundFX, SurfaceType } from '../audio/SoundFX';
 import { ArrowProjectile } from './ArrowProjectile';
 import { EnergyProjectile } from './EnergyProjectile';
 import { MetaManager } from '../meta/MetaManager';
-import { EntityAnimController } from '../gfx/AnimationManager';
+import { EntityAnimController, AnimStateName } from '../gfx/AnimationManager';
 import { ElementalSlotConfig, ElementType, ELEMENT_COLORS } from '../combat/ElementalSystem';
 import { ITEMS } from '../items/registry';
 
@@ -706,7 +706,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
        this.animController.tryTransition('hit');
        return;
     }
-    if (!this.animController || !this.animController.tryTransition(next as any)) return;
+    if (!this.animController || !this.animController.tryTransition(next as AnimStateName)) return;
     this.setOrigin(0.5, 1.0);
 
     const isKnight = this.heroClass === 'knight';

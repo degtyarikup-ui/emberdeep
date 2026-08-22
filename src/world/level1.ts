@@ -602,16 +602,16 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   // 15. Tactical Enemies (42 enemies scaled across 10 POIs)
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
     // Zone 1 -> Zone 2 Trail: Wolf Pack (2)
-    { col: 24, row: 18, kind: 'wolf' }, { col: 26, row: 22, kind: 'wolf' },
+    { col: 20, row: 18, kind: 'wolf' }, { col: 24, row: 22, kind: 'wolf' },
 
     // Zone 2: Sawmill (4 imps + 2 wolves)
     { col: 38, row: 18, kind: 'imp' }, { col: 46, row: 18, kind: 'imp' },
     { col: 36, row: 24, kind: 'imp' }, { col: 44, row: 22, kind: 'imp' },
-    { col: 40, row: 26, kind: 'wolf' }, { col: 48, row: 26, kind: 'wolf' },
+    { col: 40, row: 26, kind: 'wolf' }, { col: 42, row: 26, kind: 'wolf' },
 
     // Zone 3: River Docks & North Bridge (2 skeletons + 2 wolves)
     { col: 46, row: 24, kind: 'skeleton' }, { col: 50, row: 32, kind: 'skeleton' },
-    { col: 50, row: 16, kind: 'wolf' }, { col: 58, row: 16, kind: 'wolf' },
+    { col: 48, row: 20, kind: 'wolf' }, { col: 62, row: 19, kind: 'wolf' },
 
     // Zone 4: Secret Island (2 elite champions)
     { col: 69, row: 49, kind: 'skeleton' }, { col: 73, row: 49, kind: 'imp' },
@@ -642,7 +642,7 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 54, row: 76, kind: 'skeleton' }, { col: 62, row: 76, kind: 'skeleton' },
 
     // Zone 10: Altar Grove (8 elite demon guards + 2 dire wolves)
-    { col: 100, row: 64, kind: 'wolf' }, { col: 100, row: 76, kind: 'wolf' },
+    { col: 100, row: 64, kind: 'wolf' }, { col: 98, row: 76, kind: 'wolf' },
     { col: 104, row: 66, kind: 'imp' }, { col: 120, row: 66, kind: 'imp' },
     { col: 106, row: 72, kind: 'skeleton' }, { col: 118, row: 72, kind: 'skeleton' },
     { col: 108, row: 76, kind: 'imp' }, { col: 116, row: 76, kind: 'skeleton' },

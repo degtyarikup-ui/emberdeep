@@ -13,13 +13,14 @@ import { YandexSDK } from '../yandex/yandexSdk';
 import { registerDebugHotkey } from '../debug/hotkey';
 import { BUILD_LABEL } from '../buildInfo';
 import { SettingsModal } from '../ui/SettingsModal';
+import { PIXEL_UI_TEXTURE, PIXEL_ICON } from '../gfx/PixelUI';
 
 function makeButton(
   scene: Phaser.Scene,
   x: number,
   y: number,
   label: string,
-  opts: { muted?: boolean; fontSize?: string } = {}
+  opts: { muted?: boolean; fontSize?: string; iconFrame?: number } = {}
 ): Phaser.GameObjects.Text {
   const txt = scene.add
     .text(x, y, label, {
@@ -33,16 +34,27 @@ function makeButton(
     .setPadding(14, 10, 14, 10)
     .setInteractive({ useHandCursor: true });
 
+  let iconSprite: Phaser.GameObjects.Sprite | undefined;
+  if (opts.iconFrame !== undefined) {
+    iconSprite = scene.add
+      .sprite(x - txt.width / 2 - 4, y, PIXEL_UI_TEXTURE.ICONS_SHEET, opts.iconFrame)
+      .setDepth(DEPTH.UI)
+      .setScale(1.0);
+  }
+
   txt.on('pointerover', () => {
     scene.tweens.add({ targets: txt, scale: 1.08, duration: 120 });
+    if (iconSprite) scene.tweens.add({ targets: iconSprite, scale: 1.18, duration: 120 });
     txt.setColor(opts.muted ? '#b3aabd' : '#d4a840');
   });
   txt.on('pointerout', () => {
     scene.tweens.add({ targets: txt, scale: 1, duration: 120 });
+    if (iconSprite) scene.tweens.add({ targets: iconSprite, scale: 1.0, duration: 120 });
     txt.setColor(opts.muted ? '#8b8398' : '#c8b890');
   });
   txt.on('pointerdown', () => {
     scene.tweens.add({ targets: txt, scale: 0.96, duration: 60, yoyo: true });
+    if (iconSprite) scene.tweens.add({ targets: iconSprite, scale: 0.92, duration: 60, yoyo: true });
   });
 
   return txt;
@@ -360,17 +372,17 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    const altarBtn = makeButton(this, width / 2 - 160, height * 0.60 + 50, t().upgradesBtn, { fontSize: '13px' });
+    const altarBtn = makeButton(this, width / 2 - 160, height * 0.60 + 50, t().upgradesBtn, { fontSize: '13px', iconFrame: PIXEL_ICON.EMBER });
     altarBtn.on('pointerdown', () => {
       this.openSoulAltar();
     });
 
-    const achBtn = makeButton(this, width / 2, height * 0.60 + 50, t().achievementsBtn, { fontSize: '13px' });
+    const achBtn = makeButton(this, width / 2, height * 0.60 + 50, t().achievementsBtn, { fontSize: '13px', iconFrame: PIXEL_ICON.SHIELD });
     achBtn.on('pointerdown', () => {
       this.openAchievementsModal();
     });
 
-    const settingsBtn = makeButton(this, width / 2 + 160, height * 0.60 + 50, t().settingsBtn, { fontSize: '13px' });
+    const settingsBtn = makeButton(this, width / 2 + 160, height * 0.60 + 50, t().settingsBtn, { fontSize: '13px', iconFrame: PIXEL_ICON.SETTINGS });
     settingsBtn.on('pointerdown', () => {
       this.settingsModal.open('menu');
     });

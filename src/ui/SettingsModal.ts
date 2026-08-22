@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { DEPTH, FONT } from '../gfx/registry';
-import { PixelUI, PIXEL_UI_TEXTURE } from '../gfx/PixelUI';
+import { PixelUI, PIXEL_UI_TEXTURE, PIXEL_ICON } from '../gfx/PixelUI';
 import { SoundFX } from '../audio/SoundFX';
 import { t } from '../i18n';
 
@@ -22,6 +22,7 @@ export class SettingsModal {
   private onCloseCallback?: () => void;
 
   // UI Elements
+  private headerIcon!: Phaser.GameObjects.Sprite;
   private titleText!: Phaser.GameObjects.Text;
   private musicPercentText!: Phaser.GameObjects.Text;
   private sfxPercentText!: Phaser.GameObjects.Text;
@@ -33,8 +34,9 @@ export class SettingsModal {
   private gameButtonsContainer!: Phaser.GameObjects.Container;
   private menuButtonsContainer!: Phaser.GameObjects.Container;
 
-  private readonly sliderTrackW = 240;
+  private readonly sliderTrackW = 230;
   private readonly sliderTrackH = 14;
+  private readonly sliderX = 35;
 
   private lastTickVolume = -1;
 
@@ -61,7 +63,7 @@ export class SettingsModal {
   }
 
   private buildModal(): void {
-    const modalW = 440;
+    const modalW = 460;
     const modalH = 320;
 
     // 1. Dark Backdrop Overlay
@@ -77,19 +79,24 @@ export class SettingsModal {
     const header = PixelUI.createHeader(this.scene, 0, -modalH / 2 + 18, modalW - 16, 28);
     this.container.add(header);
 
+    // Header Icon (Settings Gear or Shield)
+    this.headerIcon = this.scene.add.sprite(-modalW / 2 + 24, -modalH / 2 + 18, PIXEL_UI_TEXTURE.ICONS_SHEET, PIXEL_ICON.SETTINGS);
+    this.headerIcon.setScale(1.15);
+    this.container.add(this.headerIcon);
+
     this.titleText = this.scene.add
-      .text(0, -modalH / 2 + 18, this.mode === 'game' ? t().paused : t().settingsTitle, {
+      .text(-modalW / 2 + 40, -modalH / 2 + 18, this.mode === 'game' ? t().paused : t().settingsTitle, {
         fontFamily: FONT.TITLE,
-        fontSize: '14px',
+        fontSize: '13px',
         fontStyle: '700',
         color: '#fbbf24',
       })
-      .setOrigin(0.5, 0.5);
+      .setOrigin(0, 0.5);
     this.titleText.setStroke('#000000', 4);
     this.container.add(this.titleText);
 
     // Close [X] Button on Header
-    const closeBtn = this.scene.add.sprite(modalW / 2 - 20, -modalH / 2 + 18, PIXEL_UI_TEXTURE.ICONS_SHEET, 8);
+    const closeBtn = this.scene.add.sprite(modalW / 2 - 20, -modalH / 2 + 18, PIXEL_UI_TEXTURE.ICONS_SHEET, PIXEL_ICON.CLOSE);
     closeBtn.setScale(1.2);
     closeBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
       SoundFX.playMenuClick();
@@ -98,23 +105,28 @@ export class SettingsModal {
     this.container.add(closeBtn);
 
     // 4. Sliders Section
-    const sliderTrackW = 240;
-    const sliderTrackH = 14;
+    // === MUSIC ROW ===
+    const musicY = -modalH / 2 + 76;
 
-    // === MUSIC SLIDER ===
-    const musicY = -modalH / 2 + 75;
+    // Music Icon Slot
+    const musicSlot = PixelUI.createSlot(this.scene, -modalW / 2 + 42, musicY, 32, 'common');
+    this.container.add(musicSlot);
+    const musicIcon = this.scene.add.sprite(-modalW / 2 + 42, musicY, PIXEL_UI_TEXTURE.ICONS_SHEET, PIXEL_ICON.MUSIC);
+    musicIcon.setScale(1.2);
+    this.container.add(musicIcon);
+
     const musicLabel = this.scene.add
-      .text(-modalW / 2 + 28, musicY - 14, t().musicVolume, {
+      .text(this.sliderX - this.sliderTrackW / 2, musicY - 14, t().musicVolume, {
         fontFamily: FONT.UI,
         fontSize: '12px',
         fontStyle: '600',
-        color: '#e2e8f0',
+        color: '#fde047',
       })
       .setOrigin(0, 0.5);
     this.container.add(musicLabel);
 
     this.musicPercentText = this.scene.add
-      .text(modalW / 2 - 28, musicY - 14, `${Math.round(SoundFX.getMusicVolume() * 100)}%`, {
+      .text(this.sliderX + this.sliderTrackW / 2, musicY - 14, `${Math.round(SoundFX.getMusicVolume() * 100)}%`, {
         fontFamily: FONT.UI,
         fontSize: '12px',
         fontStyle: '700',
@@ -124,32 +136,32 @@ export class SettingsModal {
     this.container.add(this.musicPercentText);
 
     const musicTrack = this.scene.add
-      .rectangle(0, musicY + 8, sliderTrackW, sliderTrackH, 0x0f172a, 0.95)
+      .rectangle(this.sliderX, musicY + 8, this.sliderTrackW, this.sliderTrackH, 0x0f172a, 0.95)
       .setStrokeStyle(1.5, 0x475569)
       .setInteractive({ useHandCursor: true });
     this.container.add(musicTrack);
 
     this.musicFill = this.scene.add
-      .rectangle(-sliderTrackW / 2, musicY + 8, sliderTrackW * SoundFX.getMusicVolume(), sliderTrackH - 4, 0xf59e0b, 0.9)
+      .rectangle(this.sliderX - this.sliderTrackW / 2, musicY + 8, this.sliderTrackW * SoundFX.getMusicVolume(), this.sliderTrackH - 4, 0xf59e0b, 0.9)
       .setOrigin(0, 0.5);
     this.container.add(this.musicFill);
 
     this.musicThumb = this.scene.add
-      .rectangle(-sliderTrackW / 2 + sliderTrackW * SoundFX.getMusicVolume(), musicY + 8, 10, sliderTrackH + 6, 0xfde047, 1)
+      .rectangle(this.sliderX - this.sliderTrackW / 2 + this.sliderTrackW * SoundFX.getMusicVolume(), musicY + 8, 10, this.sliderTrackH + 6, 0xfde047, 1)
       .setStrokeStyle(1.5, 0x78350f)
       .setInteractive({ useHandCursor: true });
     this.container.add(this.musicThumb);
 
     const handleMusicInput = (pointerX: number) => {
-      const localX = pointerX - (this.container.x);
-      const minX = -sliderTrackW / 2;
-      const maxX = sliderTrackW / 2;
+      const localX = pointerX - (this.container.x + this.sliderX);
+      const minX = -this.sliderTrackW / 2;
+      const maxX = this.sliderTrackW / 2;
       const clampedX = Math.max(minX, Math.min(maxX, localX));
-      const ratio = (clampedX - minX) / sliderTrackW;
+      const ratio = (clampedX - minX) / this.sliderTrackW;
 
       SoundFX.setMusicVolume(ratio);
-      this.musicFill.setSize(sliderTrackW * ratio, sliderTrackH - 4);
-      this.musicThumb.x = clampedX;
+      this.musicFill.setSize(this.sliderTrackW * ratio, this.sliderTrackH - 4);
+      this.musicThumb.x = this.sliderX + clampedX;
       this.musicPercentText.setText(`${Math.round(ratio * 100)}%`);
 
       const intRatio = Math.round(ratio * 20);
@@ -176,20 +188,28 @@ export class SettingsModal {
       musicDragging = false;
     });
 
-    // === SFX SLIDER ===
-    const sfxY = -modalH / 2 + 145;
+    // === SFX ROW ===
+    const sfxY = -modalH / 2 + 148;
+
+    // SFX Icon Slot
+    const sfxSlot = PixelUI.createSlot(this.scene, -modalW / 2 + 42, sfxY, 32, 'rare');
+    this.container.add(sfxSlot);
+    const sfxIcon = this.scene.add.sprite(-modalW / 2 + 42, sfxY, PIXEL_UI_TEXTURE.ICONS_SHEET, PIXEL_ICON.SFX);
+    sfxIcon.setScale(1.2);
+    this.container.add(sfxIcon);
+
     const sfxLabel = this.scene.add
-      .text(-modalW / 2 + 28, sfxY - 14, t().sfxVolume, {
+      .text(this.sliderX - this.sliderTrackW / 2, sfxY - 14, t().sfxVolume, {
         fontFamily: FONT.UI,
         fontSize: '12px',
         fontStyle: '600',
-        color: '#e2e8f0',
+        color: '#7dd3fc',
       })
       .setOrigin(0, 0.5);
     this.container.add(sfxLabel);
 
     this.sfxPercentText = this.scene.add
-      .text(modalW / 2 - 28, sfxY - 14, `${Math.round(SoundFX.getSfxVolume() * 100)}%`, {
+      .text(this.sliderX + this.sliderTrackW / 2, sfxY - 14, `${Math.round(SoundFX.getSfxVolume() * 100)}%`, {
         fontFamily: FONT.UI,
         fontSize: '12px',
         fontStyle: '700',
@@ -199,32 +219,32 @@ export class SettingsModal {
     this.container.add(this.sfxPercentText);
 
     const sfxTrack = this.scene.add
-      .rectangle(0, sfxY + 8, sliderTrackW, sliderTrackH, 0x0f172a, 0.95)
+      .rectangle(this.sliderX, sfxY + 8, this.sliderTrackW, this.sliderTrackH, 0x0f172a, 0.95)
       .setStrokeStyle(1.5, 0x475569)
       .setInteractive({ useHandCursor: true });
     this.container.add(sfxTrack);
 
     this.sfxFill = this.scene.add
-      .rectangle(-sliderTrackW / 2, sfxY + 8, sliderTrackW * SoundFX.getSfxVolume(), sliderTrackH - 4, 0x0284c7, 0.9)
+      .rectangle(this.sliderX - this.sliderTrackW / 2, sfxY + 8, this.sliderTrackW * SoundFX.getSfxVolume(), this.sliderTrackH - 4, 0x0284c7, 0.9)
       .setOrigin(0, 0.5);
     this.container.add(this.sfxFill);
 
     this.sfxThumb = this.scene.add
-      .rectangle(-sliderTrackW / 2 + sliderTrackW * SoundFX.getSfxVolume(), sfxY + 8, 10, sliderTrackH + 6, 0x38bdf8, 1)
+      .rectangle(this.sliderX - this.sliderTrackW / 2 + this.sliderTrackW * SoundFX.getSfxVolume(), sfxY + 8, 10, this.sliderTrackH + 6, 0x38bdf8, 1)
       .setStrokeStyle(1.5, 0x0369a1)
       .setInteractive({ useHandCursor: true });
     this.container.add(this.sfxThumb);
 
     const handleSfxInput = (pointerX: number) => {
-      const localX = pointerX - (this.container.x);
-      const minX = -sliderTrackW / 2;
-      const maxX = sliderTrackW / 2;
+      const localX = pointerX - (this.container.x + this.sliderX);
+      const minX = -this.sliderTrackW / 2;
+      const maxX = this.sliderTrackW / 2;
       const clampedX = Math.max(minX, Math.min(maxX, localX));
-      const ratio = (clampedX - minX) / sliderTrackW;
+      const ratio = (clampedX - minX) / this.sliderTrackW;
 
       SoundFX.setSfxVolume(ratio);
-      this.sfxFill.setSize(sliderTrackW * ratio, sliderTrackH - 4);
-      this.sfxThumb.x = clampedX;
+      this.sfxFill.setSize(this.sliderTrackW * ratio, this.sliderTrackH - 4);
+      this.sfxThumb.x = this.sliderX + clampedX;
       this.sfxPercentText.setText(`${Math.round(ratio * 100)}%`);
 
       const intRatio = Math.round(ratio * 20);
@@ -262,8 +282,12 @@ export class SettingsModal {
       .rectangle(0, 0, 160, 32, 0x1e293b, 0.95)
       .setStrokeStyle(1.5, 0xfbbf24)
       .setInteractive({ useHandCursor: true });
+    
+    const closeIcon = this.scene.add.sprite(-45, 0, PIXEL_UI_TEXTURE.ICONS_SHEET, PIXEL_ICON.CLOSE);
+    closeIcon.setScale(1.0);
+
     const closeBtnText = this.scene.add
-      .text(0, 0, t().closeBtn, {
+      .text(8, 0, t().closeBtn, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '700',
@@ -283,18 +307,23 @@ export class SettingsModal {
       this.close();
     });
 
-    this.menuButtonsContainer.add([closeBtnBg, closeBtnText]);
+    this.menuButtonsContainer.add([closeBtnBg, closeIcon, closeBtnText]);
     this.container.add(this.menuButtonsContainer);
 
     // Game mode buttons
     this.gameButtonsContainer = this.scene.add.container(0, modalH / 2 - 42);
 
+    // Resume Button with Play Icon
     const resumeBtnBg = this.scene.add
-      .rectangle(-90, 0, 150, 32, 0x14532d, 0.95)
+      .rectangle(-95, 0, 160, 34, 0x14532d, 0.95)
       .setStrokeStyle(1.5, 0x4ade80)
       .setInteractive({ useHandCursor: true });
+    
+    const resumeIcon = this.scene.add.sprite(-150, 0, PIXEL_UI_TEXTURE.ICONS_SHEET, PIXEL_ICON.PLAY);
+    resumeIcon.setScale(1.1);
+
     const resumeBtnText = this.scene.add
-      .text(-90, 0, t().resumeBtn, {
+      .text(-82, 0, t().resumeBtn, {
         fontFamily: FONT.UI,
         fontSize: '12px',
         fontStyle: '700',
@@ -315,12 +344,17 @@ export class SettingsModal {
       if (this.onResumeCallback) this.onResumeCallback();
     });
 
+    // Exit Button with Portal Exit Icon
     const exitBtnBg = this.scene.add
-      .rectangle(90, 0, 150, 32, 0x7f1d1d, 0.95)
+      .rectangle(95, 0, 160, 34, 0x7f1d1d, 0.95)
       .setStrokeStyle(1.5, 0xf87171)
       .setInteractive({ useHandCursor: true });
+
+    const exitIcon = this.scene.add.sprite(38, 0, PIXEL_UI_TEXTURE.ICONS_SHEET, PIXEL_ICON.EXIT);
+    exitIcon.setScale(1.1);
+
     const exitBtnText = this.scene.add
-      .text(90, 0, t().mainMenuBtn, {
+      .text(106, 0, t().mainMenuBtn, {
         fontFamily: FONT.UI,
         fontSize: '12px',
         fontStyle: '700',
@@ -341,7 +375,7 @@ export class SettingsModal {
       if (this.onExitToMenuCallback) this.onExitToMenuCallback();
     });
 
-    this.gameButtonsContainer.add([resumeBtnBg, resumeBtnText, exitBtnBg, exitBtnText]);
+    this.gameButtonsContainer.add([resumeBtnBg, resumeIcon, resumeBtnText, exitBtnBg, exitIcon, exitBtnText]);
     this.container.add(this.gameButtonsContainer);
 
     this.updateModeUI();
@@ -350,10 +384,12 @@ export class SettingsModal {
   private updateModeUI(): void {
     if (this.mode === 'game') {
       this.titleText.setText(t().paused);
+      this.headerIcon.setFrame(PIXEL_ICON.SHIELD);
       this.gameButtonsContainer.setVisible(true);
       this.menuButtonsContainer.setVisible(false);
     } else {
       this.titleText.setText(t().settingsTitle);
+      this.headerIcon.setFrame(PIXEL_ICON.SETTINGS);
       this.gameButtonsContainer.setVisible(false);
       this.menuButtonsContainer.setVisible(true);
     }
@@ -364,11 +400,11 @@ export class SettingsModal {
     const sVol = SoundFX.getSfxVolume();
 
     this.musicFill.setSize(this.sliderTrackW * mVol, this.sliderTrackH - 4);
-    this.musicThumb.x = -this.sliderTrackW / 2 + this.sliderTrackW * mVol;
+    this.musicThumb.x = this.sliderX - this.sliderTrackW / 2 + this.sliderTrackW * mVol;
     this.musicPercentText.setText(`${Math.round(mVol * 100)}%`);
 
     this.sfxFill.setSize(this.sliderTrackW * sVol, this.sliderTrackH - 4);
-    this.sfxThumb.x = -this.sliderTrackW / 2 + this.sliderTrackW * sVol;
+    this.sfxThumb.x = this.sliderX - this.sliderTrackW / 2 + this.sliderTrackW * sVol;
     this.sfxPercentText.setText(`${Math.round(sVol * 100)}%`);
   }
 

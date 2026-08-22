@@ -15,6 +15,26 @@ export const PIXEL_UI_TEXTURE = {
   ICONS_SHEET: 'tex-pixel-icons-sheet',
 } as const;
 
+export const PIXEL_ICON = {
+  HEART: 0,
+  SWORDS: 1,
+  TARGET: 2,
+  BOOT: 3,
+  BLOOD: 4,
+  SHIELD: 5,
+  COIN: 6,
+  EMBER: 7,
+  CLOSE: 8,
+  FIRE: 9,
+  FROST: 10,
+  LIGHTNING: 11,
+  MUSIC: 12,
+  SFX: 13,
+  SETTINGS: 14,
+  PLAY: 15,
+  EXIT: 16,
+} as const;
+
 export class PixelUI {
   public static buildTextures(scene: Phaser.Scene): void {
     PixelUI.buildPanelStone(scene);
@@ -291,7 +311,7 @@ export class PixelUI {
   private static buildIconsSheet(scene: Phaser.Scene): void {
     if (scene.textures.exists(PIXEL_UI_TEXTURE.ICONS_SHEET)) return;
     const canvas = document.createElement('canvas');
-    canvas.width = 16 * 12;
+    canvas.width = 16 * 17;
     canvas.height = 16;
     const ctx = canvas.getContext('2d')!;
 
@@ -446,8 +466,119 @@ export class PixelUI {
       c.fill();
     });
 
+    // 12: Music Note / Lyre (Gold & Amber)
+    drawIcon(12, (c, ox) => {
+      c.fillStyle = '#b45309'; // Shadow outline
+      c.fillRect(ox + 3, 10, 5, 4);
+      c.fillRect(ox + 9, 8, 5, 4);
+      c.fillRect(ox + 6, 2, 8, 3);
+      c.fillRect(ox + 6, 4, 2, 8);
+      c.fillRect(ox + 12, 4, 2, 6);
+
+      c.fillStyle = '#f59e0b'; // Gold body
+      c.fillRect(ox + 4, 11, 3, 3);
+      c.fillRect(ox + 10, 9, 3, 3);
+      c.fillRect(ox + 7, 3, 6, 2);
+      c.fillRect(ox + 7, 5, 1, 7);
+      c.fillRect(ox + 13, 5, 1, 5);
+
+      c.fillStyle = '#fde047'; // Highlight
+      c.fillRect(ox + 4, 11, 1, 1);
+      c.fillRect(ox + 10, 9, 1, 1);
+      c.fillRect(ox + 7, 3, 6, 1);
+    });
+
+    // 13: SFX / Horn Waves (Cyan & Steel)
+    drawIcon(13, (c, ox) => {
+      c.fillStyle = '#0369a1'; // Base dark
+      c.fillRect(ox + 2, 6, 3, 4);
+      c.fillRect(ox + 5, 4, 3, 8);
+      c.fillRect(ox + 8, 2, 2, 12);
+
+      c.fillStyle = '#38bdf8'; // Cyan horn
+      c.fillRect(ox + 3, 7, 2, 2);
+      c.fillRect(ox + 6, 5, 2, 6);
+      c.fillRect(ox + 8, 3, 1, 10);
+
+      // Sound arcs
+      c.fillStyle = '#7dd3fc';
+      c.fillRect(ox + 11, 5, 1, 6);
+      c.fillRect(ox + 12, 4, 1, 1);
+      c.fillRect(ox + 12, 11, 1, 1);
+
+      c.fillStyle = '#bae6fd';
+      c.fillRect(ox + 14, 3, 1, 10);
+    });
+
+    // 14: Settings Cog / Rune Gear (Iron Slate & Gold)
+    drawIcon(14, (c, ox) => {
+      c.fillStyle = '#334155'; // Dark slate teeth
+      // 4 cardinal teeth
+      c.fillRect(ox + 6, 1, 4, 3);
+      c.fillRect(ox + 6, 12, 4, 3);
+      c.fillRect(ox + 1, 6, 3, 4);
+      c.fillRect(ox + 12, 6, 3, 4);
+      // 4 diagonal teeth
+      c.fillRect(ox + 3, 3, 2, 2);
+      c.fillRect(ox + 11, 3, 2, 2);
+      c.fillRect(ox + 3, 11, 2, 2);
+      c.fillRect(ox + 11, 11, 2, 2);
+
+      // Main wheel body
+      c.fillStyle = '#94a3b8'; // Metallic rim
+      c.fillRect(ox + 3, 5, 10, 6);
+      c.fillRect(ox + 5, 3, 6, 10);
+
+      // Inner recess
+      c.fillStyle = '#0f172a';
+      c.fillRect(ox + 5, 5, 6, 6);
+
+      // Golden core axle
+      c.fillStyle = '#fbbf24';
+      c.fillRect(ox + 7, 7, 2, 2);
+    });
+
+    // 15: Play / Resume Chevron (Emerald Green)
+    drawIcon(15, (c, ox) => {
+      c.fillStyle = '#14532d'; // Dark outline
+      c.fillRect(ox + 3, 2, 3, 12);
+      c.fillRect(ox + 6, 4, 3, 8);
+      c.fillRect(ox + 9, 6, 3, 4);
+      c.fillRect(ox + 12, 7, 2, 2);
+
+      c.fillStyle = '#22c55e'; // Emerald
+      c.fillRect(ox + 4, 3, 2, 10);
+      c.fillRect(ox + 6, 5, 2, 6);
+      c.fillRect(ox + 8, 6, 2, 4);
+      c.fillRect(ox + 10, 7, 2, 2);
+
+      c.fillStyle = '#86efac'; // Highlight
+      c.fillRect(ox + 4, 3, 1, 10);
+      c.fillRect(ox + 5, 4, 2, 1);
+    });
+
+    // 16: Portal / Doorway Exit (Ruby & Void)
+    drawIcon(16, (c, ox) => {
+      c.fillStyle = '#450a0a'; // Dark arch frame
+      c.fillRect(ox + 2, 3, 12, 11);
+      c.fillRect(ox + 4, 1, 8, 3);
+
+      c.fillStyle = '#1e1b4b'; // Inner abyss
+      c.fillRect(ox + 4, 4, 8, 10);
+      c.fillRect(ox + 5, 2, 6, 3);
+
+      // Exit arrow pointing left-out
+      c.fillStyle = '#ef4444'; // Red arrow
+      c.fillRect(ox + 6, 7, 5, 2);
+      c.fillRect(ox + 5, 6, 2, 4);
+      c.fillRect(ox + 4, 7, 2, 2);
+
+      c.fillStyle = '#fca5a5'; // Highlight
+      c.fillRect(ox + 6, 7, 4, 1);
+    });
+
     const texture = scene.textures.addCanvas(PIXEL_UI_TEXTURE.ICONS_SHEET, canvas)!;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 17; i++) {
       texture.add(i, 0, i * 16, 0, 16, 16);
     }
   }

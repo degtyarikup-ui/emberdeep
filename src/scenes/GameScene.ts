@@ -115,6 +115,16 @@ interface DestructibleTree {
   kind: 'pine' | 'oak';
 }
 
+interface SpikeTrap {
+  id: number;
+  sprite: Phaser.GameObjects.Sprite;
+  x: number;
+  y: number;
+  state: 'idle' | 'warning' | 'active';
+  timer: number;
+  cooldown: number;
+}
+
 interface NetContext {
   role: 'host' | 'guest';
   room: RoomClient;
@@ -159,6 +169,7 @@ export class GameScene extends Phaser.Scene {
   private coins: CoinItem[] = [];
   private destructibles: DestructibleProp[] = [];
   private destructibleTrees: DestructibleTree[] = [];
+  private spikeTraps: SpikeTrap[] = [];
   public particles!: ParticleFactory;
   public screenShake!: ScreenShake;
   public hitstop!: HitstopManager;
@@ -300,6 +311,8 @@ export class GameScene extends Phaser.Scene {
     this.torchLights = [];
     this.playerArrows = [];
     this.bossProjectiles = [];
+    this.destructibleTrees = [];
+    this.spikeTraps = [];
     this.boss = undefined;
     this.bannerContainer = undefined;
     this.players = [];
@@ -422,6 +435,20 @@ export class GameScene extends Phaser.Scene {
       sprite.setDepth(DEPTH.YSORT_BASE + yBottom);
       world.add(sprite);
 
+      if (d.key === TEXTURE.PROP_SPIKES) {
+        sprite.setTexture(`${TEXTURE.PROP_SPIKES}_f0`);
+        sprite.setDepth(DEPTH.FLOOR + 1);
+        this.spikeTraps.push({
+          id: i,
+          sprite,
+          x,
+          y: yBottom,
+          state: 'idle',
+          timer: 0,
+          cooldown: 0,
+        });
+      }
+
       if (d.solid) {
         this.physics.add.existing(sprite, true);
         const body = sprite.body as Phaser.Physics.Arcade.StaticBody;
@@ -434,6 +461,7 @@ export class GameScene extends Phaser.Scene {
         const isDestructible =
           d.key === TEXTURE.PROP_CRATE ||
           d.key === TEXTURE.PROP_BARREL ||
+          d.key === TEXTURE.PROP_FENCE ||
           d.key === PROP.CRATE ||
           d.key === PROP.BARREL;
         if (isDestructible) {
@@ -1343,6 +1371,7 @@ export class GameScene extends Phaser.Scene {
     this.updateThreatMeter(delta);
     this.updateBossProjectiles(delta);
     this.updatePlayerArrows(delta);
+    this.updateSpikeTraps(delta);
     this.updateCoins(delta);
     this.updateCamera();
 
@@ -2012,6 +2041,97 @@ export class GameScene extends Phaser.Scene {
     this.playerArrows = this.playerArrows.filter((a) => !a.isDestroyed);
   }
 
+  private updateSpikeTraps(delta: number): void {
+    for (const trap of this.spikeTraps) {
+      if (trap.cooldown > 0) {
+        trap.cooldown -= delta;
+      }
+
+      switch (trap.state) {
+        case 'idle': {
+          if (trap.cooldown > 0) break;
+          // Trigger when any player or living enemy is close
+          let triggered = false;
+          for (const p of this.players) {
+            if (p.isDead) continue;
+            if (Phaser.Math.Distance.Between(p.x, p.y, trap.x, trap.y - 8) <= 20) {
+              triggered = true;
+              break;
+            }
+          }
+          if (!triggered) {
+            for (const e of this.enemies) {
+              if (e.isDead) continue;
+              if (Phaser.Math.Distance.Between(e.x, e.y, trap.x, trap.y - 8) <= 20) {
+                triggered = true;
+                break;
+              }
+            }
+          }
+
+          if (triggered) {
+            trap.state = 'warning';
+            trap.timer = 400; // 0.4s telegraph
+            trap.sprite.setTexture(`${TEXTURE.PROP_SPIKES}_f1`);
+            SoundFX.playSpikeTrigger();
+          }
+          break;
+        }
+
+        case 'warning': {
+          trap.timer -= delta;
+          if (trap.timer <= 0) {
+            trap.state = 'active';
+            trap.timer = 1000; // 1s active thrust
+            trap.sprite.setTexture(`${TEXTURE.PROP_SPIKES}_f3`);
+            SoundFX.playSpikeThrust();
+
+            // Damage player in range
+            for (const p of this.players) {
+              if (p.isDead) continue;
+              if (Phaser.Math.Distance.Between(p.x, p.y, trap.x, trap.y - 8) <= 24) {
+                p.takeDamage(1);
+                this.buildHeartsUI();
+                if (p === this.myPlayer) {
+                  this.worldCam.shake(80, 0.0025);
+                  this.spawnDamageNumber(p.x, p.y - 14, '-1 HP', '#ef4444');
+                }
+                this.bloodSpark.setPosition(p.x, p.y - 8);
+                this.bloodSpark.explode(12);
+              }
+            }
+
+            // Damage and hurt enemies in range
+            for (const e of this.enemies) {
+              if (e.isDead) continue;
+              if (Phaser.Math.Distance.Between(e.x, e.y, trap.x, trap.y - 8) <= 24) {
+                const killed = e.takeDamage(1, trap.x, trap.y);
+                this.bloodSpark.setPosition(e.x, e.y - 8);
+                this.bloodSpark.explode(killed ? 20 : 10);
+                this.spawnDamageNumber(e.x, e.y - 12, '-1', '#f87171');
+                if (killed) {
+                  SoundFX.playEnemyDeath(e.kind);
+                  this.killCount += 1;
+                }
+              }
+            }
+          }
+          break;
+        }
+
+        case 'active': {
+          trap.timer -= delta;
+          if (trap.timer <= 0) {
+            trap.state = 'idle';
+            trap.cooldown = 1200; // 1.2s cooldown before re-arming
+            trap.sprite.setTexture(`${TEXTURE.PROP_SPIKES}_f0`);
+          }
+          break;
+        }
+      }
+    }
+  }
+
   private triggerChainLightning(sourceEnemy: Enemy, maxTargets: number, dmg: number): void {
     const nearby = this.enemies
       .filter((e) => !e.isDead && e !== sourceEnemy)
@@ -2500,6 +2620,16 @@ export class GameScene extends Phaser.Scene {
     stump.setPipeline('Light2D');
     stump.setScale(1.4);
     this.worldLayer.add(stump);
+
+    // 35% chance to drop coins
+    if (Math.random() < 0.35) {
+      this.spawnCoins(tree.x, tree.y, Phaser.Math.Between(1, 2));
+    }
+    // 10% chance to drop an ember
+    if (Math.random() < 0.10) {
+      MetaManager.get().addEmbers(1);
+      this.spawnDamageNumber(tree.x, tree.y - 14, '+1 УГОЛЬ', '#f97316');
+    }
 
     // Topple and fall animation: rotates and squashes onto the ground
     this.tweens.add({

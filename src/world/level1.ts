@@ -473,12 +473,19 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   ];
 
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
-    // Zone 2: Hamlet (4)
+    // Zone 1 -> Zone 2 Trail: Wolf Pack (2)
+    { col: 26, row: 18, kind: 'wolf' },
+    { col: 28, row: 22, kind: 'wolf' },
+    // Zone 2: Hamlet (6)
     { col: 40, row: 12, kind: 'imp' },
     { col: 46, row: 12, kind: 'imp' },
     { col: 42, row: 22, kind: 'imp' },
     { col: 48, row: 22, kind: 'imp' },
-    // Zone 3: River & Island (8)
+    { col: 36, row: 26, kind: 'wolf' },
+    { col: 50, row: 26, kind: 'wolf' },
+    // Zone 3: River & Island (10)
+    { col: 54, row: 14, kind: 'wolf' },
+    { col: 62, row: 14, kind: 'wolf' },
     { col: 54, row: 19, kind: 'imp' },
     { col: 58, row: 19, kind: 'skeleton' },
     { col: 70, row: 46, kind: 'skeleton' },
@@ -500,13 +507,17 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 120, row: 28, kind: 'imp' },
     { col: 118, row: 20, kind: 'skeleton' },
     { col: 122, row: 20, kind: 'skeleton' },
-    // Zone 5: Necropolis (5)
+    // Zone 5: Necropolis & Southern Woods (7)
     { col: 24, row: 58, kind: 'skeleton' },
     { col: 28, row: 64, kind: 'skeleton' },
     { col: 36, row: 62, kind: 'skeleton' },
     { col: 34, row: 72, kind: 'skeleton' },
     { col: 24, row: 74, kind: 'skeleton' },
-    // Zone 6: Altar Grove (8)
+    { col: 20, row: 66, kind: 'wolf' },
+    { col: 44, row: 68, kind: 'wolf' },
+    // Zone 6: Altar Grove (10)
+    { col: 100, row: 64, kind: 'wolf' },
+    { col: 100, row: 76, kind: 'wolf' },
     { col: 104, row: 68, kind: 'skeleton' },
     { col: 104, row: 72, kind: 'imp' },
     { col: 108, row: 62, kind: 'skeleton' },

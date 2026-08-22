@@ -1064,7 +1064,21 @@ class SoundFXManager {
     const t = ctx.currentTime;
     const jitter = 0.88 + Math.random() * 0.24;
 
-    if (kind === 'skeleton') {
+    if (kind === 'wolf') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(420 * jitter, t);
+      osc.frequency.exponentialRampToValueAtTime(140 * jitter, t + 0.07);
+
+      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(t);
+      osc.stop(t + 0.07);
+    } else if (kind === 'skeleton') {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'square';
@@ -1124,6 +1138,20 @@ class SoundFXManager {
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+
+    if (kind === 'wolf') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.linearRampToValueAtTime(680, t + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(90, t + 0.32);
+      gain.gain.setValueAtTime(0.40, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(t);
+      osc.stop(t + 0.32);
+      return;
+    }
 
     if (kind === 'skeleton') {
       osc.type = 'square';

@@ -126,7 +126,7 @@ vendor/                исходные арт-паки — библиотека
 [`src/entities/`](src/entities/)
 
 - **`Player.ts`** — `HeroClass = 'knight'|'ranger'|'wizard'`. Скорость/кулдаун атаки: 130/360, 145/620, 135/480. Спецатака (`trySpecial`): вихрь / веер из 5 стрел / суперновая из 8 энергошаров. Геттеры считают итоговые статы из предметов + мета-бонусов: `moveSpeed`, `attackDamage`, `critChance`, `leechChance`, `immortalCharges`.
-- **`Enemy.ts`** — `EnemyKind = 'imp'|'skeleton'`. Полноценный FSM: `patrol → alert → chase → windup → lunge → recovery → backstep`, плюс расталкивание в толпе. `updateAI(...)` возвращает `true`, если враг попал по игроку. `applyElement(...)` навешивает статус и может вернуть комбо.
+- **`Enemy.ts`** — `EnemyKind = 'imp'|'skeleton'|'wolf'`. Полноценный FSM: `patrol → alert → chase → windup → lunge → recovery → backstep`, плюс расталкивание в толпе. `updateAI(...)` возвращает `true`, если враг попал по игроку. `applyElement(...)` навешивает статус и может вернуть комбо.
 - **`BossEnemy.ts`** — двухфазный Архидемон. `updateBoss(...)` возвращает `BossActionOutput { landedMelee, projectiles, minionSpawns }` — вызывающая сторона обязана разложить снаряды и миньонов по сцене.
 - **Снаряды** (`ArrowProjectile`, `EnergyProjectile`, `BossProjectile`) — не физические тела; двигаются вручную в `update(delta)`, возвращают `false`, когда пора уничтожать. `hitEntityIds: Set<number>` не даёт одному снаряду попасть дважды при пробитии.
 

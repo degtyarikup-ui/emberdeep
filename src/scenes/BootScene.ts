@@ -77,6 +77,7 @@ export class BootScene extends Phaser.Scene {
     preloadActor(this, ACTORS.HERO);
     preloadActor(this, ACTORS.ORC);
     preloadActor(this, ACTORS.SKELETON);
+    preloadActor(this, ACTORS.WOLF);
   }
 
   create(): void {
@@ -200,6 +201,7 @@ export class BootScene extends Phaser.Scene {
     createActorAnims(this, ACTORS.HERO);
     createActorAnims(this, ACTORS.ORC);
     createActorAnims(this, ACTORS.SKELETON);
+    createActorAnims(this, ACTORS.WOLF);
 
     void this.loadFontsThenStart();
   }

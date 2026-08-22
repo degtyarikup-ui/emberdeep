@@ -9,7 +9,7 @@ import {
   ComboResult,
 } from '../combat/ElementalSystem';
 
-export type EnemyKind = 'imp' | 'skeleton';
+export type EnemyKind = 'imp' | 'skeleton' | 'wolf';
 
 export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recovery' | 'backstep' | 'dead';
 
@@ -68,6 +68,24 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     lungeSpeed: 140,
     canBackstep: true,
     canCircleStrafe: true,
+  },
+  wolf: {
+    clips: ACTORS.WOLF,
+    originY: { idle: 0.85, run: 0.80, death: 0.85 },
+    maxHp: 3,
+    patrolSpeed: 55,
+    chaseSpeed: 115,
+    detectRadius: 180,
+    loseRadius: 260,
+    attackRange: 40,
+    contactDamage: 1,
+    scale: 0.95,
+    windupDuration: 160,
+    lungeDuration: 160,
+    recoveryDuration: 220,
+    lungeSpeed: 260,
+    canBackstep: true,
+    canCircleStrafe: false,
   },
 };
 

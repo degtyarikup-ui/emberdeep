@@ -1609,7 +1609,8 @@ export class GameScene extends Phaser.Scene {
     // Attack normal enemies
     for (const enemy of this.enemies) {
       if (enemy.isDead) continue;
-      if (inSlashCone(enemy.x, enemy.y - 8, 54, 1.45)) {
+      const slashReach = enemy.kind === 'wolf' ? 62 : 54;
+      if (inSlashCone(enemy.x, enemy.y - 8, slashReach, 1.5)) {
         const isCrit = Math.random() < player.critChance;
         const executeMultiplier = (player.hasExecutionerAxe && (enemy.currentHp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
         const moltenMultiplier = (player.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
@@ -1760,7 +1761,8 @@ export class GameScene extends Phaser.Scene {
       for (const enemy of this.enemies) {
         if (enemy.isDead) continue;
         const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
-        if (dist <= radius) {
+        const maxDist = radius + (enemy.kind === 'wolf' ? 8 : 0);
+        if (dist <= maxDist) {
           const enemyExec = (player.hasExecutionerAxe && (enemy.currentHp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
           const enemyMolten = (player.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
           const finalDmg = Math.max(1, Math.round(baseWhirlDmg * enemyExec * enemyMolten));
@@ -1910,7 +1912,8 @@ export class GameScene extends Phaser.Scene {
       for (const enemy of this.enemies) {
         if (enemy.isDead || arrow.hitEntityIds.has(enemy.id)) continue;
         const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, enemy.x, enemy.y - 8);
-        if (dist <= 16) {
+        const maxDist = enemy.kind === 'wolf' ? 22 : 16;
+        if (dist <= maxDist) {
           arrow.hitEntityIds.add(enemy.id);
           if (arrow instanceof EnergyProjectile) {
             SoundFX.playEnergyHit();

@@ -16,6 +16,8 @@ export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recov
 interface EnemyStats {
   clips: ActorClips;
   originY: { idle: number; run: number; death: number };
+  bodySize: { idle: [number, number]; run: [number, number] };
+  bodyOffset: { idle: [number, number]; run: [number, number] };
   maxHp: number;
   patrolSpeed: number;
   chaseSpeed: number;
@@ -36,6 +38,8 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   imp: {
     clips: ACTORS.ORC,
     originY: { idle: 0.82, run: 0.74, death: 0.74 },
+    bodySize: { idle: [16, 14], run: [18, 14] },
+    bodyOffset: { idle: [8, 18], run: [23, 50] },
     maxHp: 3,
     patrolSpeed: 38,
     chaseSpeed: 82,
@@ -54,6 +58,8 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   skeleton: {
     clips: ACTORS.SKELETON,
     originY: { idle: 0.82, run: 0.74, death: 0.78 },
+    bodySize: { idle: [16, 18], run: [18, 18] },
+    bodyOffset: { idle: [8, 14], run: [23, 46] },
     maxHp: 5,
     patrolSpeed: 28,
     chaseSpeed: 58,
@@ -72,14 +78,16 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   wolf: {
     clips: ACTORS.WOLF,
     originY: { idle: 0.85, run: 0.80, death: 0.85 },
+    bodySize: { idle: [28, 20], run: [32, 22] },
+    bodyOffset: { idle: [2, 12], run: [16, 38] },
     maxHp: 3,
     patrolSpeed: 55,
     chaseSpeed: 115,
     detectRadius: 180,
     loseRadius: 260,
-    attackRange: 40,
+    attackRange: 42,
     contactDamage: 1,
-    scale: 0.95,
+    scale: 1.05,
     windupDuration: 160,
     lungeDuration: 160,
     recoveryDuration: 220,
@@ -186,8 +194,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.play(stats.clips.idle.key);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setSize(16, 12);
-    body.setOffset(8, 20);
+    const [w, h] = stats.bodySize.idle;
+    const [ox, oy] = stats.bodyOffset.idle;
+    body.setSize(w, h);
+    body.setOffset(ox, oy);
     this.setDepth(DEPTH.YSORT_BASE + y);
     this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.35).setDepth(DEPTH.SHADOW);
   }
@@ -581,13 +591,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (body) {
-      if (next === 'run') {
-        body.setSize(16, 12);
-        body.setOffset(24, 52);
-      } else {
-        body.setSize(16, 12);
-        body.setOffset(8, 20);
-      }
+      const [w, h] = this.stats.bodySize[next];
+      const [ox, oy] = this.stats.bodyOffset[next];
+      body.setSize(w, h);
+      body.setOffset(ox, oy);
     }
   }
 

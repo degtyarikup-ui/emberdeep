@@ -9,14 +9,16 @@ import { FLOOR_INDICES } from '../src/gfx/tileIndex';
 const DEPTHS = [1, 2, 3, 4, 5];
 
 const walkable = (grid: number[][], col: number, row: number) =>
-  row >= 0 && row < ROWS && col >= 0 && col < COLS && FLOOR_INDICES.includes(grid[row][col]);
+  row >= 0 && row < grid.length && col >= 0 && col < grid[0].length && FLOOR_INDICES.includes(grid[row][col]);
 
 describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
   const level = buildLevel1(depth);
 
   it('produces a grid of the declared dimensions', () => {
-    expect(level.data).toHaveLength(ROWS);
-    for (const row of level.data) expect(row).toHaveLength(COLS);
+    expect(level.rows).toBe(depth === 1 ? 90 : 38);
+    expect(level.cols).toBe(depth === 1 ? 140 : 60);
+    expect(level.data).toHaveLength(level.rows);
+    for (const row of level.data) expect(row).toHaveLength(level.cols);
   });
 
   it('places spawn, altar and exit on walkable ground', () => {
@@ -90,6 +92,57 @@ describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
     expect(again.enemies).toEqual(level.enemies);
     expect(again.chests).toEqual(level.chests);
   });
+
+  if (depth === 1 || depth === 2) {
+    it('guarantees that altar, exit, chests, shrines and flasks are all reachable from spawn', () => {
+      const queue: [number, number][] = [[level.spawn.col, level.spawn.row]];
+      const visited = new Set<string>();
+      visited.add(`${level.spawn.col},${level.spawn.row}`);
+
+      const solidDecor = new Set(
+        level.decorations.filter((d) => d.solid).map((d) => `${d.col},${d.row}`)
+      );
+
+      const neighbors = [
+        [0, 1],
+        [0, -1],
+        [1, 0],
+        [-1, 0],
+      ];
+
+      while (queue.length > 0) {
+        const [c, r] = queue.shift()!;
+        for (const [dc, dr] of neighbors) {
+          const nc = c + dc;
+          const nr = r + dr;
+          const key = `${nc},${nr}`;
+          if (!visited.has(key) && walkable(level.data, nc, nr) && !solidDecor.has(key)) {
+            visited.add(key);
+            queue.push([nc, nr]);
+          }
+        }
+      }
+
+      const checkReachable = (name: string, pos: { col: number; row: number }) => {
+        let reachable = visited.has(`${pos.col},${pos.row}`);
+        if (!reachable) {
+          for (const [dc, dr] of neighbors) {
+            if (visited.has(`${pos.col + dc},${pos.row + dr}`)) {
+              reachable = true;
+              break;
+            }
+          }
+        }
+        expect(reachable, `${name} at (${pos.col},${pos.row}) is disconnected from spawn`).toBe(true);
+      };
+
+      checkReachable('altar', level.altar);
+      checkReachable('exit', level.exit);
+      level.chests.forEach((c, idx) => checkReachable(`chest #${idx}`, c));
+      level.shrines.forEach((s, idx) => checkReachable(`shrine #${idx} (${s.kind})`, s));
+      level.flasks.forEach((f, idx) => checkReachable(`flask #${idx} (${f.key})`, f));
+    });
+  }
 
   it('carries a biome whose declared depth does not exceed the run depth', () => {
     expect(level.biome).toBeDefined();

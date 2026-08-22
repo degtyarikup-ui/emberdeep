@@ -96,6 +96,12 @@ export interface TranslationDict {
   buyEmbersMedium: string;
   buyEmbersLarge: string;
   shopHeader: string;
+
+  // Objective markers
+  objectiveAltar: string;
+  objectiveBoss: string;
+  objectiveExit: string;
+  distanceMeter: string;
 }
 
 const RU: TranslationDict = {
@@ -194,6 +200,11 @@ const RU: TranslationDict = {
   buyEmbersMedium: '300 Углей (129 ЯН)',
   buyEmbersLarge: '1000 Углей (299 ЯН)',
   shopHeader: 'МАГАЗИН УГЛЕЙ',
+
+  objectiveAltar: 'АЛТАРЬ БЕЗДНЫ',
+  objectiveBoss: 'АРХИДЕМОН',
+  objectiveExit: 'СПУСК В ГЛУБИНЫ',
+  distanceMeter: 'м',
 };
 
 const EN: TranslationDict = {
@@ -292,6 +303,11 @@ const EN: TranslationDict = {
   buyEmbersMedium: '300 Embers (129 YAN)',
   buyEmbersLarge: '1000 Embers (299 YAN)',
   shopHeader: 'EMBER SHOP',
+
+  objectiveAltar: 'ABYSS ALTAR',
+  objectiveBoss: 'ARCHDEMON',
+  objectiveExit: 'DESCENT STAIRS',
+  distanceMeter: 'm',
 };
 
 const STORAGE_KEY = 'emberdeep_lang';

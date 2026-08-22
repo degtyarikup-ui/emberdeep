@@ -119,7 +119,7 @@ vendor/                исходные арт-паки — библиотека
 | `depths` — Глубины Катакомб | 4 | `buildCatacombDepthsLevel` |
 | `void` — Бездна | 5+ | `buildAstralAbyssLevel` |
 
-Сетка `COLS=60 × ROWS=38`, тайл `TILE_SIZE=32`. Строители работают на семантической сетке (`FLOOR/WALL/PATH/WATER_DEEP/BRIDGE/SNOW/ICE/RAIL/...`), затем 8-соседский автотайлинг превращает её в индексы `TILE_INDEX`. Возвращается `LevelData`: `biome, data, spawn, torches, bonfires, trees, decorations, flasks, chests, shrines, altar, exit, enemies`.
+Сетка `LevelData.cols × LevelData.rows` (Глубина 1 — Тёмный Лес: `140 × 90`, Глубины 2-5: `60 × 38`), тайл `TILE_SIZE=32`. Строители работают на семантической сетке (`FLOOR/WALL/PATH/WATER_DEEP/BRIDGE/SNOW/ICE/RAIL/...`), затем 8-соседский автотайлинг превращает её в индексы `TILE_INDEX`. Возвращается `LevelData`: `biome, cols, rows, data, spawn, torches, bonfires, trees, decorations, flasks, chests, shrines, altar, exit, enemies`.
 
 ### Сущности
 

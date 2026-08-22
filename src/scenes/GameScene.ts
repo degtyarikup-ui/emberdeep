@@ -30,6 +30,7 @@ import { BossBar } from '../ui/BossBar';
 import { PartyFrames } from '../ui/PartyFrames';
 import { StatsModal } from '../ui/StatsModal';
 import { Tooltip } from '../ui/Tooltip';
+import { ObjectiveMarker } from '../ui/ObjectiveMarker';
 import { PixelUI } from '../gfx/PixelUI';
 import {
   ElementType,
@@ -210,6 +211,7 @@ export class GameScene extends Phaser.Scene {
   public bossBarUI!: BossBar;
   public partyFrames!: PartyFrames;
   public statsModal!: StatsModal;
+  public objectiveMarker!: ObjectiveMarker;
   private tabKey!: Phaser.Input.Keyboard.Key;
   private iKey!: Phaser.Input.Keyboard.Key;
   private escKey!: Phaser.Input.Keyboard.Key;
@@ -830,6 +832,8 @@ export class GameScene extends Phaser.Scene {
     this.bossBarUI = new BossBar(this);
     this.partyFrames = new PartyFrames(this);
     this.statsModal = new StatsModal(this);
+    this.objectiveMarker = new ObjectiveMarker(this);
+    this.worldCam.ignore(this.objectiveMarker.getContainer());
 
     this.buildHeartsUI();
     this.updateInventoryHUD();
@@ -924,6 +928,7 @@ export class GameScene extends Phaser.Scene {
       this.closeDebugMenu();
       SoundFX.clearSpatialEmitters();
       SoundFX.stopAmbient();
+      this.objectiveMarker?.destroy();
       this.enemies = [];
       this.flasks = [];
       this.chests = [];
@@ -1342,6 +1347,17 @@ export class GameScene extends Phaser.Scene {
       const secs = cd > 0 ? cd / 1000 : 0;
       const inInteractRange = this.isAnyInteractableInRange();
       this.actionBar.update(this.myPlayer, ratio, secs, inInteractRange);
+    }
+    if (this.objectiveMarker && this.worldCam) {
+      if (this.altarCharged) {
+        this.objectiveMarker.update(this.worldCam, this.exitX, this.exitY, 'exit', true);
+      } else if (this.boss && !this.boss.isDead) {
+        this.objectiveMarker.update(this.worldCam, this.boss.x, this.boss.y, 'boss', true);
+      } else if (this.altarX && this.altarY) {
+        this.objectiveMarker.update(this.worldCam, this.altarX, this.altarY, 'altar', true);
+      } else {
+        this.objectiveMarker.update(this.worldCam, 0, 0, 'altar', false);
+      }
     }
   }
 

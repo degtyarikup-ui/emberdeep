@@ -10,7 +10,6 @@ import { ANIM, TEXTURE } from '../gfx/registry';
 import { UIAtlas } from '../gfx/UIAtlas';
 import { PixelUI } from '../gfx/PixelUI';
 import { SCENE } from './keys';
-import { YandexSDK } from '../yandex/yandexSdk';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -219,8 +218,6 @@ export class BootScene extends Phaser.Scene {
     } catch {
       // fonts failed to load — Phaser will fall back to a default font
     }
-    // Signal to Yandex Games that loading is complete and game is playable
-    YandexSDK.get().gameReady();
 
     this.scene.start(SCENE.MENU);
   }

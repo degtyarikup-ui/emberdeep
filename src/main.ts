@@ -3,14 +3,12 @@ import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { LobbyScene } from './scenes/LobbyScene';
 import { GameScene } from './scenes/GameScene';
-import { YandexSDK } from './yandex/yandexSdk';
-import { MetaManager } from './meta/MetaManager';
 import { logBuildInfo } from './buildInfo';
 
-async function bootstrap(): Promise<void> {
+function bootstrap(): void {
   logBuildInfo();
 
-  // Disable browser context menu across entire canvas area (§ 1.6)
+  // Disable browser context menu across entire canvas area
   document.addEventListener('contextmenu', (e) => e.preventDefault());
 
   // Prevent browser default F1 help popup
@@ -20,15 +18,7 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  // 1. Initialize Yandex Games SDK BEFORE creating Phaser Game
-  //    This is a hard requirement from Yandex (п. 1.1 Требований платформы):
-  //    YaGames.init() must be called and awaited before any game logic runs.
-  await YandexSDK.get().init();
-
-  // 2. Sync player cloud saves (§ 1.9)
-  void MetaManager.get().syncCloud();
-
-  // 3. Create Phaser Game only after SDK is ready
+  // Create Phaser Game
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'app',

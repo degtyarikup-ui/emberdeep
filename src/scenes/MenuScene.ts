@@ -9,7 +9,6 @@ import { SoundFX } from '../audio/SoundFX';
 import { ACHIEVEMENTS } from '../achievements/registry';
 import { AchievementManager } from '../achievements/AchievementManager';
 import { I18n, t } from '../i18n';
-import { YandexSDK } from '../yandex/yandexSdk';
 import { registerDebugHotkey } from '../debug/hotkey';
 import { BUILD_LABEL } from '../buildInfo';
 import { SettingsModal } from '../ui/SettingsModal';
@@ -600,54 +599,15 @@ export class MenuScene extends Phaser.Scene {
       .setStroke('#000000', 5);
 
     const embersLabel = this.add
-      .text(width / 2 - 80, 75, `Доступно Углей: ${MetaManager.get().embers}`, {
+      .text(width / 2, 75, `Доступно Углей: ${MetaManager.get().embers}`, {
         fontFamily: FONT.UI,
-        fontSize: '13px',
+        fontSize: '14px',
         fontStyle: '600',
         color: '#fbbf24',
       })
       .setOrigin(0.5);
 
-    // Free Embers Rewarded Video Button (§ 4.5)
-    const freeAdBtnBg = this.add.rectangle(width / 2 + 100, 75, 150, 26, 0x854d0e, 0.95);
-    freeAdBtnBg.setStrokeStyle(1.5, 0xeab308);
-    freeAdBtnBg.setInteractive({ useHandCursor: true });
-
-    const freeAdBtnText = this.add
-      .text(width / 2 + 100, 75, '[+] +15 УГЛЕЙ (ВИДЕО)', {
-        fontFamily: FONT.UI,
-        fontSize: '10px',
-        fontStyle: '700',
-        color: '#fef08a',
-      })
-      .setOrigin(0.5);
-
-    freeAdBtnBg.on('pointerdown', () => {
-      freeAdBtnBg.disableInteractive();
-      YandexSDK.get().showRewardedVideo({
-        onOpen: () => {},
-        onRewarded: () => {
-          meta.addEmbers(15);
-          SoundFX.playItemAcquired();
-          renderUpgrades();
-          freeAdBtnText.setText('[OK] ПОЛУЧЕНО (+15)!');
-          freeAdBtnText.setColor('#86efac');
-          this.time.delayedCall(3000, () => {
-            freeAdBtnText.setText('[+] +15 УГЛЕЙ (ВИДЕО)');
-            freeAdBtnText.setColor('#fef08a');
-            freeAdBtnBg.setInteractive({ useHandCursor: true });
-          });
-        },
-        onClose: () => {
-          freeAdBtnBg.setInteractive({ useHandCursor: true });
-        },
-        onError: () => {
-          freeAdBtnBg.setInteractive({ useHandCursor: true });
-        },
-      });
-    });
-
-    modal.add([backdrop, title, embersLabel, freeAdBtnBg, freeAdBtnText]);
+    modal.add([backdrop, title, embersLabel]);
 
     const startY = 115;
     const cardH = 50;
@@ -744,64 +704,6 @@ export class MenuScene extends Phaser.Scene {
     };
 
     renderUpgrades();
-
-    // In-App Purchase Packs (§ In-App purchases)
-    const inapsContainer = this.add.container(width / 2, height - 70);
-    const inapsLabel = this.add
-      .text(0, -15, 'МАГАЗИН УГЛЕЙ:', {
-        fontFamily: FONT.UI,
-        fontSize: '10px',
-        fontStyle: '700',
-        color: '#94a3b8',
-      })
-      .setOrigin(0.5);
-
-    const inaps = [
-      { id: 'embers_100', name: '+100 ✦ 49 ЯН', amount: 100, x: -140 },
-      { id: 'embers_300', name: '+300 ✦ 129 ЯН', amount: 300, x: 0 },
-      { id: 'embers_1000', name: '+1000 ✦ 299 ЯН', amount: 1000, x: 140 },
-    ];
-
-    const inapsElements: Phaser.GameObjects.GameObject[] = [inapsLabel];
-
-    inaps.forEach((p) => {
-      const bg = this.add.rectangle(p.x, 8, 125, 24, 0x1e1b4b, 0.95);
-      bg.setStrokeStyle(1.5, 0x6366f1);
-      bg.setInteractive({ useHandCursor: true });
-
-      const label = this.add
-        .text(p.x, 8, p.name, {
-          fontFamily: FONT.UI,
-          fontSize: '9px',
-          fontStyle: '700',
-          color: '#c7d2fe',
-        })
-        .setOrigin(0.5);
-
-      bg.on('pointerover', () => {
-        bg.setFillStyle(0x312e81, 1);
-        label.setColor('#ffffff');
-      });
-      bg.on('pointerout', () => {
-        bg.setFillStyle(0x1e1b4b, 0.95);
-        label.setColor('#c7d2fe');
-      });
-      bg.on('pointerdown', async () => {
-        bg.disableInteractive();
-        const res = await YandexSDK.get().purchase(p.id);
-        if (res.success) {
-          meta.addEmbers(p.amount);
-          SoundFX.playItemAcquired();
-          renderUpgrades();
-        }
-        bg.setInteractive({ useHandCursor: true });
-      });
-
-      inapsElements.push(bg, label);
-    });
-
-    inapsContainer.add(inapsElements);
-    modal.add(inapsContainer);
 
     const closeBtn = createMenuButton(this, width / 2, height - 32, 160, 36, t().closeBtn ?? 'ЗАКРЫТЬ', {
       fontSize: '12px',

@@ -84,6 +84,15 @@ describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
     }
   });
 
+  it('does not spawn two enemies on the exact same tile', () => {
+    const seen = new Set<string>();
+    for (const enemy of level.enemies) {
+      const key = `${enemy.col},${enemy.row}`;
+      expect(seen.has(key), `duplicate enemy spawn at (${key})`).toBe(false);
+      seen.add(key);
+    }
+  });
+
   it('places every tree on walkable floor and not inside cliffs', () => {
     if (!level.trees) return;
     for (const tree of level.trees) {

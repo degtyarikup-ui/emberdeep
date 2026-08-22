@@ -56,7 +56,6 @@ export interface TranslationDict {
   bossDefeated: string;
   dungeonCleared: string;
   heroFallen: string;
-  resurrectPrompt: string;
   pressEToOpen: string;
   pressEToRest: string;
   pressEToEnter: string;
@@ -86,16 +85,6 @@ export interface TranslationDict {
   unlocked: string;
   locked: string;
 
-  // Monetization keys
-  resurrectAdBtn: string;
-  doubleEmbersBtn: string;
-  embersDoubled: string;
-  freeEmbersAdBtn: string;
-  freeEmbersClaimed: string;
-  buyEmbersSmall: string;
-  buyEmbersMedium: string;
-  buyEmbersLarge: string;
-  shopHeader: string;
   // Objective markers
   objectiveAltar: string;
   objectiveBoss: string;
@@ -167,7 +156,6 @@ const RU: TranslationDict = {
   bossDefeated: 'ВЛАДЫКА БЕЗДНЫ ПОВЕРЖЕН!',
   dungeonCleared: 'ПОДЗЕМЕЛЬЕ ЗАЧИЩЕНО!',
   heroFallen: 'ГЕРОЙ ПАЛ В БОЮ',
-  resurrectPrompt: 'Посмотрите рекламу для мгновенного возрождения!',
   pressEToOpen: '[E] Открыть сундук',
   pressEToRest: '[E] Присесть у костра',
   pressEToEnter: '[E] Войти в портал',
@@ -196,17 +184,6 @@ const RU: TranslationDict = {
   achSpeedrunnerDesc: 'Используй рывок на Shift',
   unlocked: 'Открыто',
   locked: 'Заблокировано',
-
-  // Monetization keys
-  resurrectAdBtn: '[!] ВОСКРЕСНУТЬ (РЕКЛАМА)',
-  doubleEmbersBtn: '[x2] УДВОИТЬ УГЛИ (ВИДЕО)',
-  embersDoubled: '[OK] УГЛИ УДВОЕНЫ!',
-  freeEmbersAdBtn: '[+] +15 УГЛЕЙ (ВИДЕО)',
-  freeEmbersClaimed: '[OK] ПОЛУЧЕНО!',
-  buyEmbersSmall: '100 Углей (49 ЯН)',
-  buyEmbersMedium: '300 Углей (129 ЯН)',
-  buyEmbersLarge: '1000 Углей (299 ЯН)',
-  shopHeader: 'МАГАЗИН УГЛЕЙ',
 
   objectiveAltar: 'АЛТАРЬ БЕЗДНЫ',
   objectiveBoss: 'АРХИДЕМОН',
@@ -277,7 +254,6 @@ const EN: TranslationDict = {
   bossDefeated: 'LORD OF THE ABYSS DEFEATED!',
   dungeonCleared: 'DUNGEON CLEARED!',
   heroFallen: 'HERO HAS FALLEN',
-  resurrectPrompt: 'Watch a short ad for an instant revival!',
   pressEToOpen: '[E] Open Chest',
   pressEToRest: '[E] Rest by Fire',
   pressEToEnter: '[E] Enter Portal',
@@ -306,17 +282,6 @@ const EN: TranslationDict = {
   achSpeedrunnerDesc: 'Perform a tactical dodge with Shift',
   unlocked: 'Unlocked',
   locked: 'Locked',
-
-  // Monetization keys
-  resurrectAdBtn: '[!] RESURRECT (WATCH AD)',
-  doubleEmbersBtn: '[x2] DOUBLE EMBERS (WATCH AD)',
-  embersDoubled: '[OK] EMBERS DOUBLED!',
-  freeEmbersAdBtn: '[+] +15 EMBERS (WATCH AD)',
-  freeEmbersClaimed: '[OK] CLAIMED!',
-  buyEmbersSmall: '100 Embers (49 YAN)',
-  buyEmbersMedium: '300 Embers (129 YAN)',
-  buyEmbersLarge: '1000 Embers (299 YAN)',
-  shopHeader: 'EMBER SHOP',
 
   objectiveAltar: 'ABYSS ALTAR',
   objectiveBoss: 'ARCHDEMON',

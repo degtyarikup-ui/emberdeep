@@ -190,6 +190,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.homeY = y;
     this.patrolTargetX = x;
     this.patrolTargetY = y;
+    this.patrolWaitTimer = (id % 5) * 250 + Math.random() * 500;
     this.strafeDir = id % 2 === 0 ? 1 : -1;
 
     scene.add.existing(this);
@@ -504,8 +505,19 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
               this.patrolTargetY = this.homeY + Math.sin(ang) * rad;
             }
           } else {
-            const px = this.patrolTargetX - this.x;
-            const py = this.patrolTargetY - this.y;
+            let px = this.patrolTargetX - this.x;
+            let py = this.patrolTargetY - this.y;
+            for (const other of otherEnemies) {
+              if (other === this || other.isDead || !other.active) continue;
+              const odx = this.x - other.x;
+              const ody = this.y - other.y;
+              const odist = Math.hypot(odx, ody);
+              if (odist < 24) {
+                const force = (24 - odist) / 24;
+                px += odist > 0 ? (odx / odist) * force * 15 : 15;
+                py += odist > 0 ? (ody / odist) * force * 15 : 15;
+              }
+            }
             const plen = Math.hypot(px, py) || 1;
             body.setVelocity((px / plen) * this.stats.patrolSpeed * speedMult, (py / plen) * this.stats.patrolSpeed * speedMult);
             this.setFlipX(px < 0);
@@ -566,36 +578,36 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         // --- Flocking / Separation Vector ---
         let sepX = 0;
         let sepY = 0;
-        let neighborCount = 0;
         for (const other of otherEnemies) {
-          if (other === this || other.isDead) continue;
+          if (other === this || other.isDead || !other.active) continue;
           const odx = this.x - other.x;
           const ody = this.y - other.y;
           const odist = Math.hypot(odx, ody);
-          if (odist < 28 && odist > 0) {
-            sepX += (odx / odist) * (28 - odist);
-            sepY += (ody / odist) * (28 - odist);
-            neighborCount++;
+          if (odist < 36) {
+            if (odist === 0) {
+              const ang = ((this.id * 2.399) % (Math.PI * 2));
+              sepX += Math.cos(ang) * 1.6;
+              sepY += Math.sin(ang) * 1.6;
+            } else {
+              const weight = (36 - odist) / 36;
+              sepX += (odx / odist) * weight * 1.5;
+              sepY += (ody / odist) * weight * 1.5;
+            }
           }
         }
 
-        // --- Surrounding / Flank offset ---
-        const flankOffsetAngle = ((this.id % 6) - 2.5) * 0.35; // Spread around target
-        const baseAngle = Math.atan2(dy, dx) + flankOffsetAngle;
+        // --- Surrounding / Encirclement offset ---
+        const slotAngle = ((this.id % 8) - 3.5) * 0.38;
+        const baseAngle = Math.atan2(dy, dx) + slotAngle;
 
-        let moveDirX = Math.cos(baseAngle);
-        let moveDirY = Math.sin(baseAngle);
+        let moveDirX = Math.cos(baseAngle) + sepX;
+        let moveDirY = Math.sin(baseAngle) + sepY;
 
         // Circle strafe if Skeleton is in mid-range
-        if (this.stats.canCircleStrafe && distToPlayer < 55 && distToPlayer > 30) {
+        if (this.stats.canCircleStrafe && distToPlayer < 65 && distToPlayer > 30) {
           const tangentAngle = Math.atan2(dy, dx) + (Math.PI / 2) * this.strafeDir;
-          moveDirX = moveDirX * 0.5 + Math.cos(tangentAngle) * 0.5;
-          moveDirY = moveDirY * 0.5 + Math.sin(tangentAngle) * 0.5;
-        }
-
-        if (neighborCount > 0) {
-          moveDirX += sepX * 0.08;
-          moveDirY += sepY * 0.08;
+          moveDirX = moveDirX * 0.4 + Math.cos(tangentAngle) * 0.6;
+          moveDirY = moveDirY * 0.4 + Math.sin(tangentAngle) * 0.6;
         }
 
         const totalLen = Math.hypot(moveDirX, moveDirY) || 1;

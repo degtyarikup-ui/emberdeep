@@ -1606,7 +1606,7 @@ export class GameScene extends Phaser.Scene {
         const moltenMultiplier = (player.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
         const dmg = Math.max(1, Math.round(player.attackDamage * (isCrit ? 2 : 1) * executeMultiplier * moltenMultiplier));
 
-        const killed = enemy.takeDamage(dmg, player.x, player.y);
+        const killed = enemy.takeDamage(dmg, player.x, player.y, this.enemies);
 
         if (player.elementalSlots.attack) {
           const combo = enemy.applyElement(player.elementalSlots.attack);
@@ -1748,7 +1748,7 @@ export class GameScene extends Phaser.Scene {
           const enemyExec = (player.hasExecutionerAxe && (enemy.currentHp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
           const enemyMolten = (player.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
           const finalDmg = Math.max(1, Math.round(baseWhirlDmg * enemyExec * enemyMolten));
-          const killed = enemy.takeDamage(finalDmg, player.x, player.y);
+          const killed = enemy.takeDamage(finalDmg, player.x, player.y, this.enemies);
 
           if (res.element) {
             const combo = enemy.applyElement(res.element, 3500, 2);
@@ -1892,7 +1892,7 @@ export class GameScene extends Phaser.Scene {
           const executeMultiplier = (this.myPlayer.hasExecutionerAxe && (enemy.currentHp / enemy.maxHp) < 0.35) ? 1.5 : 1.0;
           const moltenMultiplier = (this.myPlayer.hasMoltenCore && enemy.hasStatus('fire')) ? 1.35 : 1.0;
           const dmg = Math.max(1, Math.round(arrow.damage * (isCrit ? 2 : 1) * executeMultiplier * moltenMultiplier));
-          const killed = enemy.takeDamage(dmg, arrow.x, arrow.y);
+          const killed = enemy.takeDamage(dmg, arrow.x, arrow.y, this.enemies);
 
           const elem = (arrow as EnergyProjectile).element ?? this.myPlayer.elementalSlots.attack;
           if (elem) {

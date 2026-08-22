@@ -15,49 +15,117 @@ import { BUILD_LABEL } from '../buildInfo';
 import { SettingsModal } from '../ui/SettingsModal';
 import { PIXEL_UI_TEXTURE, PIXEL_ICON } from '../gfx/PixelUI';
 
-function makeButton(
+interface MenuButtonOptions {
+  theme?: 'primary' | 'secondary' | 'dark' | 'gold';
+  iconFrame?: number;
+  fontSize?: string;
+  onClick?: () => void;
+}
+
+function createMenuButton(
   scene: Phaser.Scene,
   x: number,
   y: number,
+  width: number,
+  height: number,
   label: string,
-  opts: { muted?: boolean; fontSize?: string; iconFrame?: number } = {}
-): Phaser.GameObjects.Text {
-  const txt = scene.add
-    .text(x, y, label, {
-      fontFamily: FONT.UI,
-      fontSize: opts.fontSize ?? '20px',
-      fontStyle: '600',
-      color: opts.muted ? '#8b8398' : '#c8b890',
-    })
-    .setOrigin(0.5)
-    .setDepth(DEPTH.UI)
-    .setPadding(14, 10, 14, 10)
-    .setInteractive({ useHandCursor: true });
+  opts: MenuButtonOptions = {}
+): Phaser.GameObjects.Container {
+  const container = scene.add.container(x, y).setDepth(DEPTH.UI);
+  const theme = opts.theme ?? 'dark';
 
-  let iconSprite: Phaser.GameObjects.Sprite | undefined;
-  if (opts.iconFrame !== undefined) {
-    iconSprite = scene.add
-      .sprite(x - txt.width / 2 - 4, y, PIXEL_UI_TEXTURE.ICONS_SHEET, opts.iconFrame)
-      .setDepth(DEPTH.UI)
-      .setScale(1.0);
+  let fillHex = 0x120c1e;
+  let strokeHex = 0x475569;
+  let textHex = '#f0e2b8';
+  let hoverFillHex = 0x221738;
+  let hoverStrokeHex = 0x94a3b8;
+  let hoverTextHex = '#ffffff';
+
+  if (theme === 'primary') {
+    fillHex = 0x7c1d1d;
+    strokeHex = 0xf59e0b;
+    textHex = '#fef08a';
+    hoverFillHex = 0x991b1b;
+    hoverStrokeHex = 0xfbbf24;
+    hoverTextHex = '#ffffff';
+  } else if (theme === 'secondary') {
+    fillHex = 0x0f2744;
+    strokeHex = 0x38bdf8;
+    textHex = '#bae6fd';
+    hoverFillHex = 0x163e6d;
+    hoverStrokeHex = 0x7dd3fc;
+    hoverTextHex = '#ffffff';
+  } else if (theme === 'gold') {
+    fillHex = 0x78350f;
+    strokeHex = 0xfbbf24;
+    textHex = '#fef3c7';
+    hoverFillHex = 0x92400e;
+    hoverStrokeHex = 0xfde047;
+    hoverTextHex = '#ffffff';
   }
 
-  txt.on('pointerover', () => {
-    scene.tweens.add({ targets: txt, scale: 1.08, duration: 120 });
-    if (iconSprite) scene.tweens.add({ targets: iconSprite, scale: 1.18, duration: 120 });
-    txt.setColor(opts.muted ? '#b3aabd' : '#d4a840');
-  });
-  txt.on('pointerout', () => {
-    scene.tweens.add({ targets: txt, scale: 1, duration: 120 });
-    if (iconSprite) scene.tweens.add({ targets: iconSprite, scale: 1.0, duration: 120 });
-    txt.setColor(opts.muted ? '#8b8398' : '#c8b890');
-  });
-  txt.on('pointerdown', () => {
-    scene.tweens.add({ targets: txt, scale: 0.96, duration: 60, yoyo: true });
-    if (iconSprite) scene.tweens.add({ targets: iconSprite, scale: 0.92, duration: 60, yoyo: true });
+  // 9-slice styled beveled button plate
+  const bg = scene.add.rectangle(0, 0, width, height, fillHex, 0.96);
+  bg.setStrokeStyle(theme === 'primary' ? 2 : 1.5, strokeHex);
+  bg.setInteractive({ useHandCursor: true });
+  container.add(bg);
+
+  // Top gloss highlight
+  const gloss = scene.add.rectangle(0, -height / 2 + 2, width - 4, 2, 0xffffff, 0.2);
+  container.add(gloss);
+
+  // Optional icon
+  const hasIcon = opts.iconFrame !== undefined;
+  const iconOffsetX = hasIcon ? -width / 2 + 22 : 0;
+  const textOffsetX = hasIcon ? 10 : 0;
+
+  if (hasIcon && opts.iconFrame !== undefined) {
+    const icon = scene.add.sprite(iconOffsetX, 0, PIXEL_UI_TEXTURE.ICONS_SHEET, opts.iconFrame);
+    icon.setScale(1.1);
+    container.add(icon);
+  }
+
+  const txt = scene.add
+    .text(textOffsetX, 0, label, {
+      fontFamily: FONT.UI,
+      fontSize: opts.fontSize ?? (theme === 'primary' ? '14px' : '11px'),
+      fontStyle: '700',
+      color: textHex,
+    })
+    .setOrigin(0.5, 0.5);
+  txt.setStroke('#000000', 2);
+  txt.setShadow(0, 1, '#000000', 2, true, true);
+  container.add(txt);
+
+  bg.on('pointerover', () => {
+    bg.setFillStyle(hoverFillHex, 1);
+    bg.setStrokeStyle(2, hoverStrokeHex);
+    txt.setColor(hoverTextHex);
+    scene.tweens.add({ targets: container, scaleX: 1.03, scaleY: 1.03, duration: 80, ease: 'Quad.easeOut' });
   });
 
-  return txt;
+  bg.on('pointerout', () => {
+    bg.setFillStyle(fillHex, 0.96);
+    bg.setStrokeStyle(theme === 'primary' ? 2 : 1.5, strokeHex);
+    txt.setColor(textHex);
+    scene.tweens.add({ targets: container, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Quad.easeOut' });
+  });
+
+  bg.on('pointerdown', () => {
+    SoundFX.playMenuClick();
+    scene.tweens.add({
+      targets: container,
+      scaleX: 0.96,
+      scaleY: 0.96,
+      duration: 60,
+      yoyo: true,
+      onComplete: () => {
+        if (opts.onClick) opts.onClick();
+      },
+    });
+  });
+
+  return container;
 }
 
 export class MenuScene extends Phaser.Scene {
@@ -89,34 +157,36 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(0);
     this.tweens.add({ targets: bg, tilePositionY: 40, duration: 40000, repeat: -1, yoyo: true });
 
-    this.add.rectangle(0, 0, width, height, 0x0a0710, 0.75).setOrigin(0, 0).setDepth(1);
+    this.add.rectangle(0, 0, width, height, 0x0a0710, 0.78).setOrigin(0, 0).setDepth(1);
 
-    // Centered Emberdeep Animated Emblem Crest
-    const emblemY = height * 0.16;
+    // =========================================================================
+    // 1. TOP HEADER & BRAND CREST
+    // =========================================================================
+    const emblemY = height * 0.14;
     const emblemSprite = this.add
       .sprite(width / 2, emblemY, TEXTURE.GAME_EMBLEM)
       .setOrigin(0.5)
       .setDepth(DEPTH.UI)
-      .setScale(0.72);
+      .setScale(0.68);
     this.tweens.add({
       targets: emblemSprite,
-      y: emblemY - 6,
+      y: emblemY - 5,
       duration: 1800,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
-    // Flanking wall torches
-    const torchY = height * 0.27;
-    for (const tx of [width * 0.26, width * 0.74]) {
-      const sprite = this.add.sprite(tx, torchY, TEXTURE.TORCH, 0).setDepth(DEPTH.DECOR).setPipeline('Light2D').setScale(2.4);
+    // Flanking wall torches with ambient lighting
+    const torchY = height * 0.25;
+    for (const tx of [width * 0.25, width * 0.75]) {
+      const sprite = this.add.sprite(tx, torchY, TEXTURE.TORCH, 0).setDepth(DEPTH.DECOR).setPipeline('Light2D').setScale(2.2);
       sprite.play(ANIM.TORCH_FLICKER);
-      this.lights.addLight(tx, torchY, 180, 0xff9a4d, 1.2);
+      this.lights.addLight(tx, torchY, 190, 0xff9a4d, 1.25);
     }
 
     this.lights.addLight(width / 2, emblemY, 180, 0xff8822, 1.3);
-    this.lights.addLight(width / 2, height * 0.29, 260, 0xcbb3ff, 0.25);
+    this.lights.addLight(width / 2, height * 0.26, 260, 0xcbb3ff, 0.25);
 
     const dust = this.add.particles(width / 2, height, TEXTURE.PARTICLE_SPARK, {
       x: { min: 0, max: width },
@@ -131,24 +201,25 @@ export class MenuScene extends Phaser.Scene {
     });
     dust.setDepth(DEPTH.DUST);
 
-    // Title & Subtitle
+    // Main Game Title
     this.add
-      .text(width / 2, height * 0.28, t().gameTitle, {
+      .text(width / 2, height * 0.25, t().gameTitle, {
         fontFamily: FONT.TITLE,
-        fontSize: '54px',
+        fontSize: '48px',
         fontStyle: '700',
         color: '#f0e2b8',
       })
       .setOrigin(0.5)
       .setDepth(DEPTH.UI)
-      .setStroke('#0d0a10', 8)
-      .setShadow(0, 4, '#000000', 10, true, true);
+      .setStroke('#0d0a10', 6)
+      .setShadow(0, 4, '#000000', 8, true, true);
 
+    // Subtitle Tagline
     this.add
-      .text(width / 2, height * 0.28 + 42, t().gameSubtitle, {
+      .text(width / 2, height * 0.25 + 38, t().gameSubtitle, {
         fontFamily: FONT.UI,
-        fontSize: '13px',
-        fontStyle: '500',
+        fontSize: '12px',
+        fontStyle: '600',
         color: '#a89bc4',
       })
       .setOrigin(0.5)
@@ -156,192 +227,227 @@ export class MenuScene extends Phaser.Scene {
 
     let selectedHero: HeroClass = 'knight';
 
-    // Language Toggle Button (Top-Left)
-    const langBtn = makeButton(this, 60, 30, t().langBtn, { fontSize: '13px' });
-    langBtn.on('pointerdown', () => {
-      I18n.get().toggleLanguage();
-      this.scene.restart();
+    // Top-Left Language Switcher Pill Button
+    createMenuButton(this, 75, 30, 110, 30, t().langBtn, {
+      fontSize: '11px',
+      iconFrame: PIXEL_ICON.TARGET,
+      onClick: () => {
+        I18n.get().toggleLanguage();
+        this.scene.restart();
+      },
     });
 
-    // Debug menu: three quick presses of "0". No visible button — see
-    // registerDebugHotkey() and rule §9. Note this reads selectedHero at
-    // trigger time, so the class picked before opening is the one used.
+    // Top-Right Embers Pill Slot
+    const embersCont = this.add.container(width - 75, 30).setDepth(DEPTH.UI);
+    const emberSlot = this.add.rectangle(0, 0, 100, 28, 0x07040a, 0.92);
+    emberSlot.setStrokeStyle(1.5, 0x7c2d12);
+    const emberIcon = this.add.sprite(-34, 0, PIXEL_UI_TEXTURE.ICONS_SHEET, PIXEL_ICON.EMBER);
+    emberIcon.setScale(1.15);
+    const embersText = this.add
+      .text(6, 0, `${MetaManager.get().embers}`, {
+        fontFamily: FONT.UI,
+        fontSize: '13px',
+        fontStyle: '700',
+        color: '#f97316',
+      })
+      .setOrigin(0.5, 0.5);
+    embersText.setStroke('#000000', 2);
+    embersCont.add([emberSlot, emberIcon, embersText]);
+
+    // Debug menu hotkey (rule §9)
     registerDebugHotkey(this, () => this.openDebugMenu(selectedHero));
 
-    // Hero Selection Showcase Cards with Animated Sprites
-    const heroY = height * 0.47;
-    const cardW = 180;
-    const cardH = 68;
-    const cardSpacing = 190;
+    // =========================================================================
+    // 2. HERO SHOWCASE SELECTION (3 Distinct Tactile Cards)
+    // =========================================================================
+    const heroY = height * 0.44;
+    const cardW = 216;
+    const cardH = 84;
+    const cardSpacing = 230;
 
-    // 1. Knight Card
+    // --- Knight Card ---
     const knightBtn = this.add.container(width / 2 - cardSpacing, heroY).setDepth(DEPTH.UI);
-    const knightBg = this.add.rectangle(0, 0, cardW, cardH, 0x140e20, 0.95).setStrokeStyle(2, 0xfbbf24);
+    const knightBg = this.add.rectangle(0, 0, cardW, cardH, 0x161026, 0.95);
+    knightBg.setStrokeStyle(2.5, 0xfbbf24);
 
-    const knightSprite = this.add.sprite(-cardW / 2 + 26, 22, ACTORS.HERO.idle.key);
+    const knightSlot = this.add.rectangle(-cardW / 2 + 32, 0, 46, 62, 0x050308, 0.85);
+    knightSlot.setStrokeStyle(1, 0x334155);
+
+    const knightSprite = this.add.sprite(-cardW / 2 + 32, 22, ACTORS.HERO.idle.key);
     knightSprite.setOrigin(0.5, 1.0);
-    knightSprite.setScale(1.7);
+    knightSprite.setScale(1.75);
     knightSprite.play(ACTORS.HERO.idle.key);
 
-    const knightSword = this.add.sprite(-cardW / 2 + 36, 10, TEXTURE.WEAPON_SWORD);
+    const knightSword = this.add.sprite(-cardW / 2 + 42, 8, TEXTURE.WEAPON_SWORD);
     knightSword.setOrigin(0.5, 0.88);
-    knightSword.setScale(1.15);
+    knightSword.setScale(1.2);
     knightSword.setAngle(20);
 
     const knightText = this.add
-      .text(-cardW / 2 + 52, -20, t().knightTitle, {
+      .text(-cardW / 2 + 64, -24, t().knightTitle, {
         fontFamily: FONT.UI,
-        fontSize: '12px',
+        fontSize: '13px',
         fontStyle: '700',
-        color: '#f0e2b8',
+        color: '#fbbf24',
       })
       .setOrigin(0, 0);
+    knightText.setStroke('#000000', 2);
 
     const knightSub = this.add
-      .text(-cardW / 2 + 52, -3, t().knightStats, {
+      .text(-cardW / 2 + 64, -5, t().knightStats, {
         fontFamily: FONT.UI,
-        fontSize: '8px',
-        color: '#fcd34d',
+        fontSize: '10px',
+        fontStyle: '600',
+        color: '#fde047',
       })
       .setOrigin(0, 0);
 
     const knightSkill = this.add
-      .text(-cardW / 2 + 52, 12, t().knightSkill, {
+      .text(-cardW / 2 + 64, 15, t().knightSkill, {
         fontFamily: FONT.UI,
-        fontSize: '8px',
+        fontSize: '9px',
         color: '#94a3b8',
       })
       .setOrigin(0, 0);
 
-    knightBtn.add([knightBg, knightSprite, knightSword, knightText, knightSub, knightSkill]);
+    knightBtn.add([knightBg, knightSlot, knightSprite, knightSword, knightText, knightSub, knightSkill]);
     knightBg.setInteractive({ useHandCursor: true });
 
-    // 2. Ranger Card
+    // --- Ranger Card ---
     const rangerBtn = this.add.container(width / 2, heroY).setDepth(DEPTH.UI);
-    const rangerBg = this.add.rectangle(0, 0, cardW, cardH, 0x0a0814, 0.65).setStrokeStyle(1.5, 0x475569);
+    const rangerBg = this.add.rectangle(0, 0, cardW, cardH, 0x080612, 0.7);
+    rangerBg.setStrokeStyle(1.5, 0x475569);
 
-    const rangerSprite = this.add.sprite(-cardW / 2 + 26, 22, TEXTURE.RANGER_IDLE);
+    const rangerSlot = this.add.rectangle(-cardW / 2 + 32, 0, 46, 62, 0x050308, 0.85);
+    rangerSlot.setStrokeStyle(1, 0x334155);
+
+    const rangerSprite = this.add.sprite(-cardW / 2 + 32, 22, TEXTURE.RANGER_IDLE);
     rangerSprite.setOrigin(0.5, 1.0);
-    rangerSprite.setScale(1.7);
+    rangerSprite.setScale(1.75);
     rangerSprite.play(ANIM.RANGER_IDLE);
 
-    const rangerBow = this.add.sprite(-cardW / 2 + 36, 10, TEXTURE.BOW);
+    const rangerBow = this.add.sprite(-cardW / 2 + 42, 8, TEXTURE.BOW);
     rangerBow.setOrigin(0.5, 0.5);
-    rangerBow.setScale(1.1);
+    rangerBow.setScale(1.15);
 
     const rangerText = this.add
-      .text(-cardW / 2 + 52, -20, t().rangerTitle, {
+      .text(-cardW / 2 + 64, -24, t().rangerTitle, {
         fontFamily: FONT.UI,
-        fontSize: '12px',
+        fontSize: '13px',
         fontStyle: '700',
         color: '#8b8398',
       })
       .setOrigin(0, 0);
+    rangerText.setStroke('#000000', 2);
 
     const rangerSub = this.add
-      .text(-cardW / 2 + 52, -3, t().rangerStats, {
+      .text(-cardW / 2 + 64, -5, t().rangerStats, {
         fontFamily: FONT.UI,
-        fontSize: '8px',
-        color: '#4ade80',
+        fontSize: '10px',
+        fontStyle: '600',
+        color: '#86efac',
       })
       .setOrigin(0, 0);
 
     const rangerSkill = this.add
-      .text(-cardW / 2 + 52, 12, t().rangerSkill, {
+      .text(-cardW / 2 + 64, 15, t().rangerSkill, {
         fontFamily: FONT.UI,
-        fontSize: '8px',
+        fontSize: '9px',
         color: '#64748b',
       })
       .setOrigin(0, 0);
 
-    rangerBtn.add([rangerBg, rangerSprite, rangerBow, rangerText, rangerSub, rangerSkill]);
+    rangerBtn.add([rangerBg, rangerSlot, rangerSprite, rangerBow, rangerText, rangerSub, rangerSkill]);
     rangerBg.setInteractive({ useHandCursor: true });
 
-    // 3. Wizard Card
+    // --- Wizard Card ---
     const wizardBtn = this.add.container(width / 2 + cardSpacing, heroY).setDepth(DEPTH.UI);
-    const wizardBg = this.add.rectangle(0, 0, cardW, cardH, 0x0a0814, 0.65).setStrokeStyle(1.5, 0x475569);
+    const wizardBg = this.add.rectangle(0, 0, cardW, cardH, 0x080612, 0.7);
+    wizardBg.setStrokeStyle(1.5, 0x475569);
 
-    const wizardSprite = this.add.sprite(-cardW / 2 + 26, 22, `${TEXTURE.WIZARD_IDLE}_f0`);
+    const wizardSlot = this.add.rectangle(-cardW / 2 + 32, 0, 46, 62, 0x050308, 0.85);
+    wizardSlot.setStrokeStyle(1, 0x334155);
+
+    const wizardSprite = this.add.sprite(-cardW / 2 + 32, 22, `${TEXTURE.WIZARD_IDLE}_f0`);
     wizardSprite.setOrigin(0.5, 1.0);
-    wizardSprite.setScale(1.7);
+    wizardSprite.setScale(1.75);
     wizardSprite.play(ANIM.WIZARD_IDLE);
 
-    const wizardStaff = this.add.sprite(-cardW / 2 + 36, 10, TEXTURE.STAFF);
+    const wizardStaff = this.add.sprite(-cardW / 2 + 42, 8, TEXTURE.STAFF);
     wizardStaff.setOrigin(0.5, 0.85);
-    wizardStaff.setScale(1.1);
+    wizardStaff.setScale(1.15);
     wizardStaff.setAngle(12);
 
     const wizardText = this.add
-      .text(-cardW / 2 + 52, -20, t().wizardTitle, {
+      .text(-cardW / 2 + 64, -24, t().wizardTitle, {
         fontFamily: FONT.UI,
-        fontSize: '12px',
+        fontSize: '13px',
         fontStyle: '700',
         color: '#8b8398',
       })
       .setOrigin(0, 0);
+    wizardText.setStroke('#000000', 2);
 
     const wizardSub = this.add
-      .text(-cardW / 2 + 52, -3, t().wizardStats, {
+      .text(-cardW / 2 + 64, -5, t().wizardStats, {
         fontFamily: FONT.UI,
-        fontSize: '8px',
-        color: '#c084fc',
+        fontSize: '10px',
+        fontStyle: '600',
+        color: '#d8b4fe',
       })
       .setOrigin(0, 0);
 
     const wizardSkill = this.add
-      .text(-cardW / 2 + 52, 12, t().wizardSkill, {
+      .text(-cardW / 2 + 64, 15, t().wizardSkill, {
         fontFamily: FONT.UI,
-        fontSize: '8px',
+        fontSize: '9px',
         color: '#64748b',
       })
       .setOrigin(0, 0);
 
-    wizardBtn.add([wizardBg, wizardSprite, wizardStaff, wizardText, wizardSub, wizardSkill]);
+    wizardBtn.add([wizardBg, wizardSlot, wizardSprite, wizardStaff, wizardText, wizardSub, wizardSkill]);
     wizardBg.setInteractive({ useHandCursor: true });
 
-    // Gentle idle weapon bobbing
+    // Idle weapon floating tween
     this.tweens.add({
       targets: [knightSword, rangerBow, wizardStaff],
-      y: '+=2',
-      duration: 900,
+      y: '+=3',
+      duration: 1000,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
     const updateHeroSelection = () => {
-      // Reset all to unselected
-      knightBg.setFillStyle(0x0a0814, 0.6).setStrokeStyle(1.5, 0x475569);
-      knightText.setColor('#8b8398');
-      knightSprite.setAlpha(0.55);
-      knightSword.setAlpha(0.55);
+      // Knight State
+      const isKnight = selectedHero === 'knight';
+      knightBg.setFillStyle(isKnight ? 0x161026 : 0x080612, isKnight ? 0.96 : 0.65);
+      knightBg.setStrokeStyle(isKnight ? 2.5 : 1.5, isKnight ? 0xfbbf24 : 0x475569);
+      knightText.setColor(isKnight ? '#fbbf24' : '#8b8398');
+      knightSprite.setAlpha(isKnight ? 1 : 0.55);
+      knightSword.setAlpha(isKnight ? 1 : 0.55);
+      knightSkill.setColor(isKnight ? '#cbd5e1' : '#64748b');
+      this.tweens.add({ targets: knightBtn, scaleX: isKnight ? 1.02 : 1.0, scaleY: isKnight ? 1.02 : 1.0, duration: 100 });
 
-      rangerBg.setFillStyle(0x0a0814, 0.6).setStrokeStyle(1.5, 0x475569);
-      rangerText.setColor('#8b8398');
-      rangerSprite.setAlpha(0.55);
-      rangerBow.setAlpha(0.55);
+      // Ranger State
+      const isRanger = selectedHero === 'ranger';
+      rangerBg.setFillStyle(isRanger ? 0x161026 : 0x080612, isRanger ? 0.96 : 0.65);
+      rangerBg.setStrokeStyle(isRanger ? 2.5 : 1.5, isRanger ? 0x4ade80 : 0x475569);
+      rangerText.setColor(isRanger ? '#4ade80' : '#8b8398');
+      rangerSprite.setAlpha(isRanger ? 1 : 0.55);
+      rangerBow.setAlpha(isRanger ? 1 : 0.55);
+      rangerSkill.setColor(isRanger ? '#cbd5e1' : '#64748b');
+      this.tweens.add({ targets: rangerBtn, scaleX: isRanger ? 1.02 : 1.0, scaleY: isRanger ? 1.02 : 1.0, duration: 100 });
 
-      wizardBg.setFillStyle(0x0a0814, 0.6).setStrokeStyle(1.5, 0x475569);
-      wizardText.setColor('#8b8398');
-      wizardSprite.setAlpha(0.55);
-      wizardStaff.setAlpha(0.55);
-
-      if (selectedHero === 'knight') {
-        knightBg.setFillStyle(0x140e20, 0.95).setStrokeStyle(2, 0xfbbf24);
-        knightText.setColor('#f0e2b8');
-        knightSprite.setAlpha(1);
-        knightSword.setAlpha(1);
-      } else if (selectedHero === 'ranger') {
-        rangerBg.setFillStyle(0x140e20, 0.95).setStrokeStyle(2, 0x4ade80);
-        rangerText.setColor('#4ade80');
-        rangerSprite.setAlpha(1);
-        rangerBow.setAlpha(1);
-      } else if (selectedHero === 'wizard') {
-        wizardBg.setFillStyle(0x140e20, 0.95).setStrokeStyle(2, 0xc084fc);
-        wizardText.setColor('#c084fc');
-        wizardSprite.setAlpha(1);
-        wizardStaff.setAlpha(1);
-      }
+      // Wizard State
+      const isWizard = selectedHero === 'wizard';
+      wizardBg.setFillStyle(isWizard ? 0x161026 : 0x080612, isWizard ? 0.96 : 0.65);
+      wizardBg.setStrokeStyle(isWizard ? 2.5 : 1.5, isWizard ? 0xc084fc : 0x475569);
+      wizardText.setColor(isWizard ? '#c084fc' : '#8b8398');
+      wizardSprite.setAlpha(isWizard ? 1 : 0.55);
+      wizardStaff.setAlpha(isWizard ? 1 : 0.55);
+      wizardSkill.setColor(isWizard ? '#cbd5e1' : '#64748b');
+      this.tweens.add({ targets: wizardBtn, scaleX: isWizard ? 1.02 : 1.0, scaleY: isWizard ? 1.02 : 1.0, duration: 100 });
     };
 
     updateHeroSelection();
@@ -349,83 +455,102 @@ export class MenuScene extends Phaser.Scene {
     knightBg.on('pointerdown', () => {
       selectedHero = 'knight';
       updateHeroSelection();
-      this.tweens.add({ targets: knightBtn, scale: 1.05, duration: 80, yoyo: true });
+      SoundFX.playMenuClick();
     });
 
     rangerBg.on('pointerdown', () => {
       selectedHero = 'ranger';
       updateHeroSelection();
-      this.tweens.add({ targets: rangerBtn, scale: 1.05, duration: 80, yoyo: true });
+      SoundFX.playMenuClick();
     });
 
     wizardBg.on('pointerdown', () => {
       selectedHero = 'wizard';
       updateHeroSelection();
-      this.tweens.add({ targets: wizardBtn, scale: 1.05, duration: 80, yoyo: true });
+      SoundFX.playMenuClick();
     });
 
-    const playBtn = makeButton(this, width / 2, height * 0.60 + 8, t().playSolo);
-    playBtn.on('pointerdown', () => {
+    // =========================================================================
+    // 3. ACTION HUB: PLAY SOLO, CO-OP & UTILITY NAVIGATION
+    // =========================================================================
+    const startRun = () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.scene.start(SCENE.GAME, { heroClass: selectedHero });
       });
-    });
+    };
 
-    const altarBtn = makeButton(this, width / 2 - 160, height * 0.60 + 50, t().upgradesBtn, { fontSize: '13px', iconFrame: PIXEL_ICON.EMBER });
-    altarBtn.on('pointerdown', () => {
-      this.openSoulAltar();
-    });
-
-    const achBtn = makeButton(this, width / 2, height * 0.60 + 50, t().achievementsBtn, { fontSize: '13px', iconFrame: PIXEL_ICON.SHIELD });
-    achBtn.on('pointerdown', () => {
-      this.openAchievementsModal();
-    });
-
-    const settingsBtn = makeButton(this, width / 2 + 160, height * 0.60 + 50, t().settingsBtn, { fontSize: '13px', iconFrame: PIXEL_ICON.SETTINGS });
-    settingsBtn.on('pointerdown', () => {
-      this.settingsModal.open('menu');
-    });
-
-    this.settingsModal = new SettingsModal(this, { mode: 'menu' });
-
-    const coopBtn = makeButton(this, width / 2, height * 0.60 + 88, t().playCoop, { fontSize: '13px', muted: true });
-    coopBtn.on('pointerdown', () => {
+    const startCoop = () => {
       this.cameras.main.fadeOut(280, 8, 6, 12);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.scene.start(SCENE.LOBBY, { heroClass: selectedHero });
       });
+    };
+
+    // Primary CTA: Play Solo Button
+    createMenuButton(this, width / 2, height * 0.62, 300, 48, `${t().playSolo} [ENTER]`, {
+      theme: 'primary',
+      iconFrame: PIXEL_ICON.SWORDS,
+      fontSize: '13px',
+      onClick: startRun,
     });
 
-    // Top Embers counter: ember icon + amount, no word. The label used to
-    // read "УГЛИ: N" and ran left far enough to sit under the top-right UI.
-    const embersCount = this.add
-      .text(width - 24, 24, `${MetaManager.get().embers}`, {
-        fontFamily: FONT.UI,
-        fontSize: '14px',
-        fontStyle: '700',
-        color: '#f97316',
-      })
-      .setOrigin(1, 0)
-      .setDepth(DEPTH.UI);
-    embersCount.setStroke('#0d0a10', 4);
+    // Secondary Action: Co-op Button
+    createMenuButton(this, width / 2, height * 0.70, 260, 38, t().playCoop, {
+      theme: 'secondary',
+      iconFrame: PIXEL_ICON.SHIELD,
+      fontSize: '12px',
+      onClick: startCoop,
+    });
 
-    // Build stamp, bottom-right. Deliberately dim and tiny: it is for us, not
-    // for players. GitHub Pages can serve a stale index.html for ten minutes
-    // after a deploy, so "is the site running my push?" needs a visible answer
-    // rather than a guess — compare this against the last commit on main.
+    // Bottom Navigation Bar: Row of 3 symmetrical utility buttons
+    const navY = height * 0.78;
+    const navSpacing = 172;
+    const navW = 156;
+    const navH = 34;
+
+    createMenuButton(this, width / 2 - navSpacing, navY, navW, navH, t().upgradesBtn, {
+      theme: 'dark',
+      iconFrame: PIXEL_ICON.EMBER,
+      fontSize: '11px',
+      onClick: () => this.openSoulAltar(),
+    });
+
+    createMenuButton(this, width / 2, navY, navW, navH, t().achievementsBtn, {
+      theme: 'dark',
+      iconFrame: PIXEL_ICON.SHIELD,
+      fontSize: '11px',
+      onClick: () => this.openAchievementsModal(),
+    });
+
+    createMenuButton(this, width / 2 + navSpacing, navY, navW, navH, t().settingsBtn, {
+      theme: 'dark',
+      iconFrame: PIXEL_ICON.SETTINGS,
+      fontSize: '11px',
+      onClick: () => this.settingsModal.open('menu'),
+    });
+
+    this.settingsModal = new SettingsModal(this, { mode: 'menu' });
+
+    // =========================================================================
+    // 4. FOOTER: CONTROLS HINT & BUILD STAMP
+    // =========================================================================
+    this.add
+      .text(width / 2, height - 20, t().footerControlsHint, {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        color: '#64748b',
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(DEPTH.UI);
+
     this.add
       .text(width - 8, height - 6, BUILD_LABEL, {
         fontFamily: FONT.UI,
         fontSize: '9px',
-        color: '#4a4458',
+        color: '#475569',
       })
       .setOrigin(1, 1)
-      .setDepth(DEPTH.UI);
-
-    this.add
-      .image(width - 28 - embersCount.width, 24 + embersCount.height / 2, TEXTURE.UI_EMBER_ICON)
-      .setOrigin(1, 0.5)
       .setDepth(DEPTH.UI);
 
     this.add
@@ -434,9 +559,27 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(DEPTH.OVERLAY)
       .setDisplaySize(width * 1.2, height * 1.2);
 
-    const enterToPlay = () => playBtn.emit('pointerdown');
-    this.input.keyboard?.once('keydown-ENTER', enterToPlay);
-    this.input.keyboard?.once('keydown-SPACE', enterToPlay);
+    // Keyboard navigation
+    this.input.keyboard?.once('keydown-ENTER', startRun);
+    this.input.keyboard?.once('keydown-SPACE', startRun);
+    this.input.keyboard?.on('keydown-C', startCoop);
+    this.input.keyboard?.on('keydown-U', () => this.openSoulAltar());
+    this.input.keyboard?.on('keydown-A', () => this.openAchievementsModal());
+    this.input.keyboard?.on('keydown-S', () => this.settingsModal.open('menu'));
+
+    const heroes: HeroClass[] = ['knight', 'ranger', 'wizard'];
+    this.input.keyboard?.on('keydown-LEFT', () => {
+      const idx = heroes.indexOf(selectedHero);
+      selectedHero = heroes[(idx - 1 + heroes.length) % heroes.length];
+      updateHeroSelection();
+      SoundFX.playMenuClick();
+    });
+    this.input.keyboard?.on('keydown-RIGHT', () => {
+      const idx = heroes.indexOf(selectedHero);
+      selectedHero = heroes[(idx + 1) % heroes.length];
+      updateHeroSelection();
+      SoundFX.playMenuClick();
+    });
   }
 
   private openSoulAltar(): void {
@@ -660,10 +803,12 @@ export class MenuScene extends Phaser.Scene {
     inapsContainer.add(inapsElements);
     modal.add(inapsContainer);
 
-    const closeBtn = makeButton(this, width / 2, height - 25, 'ЗАКРЫТЬ', { fontSize: '13px' });
-    closeBtn.on('pointerdown', () => {
-      modal.destroy();
-      this.scene.restart();
+    const closeBtn = createMenuButton(this, width / 2, height - 32, 160, 36, t().closeBtn ?? 'ЗАКРЫТЬ', {
+      fontSize: '12px',
+      onClick: () => {
+        modal.destroy();
+        this.scene.restart();
+      },
     });
     modal.add(closeBtn);
   }
@@ -761,8 +906,10 @@ export class MenuScene extends Phaser.Scene {
       modal.add(card);
     });
 
-    const closeBtn = makeButton(this, width / 2, height - 35, 'ЗАКРЫТЬ', { fontSize: '15px' });
-    closeBtn.on('pointerdown', () => modal.destroy());
+    const closeBtn = createMenuButton(this, width / 2, height - 32, 160, 36, t().closeBtn ?? 'ЗАКРЫТЬ', {
+      fontSize: '12px',
+      onClick: () => modal.destroy(),
+    });
     modal.add(closeBtn);
   }
 

@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
-import { DEPTH } from '../gfx/registry';
+import { DEPTH, FONT, TEXTURE } from '../gfx/registry';
 import { ACTORS, ActorClips } from '../gfx/actors';
-import { TEXTURE } from '../gfx/registry';
 import {
   StatusState,
   ElementType,
@@ -12,6 +11,12 @@ import {
 export type EnemyKind = 'imp' | 'skeleton' | 'wolf';
 
 export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recovery' | 'backstep' | 'dead';
+
+export const COMBAT_AGGRO_DURATION = 6000;
+export const SOCIAL_AGGRO_DURATION = 5000;
+export const PACK_ALERT_RADIUS = 180;
+export const NORMAL_ALERT_RADIUS = 140;
+export const COMBAT_LOSE_RADIUS = 600;
 
 interface EnemyStats {
   clips: ActorClips;
@@ -113,6 +118,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   // Timers & AI Variables
   private stateTimer = 0;
+  private aggroTimer = 0;
   private homeX: number;
   private homeY: number;
   private patrolTargetX: number;
@@ -225,6 +231,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     return this.hp;
   }
 
+  get currentAggroTimer(): number {
+    return this.aggroTimer;
+  }
+
+  get isInCombat(): boolean {
+    return this.aggroTimer > 0 || this.aiState === 'chase' || this.aiState === 'windup' || this.aiState === 'lunge';
+  }
+
   /** Check if this enemy currently has an active elemental status. */
   hasStatus(element: ElementType): boolean {
     switch (element) {
@@ -236,8 +250,73 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  /** Displays an overhead alert bubble when provoked or spotting targets. */
+  showExclamationBubble(): void {
+    if (!this.scene || !this.active) return;
+    const alertText = this.scene.add
+      .text(this.x, this.y - 30, '!', {
+        fontFamily: FONT.UI,
+        fontSize: '16px',
+        fontStyle: '700',
+        color: '#ef4444',
+        stroke: '#450a0a',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.UI);
+    this.scene.tweens.add({
+      targets: alertText,
+      y: this.y - 48,
+      alpha: 0,
+      duration: 650,
+      ease: 'Cubic.easeOut',
+      onComplete: () => alertText.destroy(),
+    });
+  }
+
+  /** Provokes this enemy into aggressive combat mode for a set duration. */
+  provoke(aggroDuration = COMBAT_AGGRO_DURATION, showAlertGfx = true): void {
+    if (this.aiState === 'dead') return;
+    this.aggroTimer = Math.max(this.aggroTimer, aggroDuration);
+    if (this.aiState === 'patrol') {
+      this.aiState = 'alert';
+      this.stateTimer = 140;
+      const body = this.body as Phaser.Physics.Arcade.Body;
+      if (body) body.setVelocity(0, 0);
+      if (showAlertGfx) {
+        this.showExclamationBubble();
+      }
+    }
+  }
+
+  /** Alerts nearby pack members within hearing/sight radius so they join combat. */
+  alertNearbyAllies(otherEnemies: Enemy[] = [], radius = PACK_ALERT_RADIUS): void {
+    if (!otherEnemies || otherEnemies.length === 0) return;
+    for (const ally of otherEnemies) {
+      if (ally === this || ally.isDead || !ally.active) continue;
+      const dist = Math.hypot(this.x - ally.x, this.y - ally.y);
+      if (dist <= radius) {
+        if (ally.currentAIState === 'patrol') {
+          // Stagger reaction slightly based on distance (0-200ms) for natural pack behavior
+          const delay = Math.min(200, Math.floor(dist * 0.8));
+          if (this.scene?.time) {
+            this.scene.time.delayedCall(delay, () => {
+              if (ally.active && !ally.isDead && ally.currentAIState === 'patrol') {
+                ally.provoke(SOCIAL_AGGRO_DURATION, true);
+              }
+            });
+          } else {
+            ally.provoke(SOCIAL_AGGRO_DURATION, true);
+          }
+        } else if (ally.currentAIState === 'chase' || ally.currentAIState === 'alert') {
+          ally.aggroTimer = Math.max(ally.aggroTimer, SOCIAL_AGGRO_DURATION);
+        }
+      }
+    }
+  }
+
   /** Returns true if this hit killed it. */
-  takeDamage(amount: number, fromX: number, fromY: number): boolean {
+  takeDamage(amount: number, fromX: number, fromY: number, otherEnemies: Enemy[] = []): boolean {
     if (this.aiState === 'dead' || this.hitLock > 0) return false;
     this.hp -= amount;
     this.hitLock = HIT_LOCK;
@@ -246,20 +325,32 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (this.aiState === 'windup' || this.aiState === 'lunge') {
       this.clearTint();
       this.setScale(this.stats.scale);
-      this.aiState = 'chase';
     }
 
-    this.setTintFill(0xffffff);
-    this.scene.time.delayedCall(80, () => this.active && !this.isDead && this.clearTint());
-
-    const body = this.body as Phaser.Physics.Arcade.Body;
+    // Turn to face attacker (opposite of knockback)
     const dx = this.x - fromX;
     const dy = this.y - fromY;
-    const len = Math.hypot(dx, dy) || 1;
-    body.setVelocity((dx / len) * 170, (dy / len) * 170);
+    if (Math.abs(dx) > 2) {
+      this.setFlipX(fromX < this.x);
+    }
 
-    // Alert nearby pack to chase
+    const wasPatrolling = this.aiState === 'patrol';
+    this.provoke(COMBAT_AGGRO_DURATION, wasPatrolling);
     this.aiState = 'chase';
+
+    // Social Aggro: Alert nearby allies in pack
+    this.alertNearbyAllies(otherEnemies, PACK_ALERT_RADIUS);
+
+    this.setTintFill(0xffffff);
+    if (this.scene?.time) {
+      this.scene.time.delayedCall(80, () => this.active && !this.isDead && this.clearTint());
+    }
+
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      const len = Math.hypot(dx, dy) || 1;
+      body.setVelocity((dx / len) * 170, (dy / len) * 170);
+    }
 
     if (this.hp <= 0) {
       this.die();
@@ -362,6 +453,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
+    if (this.aggroTimer > 0) this.aggroTimer -= delta;
     if (this.backstepCooldown > 0) this.backstepCooldown -= delta;
 
     const speedMult = this.statusState.slowDuration > 0 ? this.statusState.slowFactor : 1.0;
@@ -386,11 +478,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         // Check if player is detected
         if (distToPlayer < this.stats.detectRadius) {
           this.aiState = 'alert';
-          const alertText = this.scene.add.text(this.x, this.y - 30, '!', { font: 'bold 16px Arial', color: '#ff0000' }).setOrigin(0.5);
-          this.scene.tweens.add({ targets: alertText, y: this.y - 45, alpha: 0, duration: 600, onComplete: () => alertText.destroy() });
+          this.showExclamationBubble();
           this.stateTimer = 160; // brief reaction freeze
+          this.aggroTimer = COMBAT_AGGRO_DURATION;
           body.setVelocity(0, 0);
           this.setFlipX(dx < 0);
+          this.alertNearbyAllies(otherEnemies, NORMAL_ALERT_RADIUS);
           break;
         }
 
@@ -429,9 +522,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       }
 
       case 'chase': {
-        // Lose target if too far away
-        if (distToPlayer > this.stats.loseRadius) {
+        // Lose target if too far away and combat aggro expired
+        const effectiveLoseRadius = this.aggroTimer > 0 ? COMBAT_LOSE_RADIUS : this.stats.loseRadius;
+        if (distToPlayer > effectiveLoseRadius) {
           this.aiState = 'patrol';
+          this.aggroTimer = 0;
           this.patrolTargetX = this.homeX;
           this.patrolTargetY = this.homeY;
           break;

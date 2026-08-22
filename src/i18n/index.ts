@@ -108,6 +108,7 @@ export interface TranslationDict {
   musicVolume: string;
   sfxVolume: string;
   closeBtn: string;
+  footerControlsHint: string;
 }
 
 const RU: TranslationDict = {
@@ -212,12 +213,12 @@ const RU: TranslationDict = {
   objectiveExit: 'СПУСК В ГЛУБИНЫ',
   distanceMeter: 'м',
 
-  // Settings
   settingsBtn: 'НАСТРОЙКИ',
   settingsTitle: 'НАСТРОЙКИ ЗВУКА',
   musicVolume: 'Громкость музыки',
   sfxVolume: 'Громкость звуков',
   closeBtn: 'ЗАКРЫТЬ',
+  footerControlsHint: 'WASD — Передвижение  |  ЛКМ / Пробел — Атака  |  ПКМ / Shift — Навык  |  E — Взаимодействие  |  Tab — Инвентарь',
 };
 
 const EN: TranslationDict = {
@@ -322,12 +323,12 @@ const EN: TranslationDict = {
   objectiveExit: 'DESCENT STAIRS',
   distanceMeter: 'm',
 
-  // Settings
   settingsBtn: 'SETTINGS',
   settingsTitle: 'AUDIO SETTINGS',
   musicVolume: 'Music Volume',
   sfxVolume: 'Sound Effects',
   closeBtn: 'CLOSE',
+  footerControlsHint: 'WASD — Movement  |  LMB / Space — Attack  |  RMB / Shift — Skill  |  E — Interact  |  Tab — Inventory',
 };
 
 const STORAGE_KEY = 'emberdeep_lang';

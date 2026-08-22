@@ -526,9 +526,8 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 28, row: 60, key: TEXTURE.PROP_PRISON_BARS, solid: true },
     { col: 34, row: 60, key: TEXTURE.PROP_PRISON_BARS, solid: true },
     { col: 30, row: 64, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
-    { col: 34, row: 68, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
-    { col: 22, row: 76, key: TEXTURE.PROP_CHAINS, solid: false },
-    { col: 38, row: 76, key: TEXTURE.PROP_CHAINS, solid: false },
+    { col: 22, row: 76, key: PROP.TOMBSTONE, solid: false },
+    { col: 38, row: 76, key: PROP.TOMBSTONE, solid: false },
     { col: 26, row: 78, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
     { col: 34, row: 78, key: TEXTURE.PROP_LUPINE, solid: false },
     // Necropolis Floor Spike Traps (Crypt Threshold)

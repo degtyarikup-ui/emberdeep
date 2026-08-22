@@ -33,6 +33,9 @@ export class SettingsModal {
   private gameButtonsContainer!: Phaser.GameObjects.Container;
   private menuButtonsContainer!: Phaser.GameObjects.Container;
 
+  private readonly sliderTrackW = 240;
+  private readonly sliderTrackH = 14;
+
   private lastTickVolume = -1;
 
   constructor(scene: Phaser.Scene, opts: SettingsModalOptions = {}) {
@@ -52,7 +55,9 @@ export class SettingsModal {
 
     this.buildModal();
 
-    scene.cameras.main.ignore(this.container);
+    if (scene.cameras.cameras.length > 1) {
+      scene.cameras.main.ignore(this.container);
+    }
   }
 
   private buildModal(): void {
@@ -143,7 +148,7 @@ export class SettingsModal {
       const ratio = (clampedX - minX) / sliderTrackW;
 
       SoundFX.setMusicVolume(ratio);
-      this.musicFill.width = sliderTrackW * ratio;
+      this.musicFill.setSize(sliderTrackW * ratio, sliderTrackH - 4);
       this.musicThumb.x = clampedX;
       this.musicPercentText.setText(`${Math.round(ratio * 100)}%`);
 
@@ -218,7 +223,7 @@ export class SettingsModal {
       const ratio = (clampedX - minX) / sliderTrackW;
 
       SoundFX.setSfxVolume(ratio);
-      this.sfxFill.width = sliderTrackW * ratio;
+      this.sfxFill.setSize(sliderTrackW * ratio, sliderTrackH - 4);
       this.sfxThumb.x = clampedX;
       this.sfxPercentText.setText(`${Math.round(ratio * 100)}%`);
 
@@ -355,16 +360,15 @@ export class SettingsModal {
   }
 
   public updateVolumeUI(): void {
-    const sliderTrackW = 240;
     const mVol = SoundFX.getMusicVolume();
     const sVol = SoundFX.getSfxVolume();
 
-    this.musicFill.width = sliderTrackW * mVol;
-    this.musicThumb.x = -sliderTrackW / 2 + sliderTrackW * mVol;
+    this.musicFill.setSize(this.sliderTrackW * mVol, this.sliderTrackH - 4);
+    this.musicThumb.x = -this.sliderTrackW / 2 + this.sliderTrackW * mVol;
     this.musicPercentText.setText(`${Math.round(mVol * 100)}%`);
 
-    this.sfxFill.width = sliderTrackW * sVol;
-    this.sfxThumb.x = -sliderTrackW / 2 + sliderTrackW * sVol;
+    this.sfxFill.setSize(this.sliderTrackW * sVol, this.sliderTrackH - 4);
+    this.sfxThumb.x = -this.sliderTrackW / 2 + this.sliderTrackW * sVol;
     this.sfxPercentText.setText(`${Math.round(sVol * 100)}%`);
   }
 

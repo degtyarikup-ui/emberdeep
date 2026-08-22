@@ -103,11 +103,10 @@ describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
     expect(again.chests).toEqual(level.chests);
   });
 
-  if (depth === 1 || depth === 2) {
-    it('guarantees that altar, exit, chests, shrines and flasks are all reachable from spawn', () => {
-      const queue: [number, number][] = [[level.spawn.col, level.spawn.row]];
-      const visited = new Set<string>();
-      visited.add(`${level.spawn.col},${level.spawn.row}`);
+  it('guarantees that altar, exit, chests, shrines and flasks are all reachable from spawn', () => {
+    const queue: [number, number][] = [[level.spawn.col, level.spawn.row]];
+    const visited = new Set<string>();
+    visited.add(`${level.spawn.col},${level.spawn.row}`);
 
       const solidDecor = new Set(
         level.decorations.filter((d) => d.solid).map((d) => `${d.col},${d.row}`)
@@ -146,13 +145,12 @@ describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
         expect(reachable, `${name} at (${pos.col},${pos.row}) is disconnected from spawn`).toBe(true);
       };
 
-      checkReachable('altar', level.altar);
-      checkReachable('exit', level.exit);
-      level.chests.forEach((c, idx) => checkReachable(`chest #${idx}`, c));
-      level.shrines.forEach((s, idx) => checkReachable(`shrine #${idx} (${s.kind})`, s));
-      level.flasks.forEach((f, idx) => checkReachable(`flask #${idx} (${f.key})`, f));
-    });
-  }
+    checkReachable('altar', level.altar);
+    checkReachable('exit', level.exit);
+    level.chests.forEach((c, idx) => checkReachable(`chest #${idx}`, c));
+    level.shrines.forEach((s, idx) => checkReachable(`shrine #${idx} (${s.kind})`, s));
+    level.flasks.forEach((f, idx) => checkReachable(`flask #${idx} (${f.key})`, f));
+  });
 
   it('carries a biome whose declared depth does not exceed the run depth', () => {
     expect(level.biome).toBeDefined();

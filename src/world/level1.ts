@@ -887,6 +887,12 @@ function buildPrisonCatacombsLevel(biome: BiomeConfig, depth: number): LevelData
   carveRect(binary, 6, 23, 16, 11, FLOOR);
   carveRect(binary, 36, 4, 16, 11, FLOOR);
   carveRect(binary, 36, 23, 16, 11, FLOOR);
+  // Room doorways
+  carveRect(binary, 12, 14, 4, 3, FLOOR);
+  carveRect(binary, 42, 14, 4, 3, FLOOR);
+  carveRect(binary, 12, 21, 4, 3, FLOOR);
+  carveRect(binary, 42, 21, 4, 3, FLOOR);
+
   carveRect(binary, 24, 13, 10, 12, FLOOR);
   for (let r = 17; r <= 21; r++) {
     for (let c = 27; c <= 31; c++) binary[r][c] = GRATE;
@@ -996,6 +1002,12 @@ function buildCatacombDepthsLevel(biome: BiomeConfig, depth: number): LevelData 
   carveRect(binary, 8, 25, 20, 9, CANYON_DIRT);
   carveRect(binary, 32, 25, 20, 9, CANYON_DIRT);
 
+  // Mine room doorways
+  carveRect(binary, 16, 12, 5, 3, CANYON_DIRT);
+  carveRect(binary, 40, 12, 5, 3, CANYON_DIRT);
+  carveRect(binary, 16, 23, 5, 3, CANYON_DIRT);
+  carveRect(binary, 40, 23, 5, 3, CANYON_DIRT);
+
   for (let c = 6; c <= 54; c++) binary[19][c] = RAIL;
   for (let r = 8; r <= 19; r++) binary[r][18] = RAIL;
   for (let r = 19; r <= 30; r++) binary[r][42] = RAIL;
@@ -1090,6 +1102,13 @@ function buildAstralAbyssLevel(biome: BiomeConfig, depth: number): LevelData {
   carveRect(binary, 8, 25, 16, 9, SNOW);
   carveRect(binary, 36, 25, 16, 9, SNOW);
   carveRect(binary, 46, 11, 10, 16, SNOW);
+
+  // Glacial room doorways
+  carveRect(binary, 14, 12, 5, 3, SNOW);
+  carveRect(binary, 42, 12, 5, 3, SNOW);
+  carveRect(binary, 14, 23, 5, 3, SNOW);
+  carveRect(binary, 42, 23, 5, 3, SNOW);
+
   carveRect(binary, 12, 6, 8, 5, ICE);
   carveRect(binary, 40, 6, 8, 5, ICE);
   carveRect(binary, 12, 27, 8, 5, ICE);

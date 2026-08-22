@@ -120,15 +120,15 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
 
   // 1. Organic outer mountain/forest boundary (multi-layered rugged rocks)
   for (let r = 0; r < ROWS; r++) {
-    const leftMargin = Math.round(4 + Math.sin(r * 0.2) * 2 + Math.cos(r * 0.45) * 1.5);
-    const rightMargin = Math.round(4 + Math.cos(r * 0.22) * 2 + Math.sin(r * 0.35) * 1.5);
+    const leftMargin = 5 + (r >= 30 && r <= 60 ? 1 : 0);
+    const rightMargin = 5 + (r >= 25 && r <= 55 ? 1 : 0);
     for (let c = leftMargin; c < COLS - rightMargin; c++) {
       binary[r][c] = FLOOR;
     }
   }
   for (let c = 0; c < COLS; c++) {
-    const topMargin = Math.round(4 + Math.sin(c * 0.18) * 2);
-    const botMargin = Math.round(4 + Math.cos(c * 0.2) * 2);
+    const topMargin = 5 + (c >= 35 && c <= 75 ? 1 : 0);
+    const botMargin = 5 + (c >= 30 && c <= 70 ? 1 : 0);
     for (let r = 0; r < topMargin; r++) binary[r][c] = WALL;
     for (let r = ROWS - botMargin; r < ROWS; r++) binary[r][c] = WALL;
   }
@@ -144,12 +144,12 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     const rc = Math.round(50 + Math.cos(r * 0.25) * 1.5);
     for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
   }
-  // Ridge 3: SW Necropolis Wall (rows 48..82 & cols 13..44)
-  for (let r = 48; r <= 82; r++) {
-    for (let c = 6; c <= 12; c++) binary[r][c] = WALL;
+  // Ridge 3: SW Necropolis Wall
+  for (let r = 48; r < ROWS; r++) {
+    for (let c = 0; c <= 12; c++) binary[r][c] = WALL;
   }
   for (let c = 13; c <= 44; c++) {
-    for (let r = 80; r <= 85; r++) binary[r][c] = WALL;
+    for (let r = 80; r < ROWS; r++) binary[r][c] = WALL;
   }
   // Ridge 4: NE Mountain Crest above Bandit Outpost (rows 4..26)
   for (let r = 4; r <= 26; r++) {
@@ -308,8 +308,7 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
         else if (!lW) data[r][c] = TILE_INDEX.CLIFF_MID_L;
         else if (!rW) data[r][c] = TILE_INDEX.CLIFF_MID_R;
         else {
-          if (!isWall(r + 2, c)) data[r][c] = TILE_INDEX.CLIFF_FACE;
-          else data[r][c] = TILE_INDEX.CLIFF_MID_M;
+          data[r][c] = TILE_INDEX.CLIFF_MID_M;
         }
       } else if (cell === BRIDGE_TOP) {
         data[r][c] = TILE_INDEX.WOOD_BRIDGE;

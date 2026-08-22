@@ -104,17 +104,6 @@ interface DestructibleProp {
   broken: boolean;
 }
 
-interface DestructibleTree {
-  id: number;
-  sprite: Phaser.GameObjects.Sprite;
-  body: Phaser.Physics.Arcade.StaticBody;
-  x: number;
-  y: number;
-  hp: number;
-  fallen: boolean;
-  kind: 'pine' | 'oak';
-}
-
 interface SpikeTrap {
   id: number;
   sprite: Phaser.GameObjects.Sprite;
@@ -168,7 +157,6 @@ export class GameScene extends Phaser.Scene {
   private shrines: Shrine[] = [];
   private coins: CoinItem[] = [];
   private destructibles: DestructibleProp[] = [];
-  private destructibleTrees: DestructibleTree[] = [];
   private spikeTraps: SpikeTrap[] = [];
   public particles!: ParticleFactory;
   public screenShake!: ScreenShake;
@@ -311,7 +299,6 @@ export class GameScene extends Phaser.Scene {
     this.torchLights = [];
     this.playerArrows = [];
     this.bossProjectiles = [];
-    this.destructibleTrees = [];
     this.spikeTraps = [];
     this.boss = undefined;
     this.bannerContainer = undefined;
@@ -344,9 +331,7 @@ export class GameScene extends Phaser.Scene {
       this.cameras.remove(extraCam);
     }
 
-    this.destructibleTrees = [];
-
-    // Render Trees (Outdoor Biomes)
+    // Render Trees (Outdoor Biomes) - Walk-through and permanent
     if (level.trees) {
       for (let i = 0; i < level.trees.length; i++) {
         const tr = level.trees[i];
@@ -358,24 +343,6 @@ export class GameScene extends Phaser.Scene {
         tree.setDepth(DEPTH.YSORT_BASE + y);
         tree.setPipeline('Light2D');
         world.add(tree);
-
-        // Solid trunk collision
-        this.physics.add.existing(tree, true);
-        const body = tree.body as Phaser.Physics.Arcade.StaticBody;
-        body.setSize(22, 14);
-        body.setOffset((tree.width - 22) / 2, tree.height - 14);
-        this.solids.add(tree);
-
-        this.destructibleTrees.push({
-          id: i,
-          sprite: tree,
-          body,
-          x,
-          y,
-          hp: 2,
-          fallen: false,
-          kind: tr.kind,
-        });
       }
     }
 
@@ -1592,13 +1559,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    for (const tree of this.destructibleTrees) {
-      if (tree.fallen) continue;
-      if (inSlashCone(tree.x, tree.y - 12, 56, 1.45)) {
-        this.chopTree(tree, player.x);
-      }
-    }
-
     // Attack Boss
     if (this.boss && !this.boss.isDead) {
       if (inSlashCone(this.boss.x, this.boss.y - 14, 62, 1.45)) {
@@ -1763,14 +1723,6 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      for (const tree of this.destructibleTrees) {
-        if (tree.fallen) continue;
-        const dist = Phaser.Math.Distance.Between(player.x, player.y, tree.x, tree.y);
-        if (dist <= radius + 10) {
-          this.chopTree(tree, player.x);
-        }
-      }
-
       if (this.boss && !this.boss.isDead) {
         const dist = Phaser.Math.Distance.Between(player.x, player.y, this.boss.x, this.boss.y);
         if (dist <= radius + 14) {
@@ -1879,20 +1831,6 @@ export class GameScene extends Phaser.Scene {
           break;
         }
       }
-      if (arrow.isDestroyed) continue;
-
-      // Check trees
-      for (const tree of this.destructibleTrees) {
-        if (tree.fallen) continue;
-        const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, tree.x, tree.y - 12);
-        if (dist <= 22) {
-          this.chopTree(tree, arrow.x);
-          arrow.destroyProjectile();
-          break;
-        }
-      }
-      if (arrow.isDestroyed) continue;
-
       // Check Boss
       if (this.boss && !this.boss.isDead) {
         const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, this.boss.x, this.boss.y - 12);
@@ -2053,7 +1991,7 @@ export class GameScene extends Phaser.Scene {
           // Trigger when any player or living enemy is close
           let triggered = false;
           for (const p of this.players) {
-            if (p.isDead) continue;
+            if (p.hp <= 0) continue;
             if (Phaser.Math.Distance.Between(p.x, p.y, trap.x, trap.y - 8) <= 20) {
               triggered = true;
               break;
@@ -2088,9 +2026,9 @@ export class GameScene extends Phaser.Scene {
 
             // Damage player in range
             for (const p of this.players) {
-              if (p.isDead) continue;
+              if (p.hp <= 0) continue;
               if (Phaser.Math.Distance.Between(p.x, p.y, trap.x, trap.y - 8) <= 24) {
-                p.takeDamage(1);
+                p.takeDamage(1, trap.x, trap.y);
                 this.buildHeartsUI();
                 if (p === this.myPlayer) {
                   this.worldCam.shake(80, 0.0025);
@@ -2572,78 +2510,6 @@ export class GameScene extends Phaser.Scene {
       this.tweens.add({ targets: flaskSprite, y: prop.y - 3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.flasks.push({ sprite: flaskSprite, x: prop.x, y: prop.y, collected: false });
     }
-  }
-
-  private chopTree(tree: DestructibleTree, fromX?: number): void {
-    if (tree.fallen) return;
-    tree.hp -= 1;
-
-    // Wood chip sparks
-    this.woodSpark.setPosition(tree.x, tree.y - 14);
-    this.woodSpark.explode(14);
-    this.hitSpark.setPosition(tree.x, tree.y - 14);
-    this.hitSpark.explode(5);
-
-    SoundFX.playWoodBreak();
-
-    if (tree.hp > 0) {
-      // Hit shake
-      this.tweens.add({
-        targets: tree.sprite,
-        x: tree.x + (Math.random() < 0.5 ? -3 : 3),
-        duration: 45,
-        yoyo: true,
-        repeat: 2,
-        onComplete: () => {
-          tree.sprite.setX(tree.x);
-        },
-      });
-      return;
-    }
-
-    // Tree topples over!
-    tree.fallen = true;
-    tree.body.enable = false;
-    this.solids.remove(tree.sprite);
-
-    const fallRight = fromX !== undefined ? fromX < tree.x : Math.random() < 0.5;
-    const targetAngle = fallRight ? 80 : -80;
-
-    // Big wood splinter explosion
-    this.woodSpark.setPosition(tree.x, tree.y - 16);
-    this.woodSpark.explode(30);
-
-    // Spawn flat tree stump debris on the ground (no loot / bonus)
-    const stump = this.add.sprite(tree.x, tree.y, TEXTURE.DEBRIS_WOOD);
-    stump.setOrigin(0.5, 1);
-    stump.setDepth(DEPTH.YSORT_BASE + tree.y - 25);
-    stump.setPipeline('Light2D');
-    stump.setScale(1.4);
-    this.worldLayer.add(stump);
-
-    // 35% chance to drop coins
-    if (Math.random() < 0.35) {
-      this.spawnCoins(tree.x, tree.y, Phaser.Math.Between(1, 2));
-    }
-    // 10% chance to drop an ember
-    if (Math.random() < 0.10) {
-      MetaManager.get().addEmbers(1);
-      this.spawnDamageNumber(tree.x, tree.y - 14, '+1 УГОЛЬ', '#f97316');
-    }
-
-    // Topple and fall animation: rotates and squashes onto the ground
-    this.tweens.add({
-      targets: tree.sprite,
-      angle: targetAngle,
-      scaleY: 0.6,
-      alpha: 0,
-      y: tree.y + 12,
-      duration: 600,
-      ease: 'Bounce.easeOut',
-      onComplete: () => {
-        tree.sprite.destroy();
-      },
-    });
   }
 
   private spawnCoins(x: number, y: number, count: number): void {

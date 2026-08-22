@@ -84,6 +84,16 @@ describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
     }
   });
 
+  it('places every tree on walkable floor and not inside cliffs', () => {
+    if (!level.trees) return;
+    for (const tree of level.trees) {
+      expect(
+        walkable(level.data, tree.col, tree.row),
+        `tree at (${tree.col},${tree.row}) is not on a walkable floor tile`
+      ).toBe(true);
+    }
+  });
+
   it('is deterministic for a given depth', () => {
     // Level layout is seeded from depth; co-op relies on every client
     // generating byte-identical geometry, since only entity state is synced.

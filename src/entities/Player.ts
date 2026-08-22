@@ -425,7 +425,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         if (enemy.isDead) continue;
         const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
         if (dist <= 64) {
-          enemy.takeDamage(this.thornsDamage, this.x, this.y);
+          enemy.takeDamage(this.thornsDamage, this.x, this.y, gameScene.enemies);
           if (gameScene.spawnDamageNumber) {
             gameScene.spawnDamageNumber(enemy.x, enemy.y - 10, `ШИПЫ -${this.thornsDamage}`, '#94a3b8');
           }

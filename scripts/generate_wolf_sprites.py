@@ -1,5 +1,5 @@
 import os
-from PIL import Image, ImageDraw, ImageEnhance
+from PIL import Image, ImageOps, ImageEnhance
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VENDOR_DIR = os.path.join(BASE_DIR, 'vendor/32rogues/source/32rogues')
@@ -7,8 +7,11 @@ ASSETS_DIR = os.path.join(BASE_DIR, 'public/assets')
 
 def build_refined_wolf_sprites():
     monsters_img = Image.open(os.path.join(VENDOR_DIR, 'monsters.png')).convert('RGBA')
-    # Warg sprite (32x32) at col 10, row 6
-    warg_base = monsters_img.crop((10 * 32, 6 * 32, 11 * 32, 7 * 32))
+    # Warg sprite (32x32) at col 10, row 6 (in source, warg faces LEFT)
+    warg_raw = monsters_img.crop((10 * 32, 6 * 32, 11 * 32, 7 * 32))
+    
+    # Mirror horizontally so the wolf faces RIGHT by default (matching Hero, Orc, Skeleton)
+    warg_base = ImageOps.mirror(warg_raw)
     
     # Palette colors extracted from warg:
     DARK_FUR = (44, 38, 48, 255)
@@ -16,177 +19,243 @@ def build_refined_wolf_sprites():
     LIGHT_FUR = (120, 108, 128, 255)
     HIGHLIGHT_FUR = (168, 154, 178, 255)
     EYE_GLINT = (245, 180, 50, 255)
-    NOSE = (25, 20, 30, 255)
-    SHADOW = (22, 18, 26, 255)
-
-    # Separate components from warg_base:
-    # Head & Neck: x=18..31, y=7..21
-    head_img = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(7, 22):
-        for x in range(18, 32):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                head_img.putpixel((x, y), p)
-
-    # Torso / Spine: x=8..22, y=8..22
-    torso_img = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(8, 23):
-        for x in range(8, 23):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                torso_img.putpixel((x, y), p)
-
-    # Tail: x=0..9, y=10..22
-    tail_img = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(10, 23):
-        for x in range(0, 10):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                tail_img.putpixel((x, y), p)
-
-    # Front Legs: x=22..30, y=21..31
-    front_legs = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(21, 32):
-        for x in range(22, 31):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                front_legs.putpixel((x, y), p)
-
-    # Rear Legs: x=3..16, y=21..31
-    rear_legs = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(21, 32):
-        for x in range(3, 17):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                rear_legs.putpixel((x, y), p)
+    EYE_PUPIL = (255, 220, 100, 255)
 
     # -------------------------------------------------------------
     # 1. IDLE SHEET: 4 frames, 32x32 (128x32)
-    # Living breathing wolf with ear twitch and tail motion
+    # Natural breathing quadruped stance facing RIGHT
     # -------------------------------------------------------------
     idle_sheet = Image.new('RGBA', (32 * 4, 32), (0, 0, 0, 0))
     for f in range(4):
-        frame = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+        frame = warg_base.copy()
         
-        # Head breath offset
-        h_dy = -1 if f in (1, 2) else 0
-        t_dy = -1 if f == 2 else 0
-        tail_dy = 1 if f == 1 else (-1 if f == 3 else 0)
-
-        # Base body & legs
-        frame.paste(rear_legs, (0, 0), rear_legs)
-        frame.paste(front_legs, (0, 0), front_legs)
-        frame.paste(torso_img, (0, t_dy), torso_img)
-        frame.paste(tail_img, (0, tail_dy), tail_img)
-        frame.paste(head_img, (0, h_dy), head_img)
-        
-        # Add glowing amber eye on frame 2
-        if f == 2:
-            frame.putpixel((25, 11 + h_dy), EYE_GLINT)
+        # Frame 0: Base stance
+        # Frame 1: Inhale / chest lifts 1px
+        # Frame 2: Apex breath + predatory glowing eye glint
+        # Frame 3: Exhale
+        if f == 1:
+            head_chest = frame.crop((14, 7, 32, 23))
+            for y in range(7, 23):
+                for x in range(14, 32):
+                    frame.putpixel((x, y), (0, 0, 0, 0))
+            frame.paste(head_chest, (14, 6), head_chest)
+            for y in range(16, 23):
+                for x in range(12, 16):
+                    if warg_base.getpixel((x, y))[3] > 50:
+                        frame.putpixel((x, y), warg_base.getpixel((x, y)))
+                        
+        elif f == 2:
+            head_chest = frame.crop((14, 7, 32, 23))
+            for y in range(7, 23):
+                for x in range(14, 32):
+                    frame.putpixel((x, y), (0, 0, 0, 0))
+            frame.paste(head_chest, (14, 6), head_chest)
+            for y in range(16, 23):
+                for x in range(12, 16):
+                    if warg_base.getpixel((x, y))[3] > 50:
+                        frame.putpixel((x, y), warg_base.getpixel((x, y)))
+            # Amber glowing eye glint at (25, 12) and (26, 12)
+            frame.putpixel((25, 12), EYE_GLINT)
+            frame.putpixel((26, 12), EYE_PUPIL)
+            # Ear twitch
+            frame.putpixel((21, 6), HIGHLIGHT_FUR)
+            frame.putpixel((22, 6), LIGHT_FUR)
             
+        elif f == 3:
+            frame.putpixel((1, 14), DARK_FUR)
+            frame.putpixel((2, 13), MID_FUR)
+
         idle_sheet.paste(frame, (f * 32, 0))
     
     idle_path = os.path.join(ASSETS_DIR, 'pc-wolf-idle.png')
     idle_sheet.save(idle_path)
-    print(f'Saved {idle_path}')
+    print(f'Saved {idle_path} ({idle_sheet.size})')
 
     # -------------------------------------------------------------
     # 2. RUN SHEET: 6 frames, 64x64 (384x64)
-    # Clear 4-legged gallop with articulated paw reach & push
+    # High-quality 4-legged canine gallop facing RIGHT
+    # Ground plane is at y = 56, centered horizontally
     # -------------------------------------------------------------
     run_sheet = Image.new('RGBA', (64 * 6, 64), (0, 0, 0, 0))
 
-    # We will position the wolf centered horizontally in 64x64 (center ~ x=16..48, ground y=54)
-    # Frame configurations: (body_y, body_rot, fleg_dx, fleg_dy, fleg_rot, rleg_dx, rleg_dy, rleg_rot, tail_rot)
+    # Anatomical sub-components from warg_base (facing RIGHT):
+    comp_head = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    for y in range(7, 23):
+        for x in range(18, 32):
+            p = warg_base.getpixel((x, y))
+            if p[3] > 50:
+                comp_head.putpixel((x, y), p)
+
+    comp_torso = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    for y in range(8, 25):
+        for x in range(6, 23):
+            p = warg_base.getpixel((x, y))
+            if p[3] > 50:
+                comp_torso.putpixel((x, y), p)
+
+    comp_tail = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    for y in range(9, 21):
+        for x in range(0, 9):
+            p = warg_base.getpixel((x, y))
+            if p[3] > 50:
+                comp_tail.putpixel((x, y), p)
+
+    comp_forelegs = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    for y in range(19, 32):
+        for x in range(15, 31):
+            p = warg_base.getpixel((x, y))
+            if p[3] > 50:
+                comp_forelegs.putpixel((x, y), p)
+
+    comp_hindlegs = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    for y in range(18, 32):
+        for x in range(0, 17):
+            p = warg_base.getpixel((x, y))
+            if p[3] > 50:
+                comp_hindlegs.putpixel((x, y), p)
+
     run_configs = [
-        # Frame 0: Extended Stride (Front reach forward, rear reach back)
-        {'by': 0, 'brot': 2, 'fdx': 4, 'fdy': -1, 'frot': -15, 'rdx': -4, 'rdy': 0, 'rrot': 20, 'tdy': 0},
-        # Frame 1: Airborne Leap (High leap, maximum stretch, legs outstretched)
-        {'by': -4, 'brot': -2, 'fdx': 6, 'fdy': -3, 'frot': -25, 'rdx': -6, 'rdy': -2, 'rrot': 35, 'tdy': -1},
-        # Frame 2: Front Paws Touchdown (Descending, front absorbing ground, rear tucking in)
-        {'by': 1, 'brot': 4, 'fdx': 1, 'fdy': 1, 'frot': 10, 'rdx': 2, 'rdy': -2, 'rrot': -15, 'tdy': 1},
-        # Frame 3: Gather / Compression (Front bending, rear paws fully tucked under abdomen)
-        {'by': 2, 'brot': 0, 'fdx': -2, 'fdy': 0, 'frot': 20, 'rdx': 4, 'rdy': 0, 'rrot': -30, 'tdy': 2},
-        # Frame 4: Rear Thrust / Spring (Rear paws pushing down-back, front rising up)
-        {'by': -1, 'brot': -5, 'fdx': 2, 'fdy': -2, 'frot': -10, 'rdx': -2, 'rdy': 1, 'rrot': 15, 'tdy': -1},
-        # Frame 5: Forward Follow-through (Transition back to stride)
-        {'by': -2, 'brot': -1, 'fdx': 3, 'fdy': -2, 'frot': -18, 'rdx': -3, 'rdy': 0, 'rrot': 25, 'tdy': 0},
+        # Frame 0: Full Reach Stride (Front reach forward-right, Hind reach backward-left)
+        {
+            'torso_dy': 0, 'torso_rot': 0,
+            'head_dx': 2, 'head_dy': 0,
+            'fleg_dx': 5, 'fleg_dy': -1, 'fleg_rot': -18,
+            'rleg_dx': -4, 'rleg_dy': -1, 'rleg_rot': 22,
+            'tail_dy': -1, 'tail_rot': 10
+        },
+        # Frame 1: Airborne Suspension (High forward leap, paws outstretched in mid-air)
+        {
+            'torso_dy': -4, 'torso_rot': -3,
+            'head_dx': 4, 'head_dy': -4,
+            'fleg_dx': 7, 'fleg_dy': -5, 'fleg_rot': -28,
+            'rleg_dx': -6, 'rleg_dy': -4, 'rleg_rot': 32,
+            'tail_dy': -4, 'tail_rot': 15
+        },
+        # Frame 2: Forepaw Touchdown (Front paws hit ground and flex, hind legs swing forward under flank)
+        {
+            'torso_dy': 0, 'torso_rot': 4,
+            'head_dx': 1, 'head_dy': 1,
+            'fleg_dx': 2, 'fleg_dy': 0, 'fleg_rot': 10,
+            'rleg_dx': 2, 'rleg_dy': -2, 'rleg_rot': -12,
+            'tail_dy': 1, 'tail_rot': -10
+        },
+        # Frame 3: Coiled Compression / Gather (Spine flexed, hind paws tucked under body planted to push)
+        {
+            'torso_dy': 2, 'torso_rot': 2,
+            'head_dx': -1, 'head_dy': 1,
+            'fleg_dx': -2, 'fleg_dy': 0, 'fleg_rot': 20,
+            'rleg_dx': 4, 'rleg_dy': 0, 'rleg_rot': -24,
+            'tail_dy': 2, 'tail_rot': -15
+        },
+        # Frame 4: Hind Launch / Power Drive (Hind legs explode backward against ground, front elevates)
+        {
+            'torso_dy': -1, 'torso_rot': -4,
+            'head_dx': 2, 'head_dy': -2,
+            'fleg_dx': 3, 'fleg_dy': -3, 'fleg_rot': -12,
+            'rleg_dx': -2, 'rleg_dy': 0, 'rleg_rot': 16,
+            'tail_dy': -1, 'tail_rot': 5
+        },
+        # Frame 5: Ascension / Follow-Through (Body surges up-forward transitioning into full stride)
+        {
+            'torso_dy': -3, 'torso_rot': -2,
+            'head_dx': 3, 'head_dy': -3,
+            'fleg_dx': 4, 'fleg_dy': -3, 'fleg_rot': -20,
+            'rleg_dx': -4, 'rleg_dy': -2, 'rleg_rot': 24,
+            'tail_dy': -2, 'tail_rot': 10
+        },
     ]
 
     for f, cfg in enumerate(run_configs):
         frame = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
-        # Base offset to center 32x32 sprite in 64x64 (top-left: x=16, y=26 so bottom is at y=58)
         bx = 16
-        by = 26 + cfg['by']
+        by = 26 + cfg['torso_dy']
 
-        # 1. Rear leg (back layer)
-        r_rot = rear_legs.rotate(cfg['rrot'], expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(r_rot, (bx + cfg['rdx'], by + cfg['rdy']), r_rot)
+        # Layer 1: Hindleg (Back Layer)
+        r_rot = comp_hindlegs.rotate(cfg['rleg_rot'], expand=True, resample=Image.Resampling.NEAREST)
+        frame.paste(r_rot, (bx + cfg['rleg_dx'], by + cfg['rleg_dy']), r_rot)
 
-        # 2. Tail
-        t_rot = tail_img.rotate(cfg['tdy'] * 10, expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(t_rot, (bx - 2, by + cfg['tdy']), t_rot)
+        # Layer 2: Tail
+        t_rot = comp_tail.rotate(cfg['tail_rot'], expand=True, resample=Image.Resampling.NEAREST)
+        frame.paste(t_rot, (bx - 1, by + cfg['tail_dy']), t_rot)
 
-        # 3. Torso
-        t_rot = torso_img.rotate(cfg['brot'], expand=True, resample=Image.Resampling.NEAREST)
+        # Layer 3: Torso & Spine (solid core)
+        t_rot = comp_torso.rotate(cfg['torso_rot'], expand=True, resample=Image.Resampling.NEAREST)
         frame.paste(t_rot, (bx, by), t_rot)
 
-        # 4. Head
-        h_rot = head_img.rotate(cfg['brot'], expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(h_rot, (bx + 1, by), h_rot)
+        # Layer 4: Head & Jaws
+        h_rot = comp_head.rotate(cfg['torso_rot'], expand=True, resample=Image.Resampling.NEAREST)
+        frame.paste(h_rot, (bx + cfg['head_dx'], by + cfg['head_dy']), h_rot)
 
-        # 5. Front leg (front layer)
-        f_rot = front_legs.rotate(cfg['frot'], expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(f_rot, (bx + cfg['fdx'], by + cfg['fdy']), f_rot)
+        # Layer 5: Foreleg (Front Layer)
+        f_rot = comp_forelegs.rotate(cfg['fleg_rot'], expand=True, resample=Image.Resampling.NEAREST)
+        frame.paste(f_rot, (bx + cfg['fleg_dx'], by + cfg['fleg_dy']), f_rot)
+
+        # Anatomical Seam-Healer: Ensure no transparent disconnects between torso and legs
+        for y in range(by + 14, min(63, by + 26)):
+            for x in range(bx + 6, min(63, bx + 26)):
+                p = frame.getpixel((x, y))
+                if p[3] < 30:
+                    above = frame.getpixel((x, y - 1)) if y > 0 else (0,0,0,0)
+                    below = frame.getpixel((x, y + 1)) if y < 63 else (0,0,0,0)
+                    left = frame.getpixel((x - 1, y)) if x > 0 else (0,0,0,0)
+                    right = frame.getpixel((x + 1, y)) if x < 63 else (0,0,0,0)
+                    surrounding = sum(1 for n in (above, below, left, right) if n[3] > 100)
+                    if surrounding >= 2:
+                        frame.putpixel((x, y), MID_FUR)
 
         run_sheet.paste(frame, (f * 64, 0))
 
     run_path = os.path.join(ASSETS_DIR, 'pc-wolf-run.png')
     run_sheet.save(run_path)
-    print(f'Saved {run_path}')
+    print(f'Saved {run_path} ({run_sheet.size})')
 
     # -------------------------------------------------------------
     # 3. DEATH SHEET: 6 frames, 48x48 (288x48)
-    # Stagger -> drop to ground -> collapse
+    # Stagger -> Forelegs collapse -> Side roll -> Settle to ground
+    # Facing RIGHT by default, ground at y = 40
     # -------------------------------------------------------------
     death_sheet = Image.new('RGBA', (48 * 6, 48), (0, 0, 0, 0))
     for f in range(6):
         frame = Image.new('RGBA', (48, 48), (0, 0, 0, 0))
         bx = 8
-        by = 12
+        by = 10
+        
         if f == 0:
-            # Stagger backward
-            frame.paste(warg_base, (bx - 2, by - 2), warg_base)
-        elif f == 1:
-            # Reeling back
-            rot = warg_base.rotate(-18, expand=True, resample=Image.Resampling.NEAREST)
-            frame.paste(rot, (bx - 3, by + 1), rot)
-        elif f == 2:
-            # Collapsing onto knees
-            rot = warg_base.rotate(-45, expand=True, resample=Image.Resampling.NEAREST)
-            frame.paste(rot, (bx - 4, by + 4), rot)
-        elif f == 3:
-            # Hitting the ground flat
-            flat = warg_base.resize((34, 18), Image.Resampling.NEAREST)
-            frame.paste(flat, (bx, by + 14), flat)
-        elif f == 4:
-            # Settling into dirt
-            flat = warg_base.resize((34, 16), Image.Resampling.NEAREST)
-            enhancer = ImageEnhance.Brightness(flat)
-            dimmed = enhancer.enhance(0.7)
-            frame.paste(dimmed, (bx, by + 16), dimmed)
-        elif f == 5:
-            # Defeated corpse
-            flat = warg_base.resize((34, 14), Image.Resampling.NEAREST)
-            enhancer = ImageEnhance.Brightness(flat)
-            dimmed = enhancer.enhance(0.45)
-            frame.paste(dimmed, (bx, by + 18), dimmed)
+            recoil = warg_base.copy()
+            enhancer = ImageEnhance.Brightness(recoil)
+            bright = enhancer.enhance(1.4)
+            frame.paste(bright, (bx - 3, by - 2), bright)
             
+        elif f == 1:
+            rot = warg_base.rotate(-15, expand=True, resample=Image.Resampling.NEAREST)
+            frame.paste(rot, (bx - 4, by + 1), rot)
+            
+        elif f == 2:
+            rot = warg_base.rotate(-35, expand=True, resample=Image.Resampling.NEAREST)
+            frame.paste(rot, (bx - 3, by + 5), rot)
+            
+        elif f == 3:
+            flat = warg_base.resize((34, 18), Image.Resampling.NEAREST)
+            frame.paste(flat, (bx + 1, by + 12), flat)
+            
+        elif f == 4:
+            flat = warg_base.resize((34, 15), Image.Resampling.NEAREST)
+            enhancer = ImageEnhance.Brightness(flat)
+            dimmed = enhancer.enhance(0.75)
+            frame.paste(dimmed, (bx + 2, by + 15), dimmed)
+            
+        elif f == 5:
+            flat = warg_base.resize((34, 13), Image.Resampling.NEAREST)
+            enhancer = ImageEnhance.Brightness(flat)
+            dimmed = enhancer.enhance(0.5)
+            frame.paste(dimmed, (bx + 2, by + 17), dimmed)
+
         death_sheet.paste(frame, (f * 48, 0))
 
     death_path = os.path.join(ASSETS_DIR, 'pc-wolf-death.png')
     death_sheet.save(death_path)
-    print(f'Saved {death_path}')
+    print(f'Saved {death_path} ({death_sheet.size})')
 
 if __name__ == '__main__':
     build_refined_wolf_sprites()
+

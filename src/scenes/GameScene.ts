@@ -2043,7 +2043,7 @@ export class GameScene extends Phaser.Scene {
             for (const e of this.enemies) {
               if (e.isDead) continue;
               if (Phaser.Math.Distance.Between(e.x, e.y, trap.x, trap.y - 8) <= 24) {
-                const killed = e.takeDamage(1, trap.x, trap.y);
+                const killed = e.takeDamage(1, trap.x, trap.y, this.enemies);
                 this.bloodSpark.setPosition(e.x, e.y - 8);
                 this.bloodSpark.explode(killed ? 20 : 10);
                 this.spawnDamageNumber(e.x, e.y - 12, '-1', '#f87171');
@@ -2091,7 +2091,7 @@ export class GameScene extends Phaser.Scene {
       this.lightningGfx.lineTo(target.x, target.y - 10);
       this.lightningGfx.strokePath();
 
-      const dead = target.takeDamage(dmg, sourceEnemy.x, sourceEnemy.y);
+      const dead = target.takeDamage(dmg, sourceEnemy.x, sourceEnemy.y, this.enemies);
       this.spawnDamageNumber(target.x, target.y, `ШОК -${dmg}`, '#38bdf8');
       this.hitSpark.setPosition(target.x, target.y - 8);
       this.hitSpark.explode(8);
@@ -2113,7 +2113,7 @@ export class GameScene extends Phaser.Scene {
       if (enemy.isDead) continue;
       const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
       if (dist < 48) {
-        const dead = enemy.takeDamage(2, x, y);
+        const dead = enemy.takeDamage(2, x, y, this.enemies);
         this.spawnDamageNumber(enemy.x, enemy.y, 'ОГОНЬ -2', '#fb923c');
         if (dead) {
           SoundFX.playEnemyDeath(enemy.kind);
@@ -2131,7 +2131,7 @@ export class GameScene extends Phaser.Scene {
       if (other.isDead) continue;
       const d = Phaser.Math.Distance.Between(sourceX, sourceY, other.x, other.y);
       if (d <= 58) {
-        const dead = other.takeDamage(2, sourceX, sourceY);
+        const dead = other.takeDamage(2, sourceX, sourceY, this.enemies);
         other.applyElement('frost', 3000, 1.5);
         this.spawnDamageNumber(other.x, other.y, 'ЛЕД -2', '#38bdf8');
         if (dead) {
@@ -3281,7 +3281,7 @@ export class GameScene extends Phaser.Scene {
         if (e.isDead) continue;
         const d = Phaser.Math.Distance.Between(x, y, e.x, e.y);
         if (d <= (combo.aoeRadius || 60)) {
-          e.takeDamage(12, x, y);
+          e.takeDamage(12, x, y, this.enemies);
         }
       }
     } else if (combo.effect === 'shatter') {

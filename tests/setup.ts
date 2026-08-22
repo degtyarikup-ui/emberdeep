@@ -1,3 +1,20 @@
+import path from 'node:path';
+import module from 'node:module';
+
+const emptyStub = path.resolve(process.cwd(), 'tests/stubs/empty.ts');
+// @ts-expect-error Node internal CJS resolver hook for Phaser optional spectorjs
+if (module._resolveFilename) {
+  // @ts-expect-error Node internal CJS resolver hook for Phaser optional spectorjs
+  const orig = module._resolveFilename;
+  // @ts-expect-error Node internal CJS resolver hook for Phaser optional spectorjs
+  module._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+    if (request === 'phaser3spectorjs') {
+      return emptyStub;
+    }
+    return orig.call(this, request, parent, isMain, options);
+  };
+}
+
 /**
  * Phaser probes canvas capabilities at import time (CanvasFeatures), and jsdom
  * ships no 2D context. Several modules under test pull Phaser in transitively

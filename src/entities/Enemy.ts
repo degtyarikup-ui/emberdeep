@@ -82,9 +82,9 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   },
   wolf: {
     clips: ACTORS.WOLF,
-    originY: { idle: 0.85, run: 0.80, death: 0.85 },
+    originY: { idle: 0.95, run: 0.90, death: 0.85 },
     bodySize: { idle: [28, 20], run: [32, 22] },
-    bodyOffset: { idle: [2, 12], run: [16, 38] },
+    bodyOffset: { idle: [2, 11], run: [16, 38] },
     maxHp: 3,
     patrolSpeed: 55,
     chaseSpeed: 115,
@@ -195,7 +195,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setPipeline('Light2D');
-    this.setOrigin(0.5, 1.0);
+    this.setOrigin(0.5, stats.originY.idle);
     this.setScale(stats.scale);
     this.play(stats.clips.idle.key);
 
@@ -367,7 +367,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(0, 0);
     body.enable = false;
-    this.setOrigin(0.5, 1.0);
+    this.setOrigin(0.5, this.stats.originY.death);
     this.play(this.stats.clips.death.key);
     this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.scene.tweens.add({ targets: this, alpha: 0, duration: 200, onComplete: () => {
@@ -403,6 +403,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     playerAttacking = false
   ): boolean {
     if (this.aiState === 'dead') return false;
+
+    if (this.aggroTimer > 0) this.aggroTimer -= delta;
 
     if (this.hitLock > 0) {
       this.hitLock -= delta;
@@ -453,7 +455,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
-    if (this.aggroTimer > 0) this.aggroTimer -= delta;
     if (this.backstepCooldown > 0) this.backstepCooldown -= delta;
 
     const speedMult = this.statusState.slowDuration > 0 ? this.statusState.slowFactor : 1.0;
@@ -681,7 +682,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   private setAnimState(next: 'idle' | 'run'): void {
     if (this.aiState === 'dead') return;
-    this.setOrigin(0.5, 1.0);
+    this.setOrigin(0.5, this.stats.originY[next]);
     this.play(this.stats.clips[next].key, true);
 
     const body = this.body as Phaser.Physics.Arcade.Body;

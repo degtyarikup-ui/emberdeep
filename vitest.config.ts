@@ -16,8 +16,14 @@ export default defineConfig({
     setupFiles: ['tests/setup.ts'],
     include: ['tests/**/*.test.ts'],
     restoreMocks: true,
-    // Phaser must go through Vite (not be externalised) for the alias above
-    // to apply to its internal require().
     server: { deps: { inline: ['phaser'] } },
+    deps: {
+      inline: ['phaser'],
+      optimizer: {
+        web: {
+          include: ['phaser'],
+        },
+      },
+    },
   },
 });

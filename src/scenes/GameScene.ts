@@ -29,6 +29,7 @@ import { InventoryTray } from '../ui/InventoryTray';
 import { BossBar } from '../ui/BossBar';
 import { PartyFrames } from '../ui/PartyFrames';
 import { StatsModal } from '../ui/StatsModal';
+import { SettingsModal } from '../ui/SettingsModal';
 import { Tooltip } from '../ui/Tooltip';
 import { ObjectiveMarker } from '../ui/ObjectiveMarker';
 import { PixelUI } from '../gfx/PixelUI';
@@ -211,10 +212,10 @@ export class GameScene extends Phaser.Scene {
   public bossBarUI!: BossBar;
   public partyFrames!: PartyFrames;
   public statsModal!: StatsModal;
+  public settingsModal!: SettingsModal;
   public objectiveMarker!: ObjectiveMarker;
   private tabKey!: Phaser.Input.Keyboard.Key;
   private iKey!: Phaser.Input.Keyboard.Key;
-  private escKey!: Phaser.Input.Keyboard.Key;
 
   private topHeaderContainer!: Phaser.GameObjects.Container;
   private depthLabel!: Phaser.GameObjects.Text;
@@ -602,6 +603,7 @@ export class GameScene extends Phaser.Scene {
     // Spatial & Biome Audio Initialization
     SoundFX.clearSpatialEmitters();
     SoundFX.setBiome(this.depth);
+    SoundFX.playMusic('dungeon');
 
     if (level.bonfires) {
       for (let i = 0; i < level.bonfires.length; i++) {
@@ -817,7 +819,6 @@ export class GameScene extends Phaser.Scene {
 
     this.tabKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.TAB);
     this.iKey = this.input.keyboard!.addKey('I');
-    this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
     this.input.keyboard!.addCapture([
       Phaser.Input.Keyboard.KeyCodes.TAB,
@@ -832,6 +833,14 @@ export class GameScene extends Phaser.Scene {
     this.bossBarUI = new BossBar(this);
     this.partyFrames = new PartyFrames(this);
     this.statsModal = new StatsModal(this);
+    this.settingsModal = new SettingsModal(this, {
+      mode: 'game',
+      onExitToMenu: () => {
+        void this.net?.room.leave();
+        SoundFX.stopMusic();
+        this.scene.start(SCENE.MENU);
+      },
+    });
     this.objectiveMarker = new ObjectiveMarker(this);
     this.worldCam.ignore(this.objectiveMarker.getContainer());
 
@@ -900,8 +909,13 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: this.hint, alpha: 0, delay: 3600, duration: 900 });
 
     this.input.keyboard!.on('keydown-ESC', () => {
-      void this.net?.room.leave();
-      this.scene.start(SCENE.MENU);
+      if (this.statsModal?.isOpen) {
+        this.statsModal.close();
+      } else if (this.settingsModal?.isOpen()) {
+        this.settingsModal.close();
+      } else {
+        this.settingsModal?.open('game');
+      }
     });
 
     if (this.net) {
@@ -926,8 +940,10 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.scale.off('resize', handleResize);
       this.closeDebugMenu();
+      this.settingsModal?.destroy();
       SoundFX.clearSpatialEmitters();
       SoundFX.stopAmbient();
+      SoundFX.stopMusic();
       this.objectiveMarker?.destroy();
       this.enemies = [];
       this.flasks = [];
@@ -1234,6 +1250,7 @@ export class GameScene extends Phaser.Scene {
     if (this.bossBarUI) this.bossBarUI.handleResize(width);
     if (this.partyFrames) this.partyFrames.handleResize();
     if (this.statsModal) this.statsModal.handleResize(width, height);
+    if (this.settingsModal) this.settingsModal.handleResize(width, height);
   }
 
   private isAnyInteractableInRange(): boolean {
@@ -1273,11 +1290,8 @@ export class GameScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.tabKey) || Phaser.Input.Keyboard.JustDown(this.iKey)) {
       this.statsModal?.toggle(this.myPlayer);
     }
-    if (Phaser.Input.Keyboard.JustDown(this.escKey) && this.statsModal?.isOpen) {
-      this.statsModal.close();
-    }
 
-    if (this.frozen) return;
+    if (this.frozen || this.settingsModal?.isOpen()) return;
 
     const localInput = {
       up: this.cursors.up.isDown || this.wasd.up.isDown,
@@ -2228,6 +2242,7 @@ export class GameScene extends Phaser.Scene {
 
     SoundFX.playBossSpawn();
     SoundFX.playShockwave();
+    SoundFX.playMusic('boss');
 
     // Safely push players away from altar so they aren't trapped
     for (const player of this.players) {
@@ -2301,6 +2316,7 @@ export class GameScene extends Phaser.Scene {
 
   private onBossDefeated(): void {
     this.altarCharged = true;
+    SoundFX.playBossDeath();
     if (this.bossBarUI) {
       this.bossBarUI.hide();
     }
@@ -2610,6 +2626,7 @@ export class GameScene extends Phaser.Scene {
     if (this.gameOver) return;
     this.gameOver = true;
     this.frozen = true;
+    SoundFX.playPlayerDeath();
     YandexSDK.get().gameplayStop();
     for (const enemy of this.enemies) (enemy.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
 

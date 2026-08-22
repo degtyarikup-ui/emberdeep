@@ -178,3 +178,27 @@ describe('meta progression', () => {
     expect(bonuses.startGold).toBeGreaterThan(0);
   });
 });
+
+describe('audio settings and volume channels', () => {
+  it('manages and clamps music and sfx volume correctly', async () => {
+    const { SoundFX } = await import('../src/audio/SoundFX');
+
+    SoundFX.setMusicVolume(0.5);
+    expect(SoundFX.getMusicVolume()).toBe(0.5);
+
+    SoundFX.setMusicVolume(1.5);
+    expect(SoundFX.getMusicVolume()).toBe(1.0);
+
+    SoundFX.setMusicVolume(-0.2);
+    expect(SoundFX.getMusicVolume()).toBe(0.0);
+
+    SoundFX.setSfxVolume(0.85);
+    expect(SoundFX.getSfxVolume()).toBe(0.85);
+
+    SoundFX.setSfxVolume(2.0);
+    expect(SoundFX.getSfxVolume()).toBe(1.0);
+
+    SoundFX.setSfxVolume(-1.0);
+    expect(SoundFX.getSfxVolume()).toBe(0.0);
+  });
+});

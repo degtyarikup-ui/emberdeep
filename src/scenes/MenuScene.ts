@@ -12,6 +12,7 @@ import { I18n, t } from '../i18n';
 import { YandexSDK } from '../yandex/yandexSdk';
 import { registerDebugHotkey } from '../debug/hotkey';
 import { BUILD_LABEL } from '../buildInfo';
+import { SettingsModal } from '../ui/SettingsModal';
 
 function makeButton(
   scene: Phaser.Scene,
@@ -49,12 +50,14 @@ function makeButton(
 
 export class MenuScene extends Phaser.Scene {
   private resizeTimer?: Phaser.Time.TimerEvent;
+  private settingsModal!: SettingsModal;
 
   constructor() {
     super(SCENE.MENU);
   }
 
   create(): void {
+    SoundFX.playMusic('menu');
     const { width, height } = this.scale;
 
     const handleResize = () => {
@@ -357,15 +360,22 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    const altarBtn = makeButton(this, width / 2 - 110, height * 0.60 + 50, t().upgradesBtn, { fontSize: '14px' });
+    const altarBtn = makeButton(this, width / 2 - 160, height * 0.60 + 50, t().upgradesBtn, { fontSize: '13px' });
     altarBtn.on('pointerdown', () => {
       this.openSoulAltar();
     });
 
-    const achBtn = makeButton(this, width / 2 + 110, height * 0.60 + 50, t().achievementsBtn, { fontSize: '14px' });
+    const achBtn = makeButton(this, width / 2, height * 0.60 + 50, t().achievementsBtn, { fontSize: '13px' });
     achBtn.on('pointerdown', () => {
       this.openAchievementsModal();
     });
+
+    const settingsBtn = makeButton(this, width / 2 + 160, height * 0.60 + 50, t().settingsBtn, { fontSize: '13px' });
+    settingsBtn.on('pointerdown', () => {
+      this.settingsModal.open('menu');
+    });
+
+    this.settingsModal = new SettingsModal(this, { mode: 'menu' });
 
     const coopBtn = makeButton(this, width / 2, height * 0.60 + 88, t().playCoop, { fontSize: '13px', muted: true });
     coopBtn.on('pointerdown', () => {

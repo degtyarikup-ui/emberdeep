@@ -1,10 +1,15 @@
 /**
- * Procedural Web Audio API sound synthesizer and 2D Spatial Audio Engine for Emberdeep.
- * Zero external audio files or dependencies needed.
+ * Hybrid Audio Engine for Emberdeep:
+ * 1. Procedural Web Audio API sound synthesizer with 2D Positional Audio for SFX.
+ * 2. High-fidelity dynamic music streaming & crossfading engine for soundtrack & stingers.
+ * 3. Dual volume control (Music & SFX) with localStorage persistence.
  */
+
+import { asset } from '../gfx/pack';
 
 export type SurfaceType = 'grass' | 'dirt' | 'stone';
 export type EmitterType = 'bonfire' | 'torch' | 'shrine_blood' | 'shrine_chance' | 'altar';
+export type MusicTrack = 'menu' | 'dungeon' | 'boss' | 'gameover' | 'victory';
 
 export interface SpatialEmitter {
   id: string;
@@ -20,6 +25,16 @@ export interface SpatialEmitter {
   filterNode?: BiquadFilterNode;
 }
 
+const STORAGE_SETTINGS_KEY = 'emberdeep_audio_settings';
+
+const MUSIC_TRACKS: Record<MusicTrack, string> = {
+  menu: 'audio/track_menu.mp3',
+  dungeon: 'audio/track_dungeon.mp3',
+  boss: 'audio/track_boss.mp3',
+  gameover: 'audio/track_gameover.mp3',
+  victory: 'audio/track_victory.mp3',
+};
+
 class SoundFXManager {
   private ctx?: AudioContext;
   private masterGain?: GainNode;
@@ -27,6 +42,16 @@ class SoundFXManager {
   private sfxGain?: GainNode;
   private spatialGain?: GainNode;
   private initialized = false;
+
+  // Volume channels (0.0 to 1.0)
+  private musicVolume = 0.7;
+  private sfxVolume = 0.8;
+
+  // Music Player
+  private currentTrack?: MusicTrack;
+  private currentAudio?: HTMLAudioElement;
+  private pendingTrack?: { track: MusicTrack; loop: boolean };
+  private musicFadeInterval?: number;
 
   // Spatial Emitters
   private emitters: SpatialEmitter[] = [];
@@ -40,6 +65,70 @@ class SoundFXManager {
   private ambientOscGain?: GainNode;
   private ambientTimer = 0;
 
+  constructor() {
+    this.loadSettings();
+    if (typeof window !== 'undefined') {
+      const unlock = () => {
+        this.unlockAudio();
+        window.removeEventListener('pointerdown', unlock);
+        window.removeEventListener('keydown', unlock);
+      };
+      window.addEventListener('pointerdown', unlock, { once: true });
+      window.addEventListener('keydown', unlock, { once: true });
+    }
+  }
+
+  private loadSettings(): void {
+    try {
+      const raw = localStorage.getItem(STORAGE_SETTINGS_KEY);
+      if (raw) {
+        const data = JSON.parse(raw) as { musicVolume?: number; sfxVolume?: number };
+        if (typeof data.musicVolume === 'number') this.musicVolume = Math.max(0, Math.min(1, data.musicVolume));
+        if (typeof data.sfxVolume === 'number') this.sfxVolume = Math.max(0, Math.min(1, data.sfxVolume));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private saveSettings(): void {
+    try {
+      localStorage.setItem(
+        STORAGE_SETTINGS_KEY,
+        JSON.stringify({ musicVolume: this.musicVolume, sfxVolume: this.sfxVolume })
+      );
+    } catch {
+      // ignore
+    }
+  }
+
+  public getMusicVolume(): number {
+    return this.musicVolume;
+  }
+
+  public getSfxVolume(): number {
+    return this.sfxVolume;
+  }
+
+  public setMusicVolume(vol: number): void {
+    this.musicVolume = Math.max(0, Math.min(1, vol));
+    this.saveSettings();
+    if (this.currentAudio) {
+      this.currentAudio.volume = this.musicVolume;
+    }
+    if (this.ambientGain && this.ctx) {
+      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.4, this.ctx.currentTime);
+    }
+  }
+
+  public setSfxVolume(vol: number): void {
+    this.sfxVolume = Math.max(0, Math.min(1, vol));
+    this.saveSettings();
+    if (this.sfxGain && this.ctx) {
+      this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
+    }
+  }
+
   private init(): void {
     if (this.initialized) return;
     try {
@@ -48,24 +137,36 @@ class SoundFXManager {
       this.ctx = new AudioCtx();
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
 
       this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.setValueAtTime(0.9, this.ctx.currentTime);
+      this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
       this.sfxGain.connect(this.masterGain);
 
       this.spatialGain = this.ctx.createGain();
       this.spatialGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
-      this.spatialGain.connect(this.masterGain);
+      this.spatialGain.connect(this.sfxGain);
 
       this.ambientGain = this.ctx.createGain();
-      this.ambientGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.35, this.ctx.currentTime);
       this.ambientGain.connect(this.masterGain);
 
       this.initialized = true;
     } catch {
       // Web Audio unsupported or blocked
+    }
+  }
+
+  public unlockAudio(): void {
+    if (!this.initialized) this.init();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      void this.ctx.resume();
+    }
+    if (this.pendingTrack) {
+      const p = this.pendingTrack;
+      this.pendingTrack = undefined;
+      this.playMusic(p.track, p.loop, 0.4);
     }
   }
 
@@ -75,6 +176,100 @@ class SoundFXManager {
       void this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  // ==========================================
+  // MUSIC TRACK PLAYBACK & CROSSFADE
+  // ==========================================
+
+  public playMusic(track: MusicTrack, loop = true, fadeDuration = 0.8): void {
+    if (this.currentTrack === track && this.currentAudio && !this.currentAudio.paused) {
+      return;
+    }
+
+    if (this.musicFadeInterval) {
+      window.clearInterval(this.musicFadeInterval);
+      this.musicFadeInterval = undefined;
+    }
+
+    const prevAudio = this.currentAudio;
+    this.currentTrack = track;
+
+    const audioUrl = asset(MUSIC_TRACKS[track]);
+    const nextAudio = new Audio(audioUrl);
+    nextAudio.loop = loop;
+    nextAudio.volume = 0;
+
+    const targetVolume = this.musicVolume;
+
+    const startPlay = () => {
+      nextAudio
+        .play()
+        .then(() => {
+          this.currentAudio = nextAudio;
+          // Fade in next audio, fade out previous audio
+          const steps = 20;
+          const stepTime = (fadeDuration * 1000) / steps;
+          let currentStep = 0;
+
+          this.musicFadeInterval = window.setInterval(() => {
+            currentStep++;
+            const progress = currentStep / steps;
+
+            if (prevAudio) {
+              prevAudio.volume = Math.max(0, targetVolume * (1 - progress));
+            }
+            nextAudio.volume = Math.min(targetVolume, targetVolume * progress);
+
+            if (currentStep >= steps) {
+              if (this.musicFadeInterval) window.clearInterval(this.musicFadeInterval);
+              this.musicFadeInterval = undefined;
+              if (prevAudio) {
+                prevAudio.pause();
+                prevAudio.currentTime = 0;
+              }
+              nextAudio.volume = targetVolume;
+            }
+          }, stepTime);
+        })
+        .catch(() => {
+          // Autoplay blocked: remember track and play upon next user gesture
+          this.pendingTrack = { track, loop };
+        });
+    };
+
+    startPlay();
+  }
+
+  public stopMusic(fadeDuration = 0.6): void {
+    if (this.musicFadeInterval) {
+      window.clearInterval(this.musicFadeInterval);
+      this.musicFadeInterval = undefined;
+    }
+    this.currentTrack = undefined;
+    this.pendingTrack = undefined;
+
+    if (!this.currentAudio) return;
+
+    const audioToStop = this.currentAudio;
+    this.currentAudio = undefined;
+
+    const startVol = audioToStop.volume;
+    const steps = 15;
+    const stepTime = (fadeDuration * 1000) / steps;
+    let currentStep = 0;
+
+    const interval = window.setInterval(() => {
+      currentStep++;
+      const progress = currentStep / steps;
+      audioToStop.volume = Math.max(0, startVol * (1 - progress));
+
+      if (currentStep >= steps) {
+        window.clearInterval(interval);
+        audioToStop.pause();
+        audioToStop.currentTime = 0;
+      }
+    }, stepTime);
   }
 
   // ==========================================
@@ -340,30 +535,30 @@ class SoundFXManager {
       // Forest: Gentle nocturnal forest wind & leafy rustling
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(320, t);
-      this.ambientGain.gain.setValueAtTime(0.28, t);
+      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.28, t);
     } else if (depth === 2) {
       // Ruins: Cold wind howling through ancient crumbling stone arches
       filter.type = 'bandpass';
       filter.frequency.setValueAtTime(280, t);
       filter.Q.setValueAtTime(2.0, t);
-      this.ambientGain.gain.setValueAtTime(0.30, t);
+      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.3, t);
     } else if (depth === 3) {
       // Catacombs: Cold resonant underground air draft
       filter.type = 'bandpass';
       filter.frequency.setValueAtTime(220, t);
       filter.Q.setValueAtTime(2.5, t);
-      this.ambientGain.gain.setValueAtTime(0.32, t);
+      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.32, t);
     } else if (depth === 4) {
-      // Depths: Heavy subterranean ore rumble & creaking mine timbers
+      // Depths: Heavy subterranean ore rumble
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(140, t);
-      this.ambientGain.gain.setValueAtTime(0.38, t);
+      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.38, t);
     } else {
       // Abyss / Void: Hollow eerie cosmic ether
       filter.type = 'bandpass';
       filter.frequency.setValueAtTime(360, t);
       filter.Q.setValueAtTime(4.0, t);
-      this.ambientGain.gain.setValueAtTime(0.35, t);
+      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.35, t);
     }
 
     noise.connect(filter);
@@ -398,13 +593,10 @@ class SoundFXManager {
     if (!ctx || !this.ambientGain) return;
 
     if (this.currentBiomeDepth === 1) {
-      // Forest: Distant wind gust or night bird/cricket
       if (Math.random() < 0.6) this.playDistantWindGust();
     } else if (this.currentBiomeDepth === 2) {
-      // Catacombs: Cave water drip with echo
       if (Math.random() < 0.75) this.playCaveWaterDrip();
     } else if (this.currentBiomeDepth === 3) {
-      // Magma: Lava bubble pop
       if (Math.random() < 0.7) this.playLavaBubble();
     }
   }
@@ -498,7 +690,6 @@ class SoundFXManager {
     const vol = (isSprinting ? 0.18 : 0.12) * jitter;
 
     if (surface === 'grass') {
-      // Soft leafy swish / brush
       const bufferSize = Math.floor(ctx.sampleRate * 0.06);
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
@@ -523,7 +714,6 @@ class SoundFXManager {
       noise.start(t);
       noise.stop(t + 0.06);
     } else if (surface === 'dirt') {
-      // Crunchy gravel step
       const gain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
 
@@ -549,7 +739,6 @@ class SoundFXManager {
       noise.start(t);
       noise.stop(t + 0.05);
     } else {
-      // Stone tile tap with crisp transient
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -569,10 +758,10 @@ class SoundFXManager {
   }
 
   // ==========================================
-  // WEAPONS, ENVIRONMENT & INTERACTION SOUNDS
+  // WEAPONS, ENVIRONMENT & COMBAT SOUNDS
   // ==========================================
 
-  /** Rich slicing blade swoosh with subtle steel resonance */
+  /** Rich slicing blade swoosh with resonant steel ring */
   playSwordSwing(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
@@ -608,20 +797,20 @@ class SoundFXManager {
     noise.start(t);
     noise.stop(t + 0.14);
 
-    // Subtle metallic edge blade ring
+    // Metallic blade edge ping
     const ring = ctx.createOscillator();
     const ringGain = ctx.createGain();
     ring.type = 'sine';
-    ring.frequency.setValueAtTime(880 * jitter, t);
-    ring.frequency.exponentialRampToValueAtTime(440 * jitter, t + 0.08);
+    ring.frequency.setValueAtTime(980 * jitter, t);
+    ring.frequency.exponentialRampToValueAtTime(490 * jitter, t + 0.09);
 
-    ringGain.gain.setValueAtTime(0.08, t);
-    ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    ringGain.gain.setValueAtTime(0.12, t);
+    ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
 
     ring.connect(ringGain);
     ringGain.connect(this.sfxGain);
     ring.start(t);
-    ring.stop(t + 0.08);
+    ring.stop(t + 0.09);
   }
 
   /** Whistling arrow release from bow */
@@ -633,10 +822,10 @@ class SoundFXManager {
     const twang = ctx.createOscillator();
     const twangGain = ctx.createGain();
     twang.type = 'triangle';
-    twang.frequency.setValueAtTime(480, t);
+    twang.frequency.setValueAtTime(520, t);
     twang.frequency.exponentialRampToValueAtTime(140, t + 0.1);
 
-    twangGain.gain.setValueAtTime(0.35, t);
+    twangGain.gain.setValueAtTime(0.38, t);
     twangGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
     twang.connect(twangGain);
@@ -644,15 +833,15 @@ class SoundFXManager {
     twang.start(t);
     twang.stop(t + 0.1);
 
-    // Whistling zip
+    // Whistling arrow zip
     const whoosh = ctx.createOscillator();
     const whooshGain = ctx.createGain();
     whoosh.type = 'sine';
-    whoosh.frequency.setValueAtTime(900, t);
-    whoosh.frequency.exponentialRampToValueAtTime(1800, t + 0.04);
-    whoosh.frequency.exponentialRampToValueAtTime(550, t + 0.16);
+    whoosh.frequency.setValueAtTime(1000, t);
+    whoosh.frequency.exponentialRampToValueAtTime(2000, t + 0.04);
+    whoosh.frequency.exponentialRampToValueAtTime(600, t + 0.16);
 
-    whooshGain.gain.setValueAtTime(0.22, t);
+    whooshGain.gain.setValueAtTime(0.24, t);
     whooshGain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
 
     whoosh.connect(whooshGain);
@@ -670,10 +859,10 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(560, t);
-    osc.frequency.exponentialRampToValueAtTime(80, t + 0.09);
+    osc.frequency.setValueAtTime(580, t);
+    osc.frequency.exponentialRampToValueAtTime(85, t + 0.09);
 
-    gain.gain.setValueAtTime(0.38, t);
+    gain.gain.setValueAtTime(0.42, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
 
     osc.connect(gain);
@@ -693,11 +882,11 @@ class SoundFXManager {
     const chime = ctx.createOscillator();
     const chimeGain = ctx.createGain();
     chime.type = 'sine';
-    chime.frequency.setValueAtTime(620, t);
-    chime.frequency.exponentialRampToValueAtTime(1400, t + 0.06);
-    chime.frequency.exponentialRampToValueAtTime(880, t + 0.18);
+    chime.frequency.setValueAtTime(660, t);
+    chime.frequency.exponentialRampToValueAtTime(1500, t + 0.06);
+    chime.frequency.exponentialRampToValueAtTime(920, t + 0.18);
 
-    chimeGain.gain.setValueAtTime(0.28, t);
+    chimeGain.gain.setValueAtTime(0.3, t);
     chimeGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
 
     chime.connect(chimeGain);
@@ -709,10 +898,10 @@ class SoundFXManager {
     const surge = ctx.createOscillator();
     const surgeGain = ctx.createGain();
     surge.type = 'triangle';
-    surge.frequency.setValueAtTime(220, t);
+    surge.frequency.setValueAtTime(240, t);
     surge.frequency.exponentialRampToValueAtTime(110, t + 0.14);
 
-    surgeGain.gain.setValueAtTime(0.32, t);
+    surgeGain.gain.setValueAtTime(0.35, t);
     surgeGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
 
     surge.connect(surgeGain);
@@ -721,7 +910,7 @@ class SoundFXManager {
     surge.stop(t + 0.14);
   }
 
-  /** Arcane energy blast impact / detonation */
+  /** Arcane energy blast detonation */
   playEnergyHit(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
@@ -732,10 +921,10 @@ class SoundFXManager {
     const spark = ctx.createOscillator();
     const sparkGain = ctx.createGain();
     spark.type = 'sine';
-    spark.frequency.setValueAtTime(1200, t);
-    spark.frequency.exponentialRampToValueAtTime(320, t + 0.12);
+    spark.frequency.setValueAtTime(1300, t);
+    spark.frequency.exponentialRampToValueAtTime(340, t + 0.12);
 
-    sparkGain.gain.setValueAtTime(0.35, t);
+    sparkGain.gain.setValueAtTime(0.38, t);
     sparkGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
 
     spark.connect(sparkGain);
@@ -747,10 +936,10 @@ class SoundFXManager {
     const sub = ctx.createOscillator();
     const subGain = ctx.createGain();
     sub.type = 'triangle';
-    sub.frequency.setValueAtTime(240, t);
+    sub.frequency.setValueAtTime(260, t);
     sub.frequency.exponentialRampToValueAtTime(45, t + 0.14);
 
-    subGain.gain.setValueAtTime(0.42, t);
+    subGain.gain.setValueAtTime(0.45, t);
     subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
 
     sub.connect(subGain);
@@ -765,9 +954,7 @@ class SoundFXManager {
     if (!ctx || !this.sfxGain) return;
 
     const t = ctx.currentTime;
-
-    // Rising ethereal power chord
-    const freqs = [330, 440, 660, 880];
+    const freqs = [330, 440, 660, 880, 1174];
     freqs.forEach((f, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -776,7 +963,7 @@ class SoundFXManager {
       osc.frequency.exponentialRampToValueAtTime(f * 2.2, t + 0.12);
       osc.frequency.exponentialRampToValueAtTime(f * 0.7, t + 0.45);
 
-      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.setValueAtTime(0.22, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
 
       osc.connect(gain);
@@ -786,7 +973,7 @@ class SoundFXManager {
     });
   }
 
-  /** Tree chop axe/blade thud into solid trunk */
+  /** Tree chop axe/blade thud */
   playTreeChop(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
@@ -810,13 +997,12 @@ class SoundFXManager {
     this.playWoodBreak();
   }
 
-  /** Tree toppling over with wood fracture and crash */
+  /** Tree toppling over with wood fracture */
   playTreeFall(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
 
     const t = ctx.currentTime;
-    // Heavy wooden trunk creak & crash
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -839,13 +1025,12 @@ class SoundFXManager {
     osc.stop(t + 0.4);
   }
 
-  /** Heavy chest open with creaking wood lid & latch */
+  /** Heavy chest open with latch chime */
   playChestOpen(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
 
     const t = ctx.currentTime;
-    // Wooden lid creak
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -868,11 +1053,10 @@ class SoundFXManager {
     osc.start(t);
     osc.stop(t + 0.28);
 
-    // Brass latch sparkle chime
     this.playItemAcquired();
   }
 
-  /** Impact sound when blade hits an enemy */
+  /** Impact sound when hit an enemy */
   playEnemyHit(kind: string): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
@@ -884,10 +1068,10 @@ class SoundFXManager {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'square';
-      osc.frequency.setValueAtTime(720 * jitter, t);
-      osc.frequency.exponentialRampToValueAtTime(180 * jitter, t + 0.06);
+      osc.frequency.setValueAtTime(740 * jitter, t);
+      osc.frequency.exponentialRampToValueAtTime(190 * jitter, t + 0.06);
 
-      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.setValueAtTime(0.32, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
 
       osc.connect(gain);
@@ -898,10 +1082,10 @@ class SoundFXManager {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(240 * jitter, t);
-      osc.frequency.exponentialRampToValueAtTime(70 * jitter, t + 0.08);
+      osc.frequency.setValueAtTime(260 * jitter, t);
+      osc.frequency.exponentialRampToValueAtTime(75 * jitter, t + 0.08);
 
-      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.setValueAtTime(0.38, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
 
       osc.connect(gain);
@@ -920,10 +1104,10 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(540, t);
+    osc.frequency.setValueAtTime(560, t);
     osc.frequency.exponentialRampToValueAtTime(110, t + 0.18);
 
-    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.setValueAtTime(0.5, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
 
     osc.connect(gain);
@@ -943,15 +1127,15 @@ class SoundFXManager {
 
     if (kind === 'skeleton') {
       osc.type = 'square';
-      osc.frequency.setValueAtTime(420, t);
+      osc.frequency.setValueAtTime(440, t);
       osc.frequency.exponentialRampToValueAtTime(60, t + 0.22);
     } else {
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(260, t);
+      osc.frequency.setValueAtTime(280, t);
       osc.frequency.exponentialRampToValueAtTime(45, t + 0.26);
     }
 
-    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.setValueAtTime(0.38, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
 
     osc.connect(gain);
@@ -969,10 +1153,10 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.setValueAtTime(190, t);
     osc.frequency.exponentialRampToValueAtTime(65, t + 0.12);
 
-    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.setValueAtTime(0.42, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
 
     osc.connect(gain);
@@ -981,28 +1165,9 @@ class SoundFXManager {
     osc.stop(t + 0.12);
   }
 
-  /** Player death chord */
+  /** Player death stinger */
   playPlayerDeath(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const notes = [220, 185, 146, 110];
-    notes.forEach((freq, i) => {
-      const t = ctx.currentTime + i * 0.08;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(freq, t);
-      osc.frequency.exponentialRampToValueAtTime(freq * 0.7, t + 0.45);
-
-      gain.gain.setValueAtTime(0.3, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(t);
-      osc.stop(t + 0.45);
-    });
+    this.playMusic('gameover', false, 0.2);
   }
 
   /** Item acquired chime */
@@ -1018,7 +1183,7 @@ class SoundFXManager {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, t);
 
-      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.setValueAtTime(0.28, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
 
       osc.connect(gain);
@@ -1041,7 +1206,7 @@ class SoundFXManager {
     osc.frequency.setValueAtTime(pitch, t);
     osc.frequency.setValueAtTime(pitch * 1.33, t + 0.04);
 
-    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.setValueAtTime(0.22, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
 
     osc.connect(gain);
@@ -1063,7 +1228,7 @@ class SoundFXManager {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, t);
 
-      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.setValueAtTime(0.28, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
 
       osc.connect(gain);
@@ -1085,7 +1250,7 @@ class SoundFXManager {
     osc.frequency.setValueAtTime(220, t);
     osc.frequency.exponentialRampToValueAtTime(45, t + 0.08);
 
-    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.setValueAtTime(0.38, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
 
     osc.connect(gain);
@@ -1107,7 +1272,7 @@ class SoundFXManager {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, t);
 
-      gain.gain.setValueAtTime(0.28, t);
+      gain.gain.setValueAtTime(0.3, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
 
       osc.connect(gain);
@@ -1130,7 +1295,7 @@ class SoundFXManager {
     osc.frequency.exponentialRampToValueAtTime(320, t + 0.3);
     osc.frequency.exponentialRampToValueAtTime(50, t + 0.8);
 
-    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.setValueAtTime(0.5, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
 
     osc.connect(gain);
@@ -1149,10 +1314,10 @@ class SoundFXManager {
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(120, t);
-    osc.frequency.exponentialRampToValueAtTime(380, t + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(400, t + 0.2);
     osc.frequency.exponentialRampToValueAtTime(45, t + 1.1);
 
-    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.setValueAtTime(0.55, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
 
     osc.connect(gain);
@@ -1173,7 +1338,7 @@ class SoundFXManager {
     osc.frequency.setValueAtTime(280, t);
     osc.frequency.exponentialRampToValueAtTime(40, t + 0.25);
 
-    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.setValueAtTime(0.48, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
 
     osc.connect(gain);
@@ -1191,11 +1356,11 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(140, t);
-    osc.frequency.exponentialRampToValueAtTime(420, t + 0.15);
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(450, t + 0.15);
     osc.frequency.exponentialRampToValueAtTime(70, t + 0.35);
 
-    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.setValueAtTime(0.45, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
 
     osc.connect(gain);
@@ -1220,10 +1385,10 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(400, t);
-    osc.frequency.exponentialRampToValueAtTime(120, t + 0.15);
+    osc.frequency.setValueAtTime(420, t);
+    osc.frequency.exponentialRampToValueAtTime(110, t + 0.15);
 
-    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.setValueAtTime(0.35, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
 
     osc.connect(gain);
@@ -1245,7 +1410,7 @@ class SoundFXManager {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, t);
 
-      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.setValueAtTime(0.38, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
 
       osc.connect(gain);
@@ -1267,7 +1432,7 @@ class SoundFXManager {
     osc.frequency.setValueAtTime(220, t);
     osc.frequency.exponentialRampToValueAtTime(110, t + 0.4);
 
-    gain.gain.setValueAtTime(0.38, t);
+    gain.gain.setValueAtTime(0.4, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
 
     osc.connect(gain);
@@ -1275,6 +1440,10 @@ class SoundFXManager {
     osc.start(t);
     osc.stop(t + 0.4);
   }
+
+  // ==========================================
+  // UI SOUNDS
+  // ==========================================
 
   /** Menu click */
   playMenuClick(): void {
@@ -1285,10 +1454,10 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, t);
-    osc.frequency.exponentialRampToValueAtTime(300, t + 0.04);
+    osc.frequency.setValueAtTime(640, t);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.04);
 
-    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.setValueAtTime(0.28, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
 
     osc.connect(gain);
@@ -1296,6 +1465,93 @@ class SoundFXManager {
     osc.start(t);
     osc.stop(t + 0.04);
   }
+
+  /** Slider tick feedback */
+  playSliderTick(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(800 + Math.random() * 100, t);
+    osc.frequency.exponentialRampToValueAtTime(300, t + 0.02);
+
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.02);
+  }
+
+  /** Button hover */
+  playButtonHover(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(480, t);
+
+    gain.gain.setValueAtTime(0.08, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.03);
+  }
+
+  /** Modal open whoosh */
+  playModalOpen(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(540, t + 0.1);
+
+    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.1);
+  }
+
+  /** Modal close */
+  playModalClose(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, t);
+    osc.frequency.exponentialRampToValueAtTime(180, t + 0.08);
+
+    gain.gain.setValueAtTime(0.22, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.08);
+  }
+
+  // ==========================================
+  // ELEMENTAL SOUNDS
+  // ==========================================
 
   playBossRoar(): void {
     this.playBossSpawn();
@@ -1307,6 +1563,7 @@ class SoundFXManager {
 
   playBossDeath(): void {
     this.playEnemyDeath('demon');
+    this.playMusic('victory', false, 0.4);
   }
 
   playFlaskPickup(): void {
@@ -1325,10 +1582,10 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(880, t);
+    osc.frequency.setValueAtTime(920, t);
     osc.frequency.exponentialRampToValueAtTime(110, t + 0.12);
 
-    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.setValueAtTime(0.38, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
 
     osc.connect(gain);
@@ -1348,7 +1605,7 @@ class SoundFXManager {
     osc.frequency.setValueAtTime(320, t);
     osc.frequency.exponentialRampToValueAtTime(880, t + 0.22);
 
-    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.setValueAtTime(0.32, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
 
     osc.connect(gain);
@@ -1365,16 +1622,37 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(1200, t);
-    osc.frequency.exponentialRampToValueAtTime(300, t + 0.16);
+    osc.frequency.setValueAtTime(1400, t);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.16);
 
-    gain.gain.setValueAtTime(0.32, t);
+    gain.gain.setValueAtTime(0.35, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
 
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.16);
+  }
+
+  playToxicBurst(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(600, t + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(80, t + 0.22);
+
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.22);
   }
 }
 

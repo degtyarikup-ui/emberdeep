@@ -96,12 +96,18 @@ export interface TranslationDict {
   buyEmbersMedium: string;
   buyEmbersLarge: string;
   shopHeader: string;
-
   // Objective markers
   objectiveAltar: string;
   objectiveBoss: string;
   objectiveExit: string;
   distanceMeter: string;
+
+  // Settings
+  settingsBtn: string;
+  settingsTitle: string;
+  musicVolume: string;
+  sfxVolume: string;
+  closeBtn: string;
 }
 
 const RU: TranslationDict = {
@@ -205,6 +211,13 @@ const RU: TranslationDict = {
   objectiveBoss: 'АРХИДЕМОН',
   objectiveExit: 'СПУСК В ГЛУБИНЫ',
   distanceMeter: 'м',
+
+  // Settings
+  settingsBtn: 'НАСТРОЙКИ',
+  settingsTitle: 'НАСТРОЙКИ ЗВУКА',
+  musicVolume: 'Громкость музыки',
+  sfxVolume: 'Громкость звуков',
+  closeBtn: 'ЗАКРЫТЬ',
 };
 
 const EN: TranslationDict = {
@@ -308,6 +321,13 @@ const EN: TranslationDict = {
   objectiveBoss: 'ARCHDEMON',
   objectiveExit: 'DESCENT STAIRS',
   distanceMeter: 'm',
+
+  // Settings
+  settingsBtn: 'SETTINGS',
+  settingsTitle: 'AUDIO SETTINGS',
+  musicVolume: 'Music Volume',
+  sfxVolume: 'Sound Effects',
+  closeBtn: 'CLOSE',
 };
 
 const STORAGE_KEY = 'emberdeep_lang';

@@ -454,6 +454,7 @@ export class GameScene extends Phaser.Scene {
       const yBottom = f.row * TILE_SIZE + TILE_SIZE;
       const sprite = this.add.sprite(x, yBottom, TEXTURE.PROPS, f.key);
       sprite.setOrigin(0.5, 1);
+      sprite.setScale(1.4);
       sprite.setPipeline('Light2D');
       sprite.setDepth(DEPTH.YSORT_BASE + yBottom);
       world.add(sprite);
@@ -2444,6 +2445,7 @@ export class GameScene extends Phaser.Scene {
     if (Math.random() < 0.25) {
       const flaskSprite = this.add.sprite(prop.x, prop.y, TEXTURE.PROPS, 'flask_red');
       flaskSprite.setOrigin(0.5, 1);
+      flaskSprite.setScale(1.4);
       flaskSprite.setPipeline('Light2D');
       flaskSprite.setDepth(DEPTH.YSORT_BASE + prop.y);
       this.worldLayer.add(flaskSprite);

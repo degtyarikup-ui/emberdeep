@@ -346,10 +346,6 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
         const bottomGrass = isGrassCell(r + 1, c);
         const leftGrass = isGrassCell(r, c - 1);
         const rightGrass = isGrassCell(r, c + 1);
-        const tlGrass = isGrassCell(r - 1, c - 1);
-        const trGrass = isGrassCell(r - 1, c + 1);
-        const blGrass = isGrassCell(r + 1, c - 1);
-        const brGrass = isGrassCell(r + 1, c + 1);
 
         if (topGrass && leftGrass) data[r][c] = TILE_INDEX.PATH_TL;
         else if (topGrass && rightGrass) data[r][c] = TILE_INDEX.PATH_TR;
@@ -359,10 +355,6 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
         else if (bottomGrass) data[r][c] = TILE_INDEX.PATH_B;
         else if (leftGrass) data[r][c] = TILE_INDEX.PATH_L;
         else if (rightGrass) data[r][c] = TILE_INDEX.PATH_R;
-        else if (tlGrass) data[r][c] = TILE_INDEX.PATH_INNER_TL;
-        else if (trGrass) data[r][c] = TILE_INDEX.PATH_INNER_TR;
-        else if (blGrass) data[r][c] = TILE_INDEX.PATH_INNER_BL;
-        else if (brGrass) data[r][c] = TILE_INDEX.PATH_INNER_BR;
         else {
           const v = rand();
           data[r][c] = v < 0.7 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;

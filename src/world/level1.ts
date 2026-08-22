@@ -377,14 +377,14 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 36, row: 10, kind: 'pine' }, { col: 42, row: 8, kind: 'oak' }, { col: 50, row: 8, kind: 'pine' },
     { col: 48, row: 12, kind: 'oak' }, { col: 48, row: 24, kind: 'pine' }, { col: 34, row: 30, kind: 'oak' },
     { col: 42, row: 32, kind: 'pine' }, { col: 50, row: 32, kind: 'oak' }, { col: 38, row: 9, kind: 'pine' },
-    { col: 46, row: 9, kind: 'oak' }, { col: 34, row: 20, kind: 'pine' }, { col: 52, row: 28, kind: 'oak' },
+    { col: 46, row: 9, kind: 'oak' }, { col: 34, row: 20, kind: 'pine' }, { col: 50, row: 28, kind: 'oak' },
 
     // Zone 3: Riverbank groves & Docks
-    { col: 52, row: 14, kind: 'pine' }, { col: 44, row: 40, kind: 'oak' }, { col: 44, row: 46, kind: 'pine' },
+    { col: 50, row: 14, kind: 'pine' }, { col: 44, row: 40, kind: 'oak' }, { col: 44, row: 46, kind: 'pine' },
     { col: 44, row: 52, kind: 'oak' }, { col: 46, row: 34, kind: 'pine' }, { col: 64, row: 62, kind: 'oak' },
     { col: 94, row: 16, kind: 'oak' }, { col: 86, row: 34, kind: 'pine' }, { col: 90, row: 52, kind: 'oak' },
     { col: 90, row: 62, kind: 'pine' }, { col: 64, row: 12, kind: 'pine' }, { col: 62, row: 12, kind: 'oak' },
-    { col: 88, row: 20, kind: 'pine' }, { col: 88, row: 30, kind: 'oak' }, { col: 88, row: 40, kind: 'pine' },
+    { col: 88, row: 20, kind: 'pine' }, { col: 88, row: 30, kind: 'oak' }, { col: 90, row: 40, kind: 'pine' },
 
     // Zone 4: Secret Island trees
     { col: 68, row: 43, kind: 'oak' }, { col: 74, row: 43, kind: 'pine' },
@@ -411,7 +411,7 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
 
     // Zone 8 & 9: Sunken Ruin & Smuggler Grotto buffer
     { col: 48, row: 64, kind: 'pine' }, { col: 48, row: 78, kind: 'oak' }, { col: 68, row: 66, kind: 'pine' },
-    { col: 68, row: 78, kind: 'oak' }, { col: 84, row: 72, kind: 'pine' }, { col: 92, row: 82, kind: 'oak' },
+    { col: 68, row: 78, kind: 'oak' }, { col: 74, row: 70, kind: 'pine' }, { col: 92, row: 82, kind: 'oak' },
     { col: 50, row: 60, kind: 'pine' }, { col: 64, row: 60, kind: 'oak' }, { col: 88, row: 76, kind: 'pine' },
     { col: 104, row: 82, kind: 'oak' }, { col: 90, row: 80, kind: 'pine' },
 
@@ -449,13 +449,13 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 50, row: 16, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 44, row: 26, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 35, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 52, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 50, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
     { col: 36, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 52, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 52, row: 24, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 50, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 50, row: 24, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 34, row: 24, key: TEXTURE.PROP_FENCE, solid: true },
     { col: 34, row: 26, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 52, row: 26, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 50, row: 26, key: TEXTURE.PROP_BUSH, solid: false },
 
     // Zone 3: River Fisherman's Docks & Rapids
     { col: 48, row: 26, key: TEXTURE.PROP_WORKBENCH, solid: true },
@@ -463,10 +463,10 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 48, row: 28, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 50, row: 26, key: TEXTURE.PROP_CRATE, solid: true },
     { col: 46, row: 22, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 54, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 48, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
     { col: 60, row: 22, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 56, row: 34, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 56, row: 36, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 52, row: 34, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 50, row: 34, key: TEXTURE.PROP_REEDS, solid: false },
 
     // Zone 4: Secret Island of Mists
     { col: 68, row: 45, key: TEXTURE.PROP_STATUE, solid: true },
@@ -564,9 +564,9 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 114, row: 76, key: TEXTURE.PROP_BUSH, solid: false },
 
     // Roadside Props, Bridge Obstacles & Spike Traps
-    { col: 26, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 25, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
     { col: 44, row: 48, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 86, row: 48, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 91, row: 48, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 88, row: 68, key: TEXTURE.PROP_BUSH, solid: false },
     { col: 78, row: 72, key: TEXTURE.PROP_REEDS, solid: false },
     { col: 92, row: 72, key: TEXTURE.PROP_REEDS, solid: false },
@@ -1125,9 +1125,9 @@ function buildAstralAbyssLevel(biome: BiomeConfig, depth: number): LevelData {
 
   const decorations: DecorationObject[] = [
     { col: 19, row: 5, key: TEXTURE.PROP_VOID_OBELISK, solid: true, scale: 1.1 },
-    { col: 19, row: 27, key: TEXTURE.PROP_VOID_OBELISK, solid: true, scale: 1.1 },
+    { col: 19, row: 26, key: TEXTURE.PROP_VOID_OBELISK, solid: true, scale: 1.1 },
     { col: 43, row: 5, key: TEXTURE.PROP_VOID_OBELISK, solid: true, scale: 1.1 },
-    { col: 43, row: 27, key: TEXTURE.PROP_VOID_OBELISK, solid: true, scale: 1.1 },
+    { col: 43, row: 26, key: TEXTURE.PROP_VOID_OBELISK, solid: true, scale: 1.1 },
     { col: 12, row: 18, key: TEXTURE.PROP_ICE_CRYSTAL, solid: true },
     { col: 13, row: 19, key: TEXTURE.PROP_ICE_CRYSTAL, solid: true },
     { col: 26, row: 17, key: TEXTURE.PROP_ICE_CRYSTAL, solid: true },

@@ -202,3 +202,13 @@ describe('audio settings and volume channels', () => {
     expect(SoundFX.getSfxVolume()).toBe(0.0);
   });
 });
+
+describe('prop registry and atlas keys', () => {
+  it('defines all PROP keys uniquely', async () => {
+    const { PROP } = await import('../src/gfx/props');
+    const values = Object.values(PROP);
+    const set = new Set(values);
+    expect(set.size).toBe(values.length);
+  });
+});
+

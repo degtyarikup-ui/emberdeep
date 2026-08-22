@@ -103,6 +103,37 @@ describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
     }
   });
 
+  it('places every tree strictly on soil ground (never on water or bridges)', () => {
+    if (!level.trees) return;
+    const NON_SOIL = new Set([
+      21, // WOOD_BRIDGE
+      38, // WOOD_BRIDGE_BOT
+      19, // WATER_DEEP
+      18, 20, 24, 25, 26, 27, 28, 29, // WATER_SHORE_*
+    ]);
+    for (const tree of level.trees) {
+      const tid = level.data[tree.row][tree.col];
+      expect(
+        NON_SOIL.has(tid),
+        `tree at (${tree.col},${tree.row}) sits on water/bridge tile ${tid}`
+      ).toBe(false);
+    }
+  });
+
+  it('places every decoration on walkable ground and never in deep water or on bridges', () => {
+    for (const d of level.decorations) {
+      const tid = level.data[d.row][d.col];
+      expect(
+        walkable(level.data, d.col, d.row),
+        `decoration ${d.key} at (${d.col},${d.row}) sits in a wall (tile ${tid})`
+      ).toBe(true);
+      expect(
+        tid === 19 || tid === 21 || tid === 38,
+        `decoration ${d.key} at (${d.col},${d.row}) sits in water or on a bridge (tile ${tid})`
+      ).toBe(false);
+    }
+  });
+
   it('is deterministic for a given depth', () => {
     // Level layout is seeded from depth; co-op relies on every client
     // generating byte-identical geometry, since only entity state is synced.

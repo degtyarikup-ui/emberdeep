@@ -229,6 +229,24 @@ body {
   background: rgba(34, 197, 94, 0.07);
 }
 
+.timeline-row.is-running {
+  background: rgba(245, 158, 11, 0.04);
+  border-left: 2px solid var(--color-warning);
+}
+
+.timeline-row.is-running:hover {
+  background: rgba(245, 158, 11, 0.07);
+}
+
+.timeline-row.is-failed {
+  background: rgba(239, 68, 68, 0.04);
+  border-left: 2px solid var(--color-error);
+}
+
+.timeline-row.is-failed:hover {
+  background: rgba(239, 68, 68, 0.07);
+}
+
 .timeline-left {
   display: flex;
   align-items: flex-start;

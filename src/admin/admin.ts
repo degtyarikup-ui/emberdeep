@@ -463,7 +463,7 @@ function renderTimelineRow(ev: TimelineEvent): string {
         : 'avatar-status-pending';
 
   return `
-    <div class="timeline-row">
+    <div class="timeline-row ${isFailed ? 'is-failed' : isRunning ? 'is-running' : ''}">
       <div class="timeline-left">
         <div class="avatar-wrapper">
           <img class="avatar-icon" src="${ev.authorAvatar}" alt="" />

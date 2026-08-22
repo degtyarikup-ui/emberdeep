@@ -10,6 +10,7 @@
     "lint": "eslint src tests",
     "test": "vitest run",
     "test:watch": "vitest",
+    "preview:map": "python3 scripts/export_map_preview.py",
     "check": "npm run lint && npm run test && npm run build"
   },
   "dependencies": {

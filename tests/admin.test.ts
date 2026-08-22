@@ -310,6 +310,29 @@ describe('statusHelper: buildTimeline', () => {
     const timeline = buildTimeline({ commits, runs });
     expect(timeline.length).toBe(0);
   });
+
+  it('marks cancelled runs with status cancelled and label Отменена', () => {
+    const commits: GitHubCommit[] = [];
+    const runs: GitHubRun[] = [
+      {
+        id: 404,
+        name: 'Deploy',
+        head_sha: 'sha404',
+        head_branch: 'main',
+        event: 'push',
+        status: 'completed',
+        conclusion: 'cancelled',
+        html_url: 'https://github.com/.../run/404',
+        created_at: '2026-08-22T15:00:00Z',
+        updated_at: '2026-08-22T15:00:10Z',
+        jobs_url: '',
+      },
+    ];
+
+    const timeline = buildTimeline({ commits, runs });
+    expect(timeline[0].status).toBe('cancelled');
+    expect(timeline[0].statusLabel).toBe('Отменена');
+  });
 });
 
 

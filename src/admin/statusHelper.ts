@@ -266,7 +266,7 @@ export interface TimelineEvent {
   authorAvatar: string;
   title: string;
   body?: string;
-  status?: 'success' | 'failure' | 'in_progress' | 'queued';
+  status?: 'success' | 'failure' | 'in_progress' | 'queued' | 'cancelled';
   statusLabel?: string;
   sha?: string;
   url: string;
@@ -335,7 +335,7 @@ export function buildTimeline(params: {
     const isSuccess = run.conclusion === 'success';
     const isCancelled = run.conclusion === 'cancelled';
     const isRunning = run.status === 'in_progress';
-    const isQueued = run.status === 'queued' || (!run.conclusion && !run.status);
+    const isQueued = run.status === 'queued';
     const status = isSuccess
       ? 'success'
       : isFailed
@@ -343,8 +343,10 @@ export function buildTimeline(params: {
         : isRunning
           ? 'in_progress'
           : isCancelled
-            ? 'queued' // uses neutral grey styling
-            : 'queued';
+            ? 'cancelled'
+            : isQueued
+              ? 'queued'
+              : 'cancelled';
     const statusLabel = isSuccess
       ? 'Сборка успешна'
       : isFailed

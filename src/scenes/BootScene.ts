@@ -37,9 +37,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image(TEXTURE.TREE_PINE, asset('tree_pine.png'));
     this.load.image(TEXTURE.TREE_OAK, asset('tree_oak.png'));
     this.load.image(TEXTURE.PROP_ROCK, asset('prop_rock.png'));
+    this.load.image(TEXTURE.PROP_ROCK_LARGE, asset('prop_rock_large.png'));
     this.load.image(TEXTURE.PROP_BUSH, asset('prop_bush.png'));
     this.load.image(TEXTURE.PROP_CRATE, asset('prop_crate.png'));
     this.load.image(TEXTURE.PROP_BARREL, asset('prop_barrel.png'));
+    this.load.image(TEXTURE.PROP_REEDS, asset('prop_reeds.png'));
+    this.load.image(TEXTURE.PROP_STATUE, asset('prop_statue.png'));
     this.load.spritesheet(TEXTURE.BONFIRE, asset('bonfire-sheet.png'), { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet(TEXTURE.TORCH, asset('torch-sheet.png'), { frameWidth: 16, frameHeight: 16 });
     this.load.image(TEXTURE.PROP_CABIN, asset('prop_cabin.png'));

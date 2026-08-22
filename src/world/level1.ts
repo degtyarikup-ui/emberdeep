@@ -116,132 +116,173 @@ function carveRoadV(grid: number[][], xMid: number, y0: number, y1: number, widt
 function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   const COLS = 140;
   const ROWS = 90;
-  const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(FLOOR));
+  const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(WALL));
 
   // 1. Organic outer mountain/forest boundary (multi-layered rugged rocks)
+  for (let r = 0; r < ROWS; r++) {
+    const leftMargin = Math.round(4 + Math.sin(r * 0.2) * 2 + Math.cos(r * 0.45) * 1.5);
+    const rightMargin = Math.round(4 + Math.cos(r * 0.22) * 2 + Math.sin(r * 0.35) * 1.5);
+    for (let c = leftMargin; c < COLS - rightMargin; c++) {
+      binary[r][c] = FLOOR;
+    }
+  }
   for (let c = 0; c < COLS; c++) {
-    const topDepth = Math.round(3 + 1.6 * Math.sin(c * 0.11) + 0.9 * Math.cos(c * 0.23));
-    for (let r = 0; r <= topDepth; r++) binary[r][c] = WALL;
-
-    const botDepth = Math.round(3 + 1.6 * Math.cos(c * 0.09) + 0.9 * Math.sin(c * 0.21));
-    for (let r = ROWS - 1 - botDepth; r < ROWS; r++) binary[r][c] = WALL;
+    const topMargin = Math.round(4 + Math.sin(c * 0.18) * 2);
+    const botMargin = Math.round(4 + Math.cos(c * 0.2) * 2);
+    for (let r = 0; r < topMargin; r++) binary[r][c] = WALL;
+    for (let r = ROWS - botMargin; r < ROWS; r++) binary[r][c] = WALL;
   }
 
-  for (let r = 0; r < ROWS; r++) {
-    const leftDepth = Math.round(3 + 1.6 * Math.sin(r * 0.13) + 0.9 * Math.cos(r * 0.27));
-    for (let c = 0; c <= leftDepth; c++) binary[r][c] = WALL;
-
-    const rightDepth = Math.round(3 + 1.6 * Math.cos(r * 0.11) + 0.9 * Math.sin(r * 0.24));
-    for (let c = COLS - 1 - rightDepth; c < COLS; c++) binary[r][c] = WALL;
+  // 2. Organic Mountain Rock Ridges separating distinct zones
+  // Ridge 1: NW Ridge dividing Campsite & Sawmill (rows 4..24)
+  for (let r = 4; r <= 24; r++) {
+    const rc = Math.round(29 + Math.sin(r * 0.3) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
+  }
+  // Ridge 2: Central-West Ridge dividing Witch Glade & River (rows 36..56)
+  for (let r = 36; r <= 56; r++) {
+    const rc = Math.round(50 + Math.cos(r * 0.25) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
+  }
+  // Ridge 3: SW Necropolis Wall (rows 48..82 & cols 13..44)
+  for (let r = 48; r <= 82; r++) {
+    for (let c = 6; c <= 12; c++) binary[r][c] = WALL;
+  }
+  for (let c = 13; c <= 44; c++) {
+    for (let r = 80; r <= 85; r++) binary[r][c] = WALL;
+  }
+  // Ridge 4: NE Mountain Crest above Bandit Outpost (rows 4..26)
+  for (let r = 4; r <= 26; r++) {
+    const rc = Math.round(86 + Math.sin(r * 0.25) * 2.0);
+    for (let c = rc - 4; c <= rc + 4; c++) binary[r][c] = WALL;
+  }
+  // Ridge 5: East-Central Divide between Bandit Outpost and Altar Grove (rows 46..58)
+  for (let r = 46; r <= 58; r++) {
+    const rc = Math.round(102 + Math.cos(r * 0.3) * 1.5);
+    for (let c = rc - 4; c <= rc + 4; c++) binary[r][c] = WALL;
+  }
+  // Ridge 6: SE Smuggler Ridge (rows 68..84)
+  for (let r = 68; r <= 84; r++) {
+    const rc = Math.round(77 + Math.sin(r * 0.3) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
   }
 
-  // 2. Internal mountain ridges (forming natural corridors & separating zones)
-  // Ridge 1: Separates Spawn and Hamlet (cols 28..32, rows 4..24)
-  carveRect(binary, 28, 4, 5, 21, WALL);
-  // Ridge 2: Central rocky plateau dividing West valley & River (cols 48..53, rows 38..58)
-  carveRect(binary, 48, 38, 6, 21, WALL);
-  // Ridge 3: Encapsulating Necropolis (cols 8..15, rows 46..78 & cols 16..44, rows 78..84)
-  carveRect(binary, 8, 46, 8, 33, WALL);
-  carveRect(binary, 16, 78, 29, 7, WALL);
-  // Ridge 4: Northeast buffer (cols 82..88, rows 6..28)
-  carveRect(binary, 82, 6, 7, 23, WALL);
-  // Ridge 5: Divide between Stronghold and Altar Grove (cols 98..105, rows 50..60)
-  carveRect(binary, 98, 50, 8, 11, WALL);
-
-  // 3. Meandering forest river & central secret island (cols 65..77, rows 43..53)
+  // 3. Smooth, continuous, meandering forest river & central secret island (cols 65..77, rows 42..54)
   for (let r = 0; r < ROWS; r++) {
-    let rc: number;
-    if (r <= 15) rc = Math.round(62 - r * 0.4);
-    else if (r <= 24) rc = 56; // North bridge straight section
-    else if (r <= 40) rc = Math.round(56 + (r - 24) * 0.75);
-    else if (r <= 55) rc = 71; // Split around island
-    else if (r <= 68) rc = Math.round(71 + (r - 55) * 1.0);
-    else if (r <= 76) rc = 85; // South bridge straight section
-    else rc = Math.round(85 + (r - 76) * 0.7);
-
-    if (r >= 41 && r <= 55) {
-      // Split channels around island
-      for (let c = 60; c <= 64; c++) binary[r][c] = WATER_DEEP;
-      for (let c = 78; c <= 82; c++) binary[r][c] = WATER_DEEP;
+    if (r <= 16) {
+      const rc = Math.round(58 - r * 0.25);
+      for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WATER_DEEP;
+    } else if (r <= 26) {
+      const rc = 54;
+      for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WATER_DEEP;
+    } else if (r <= 36) {
+      const t = (r - 26) / 10.0;
+      const wCenter = Math.round(54 + t * 16);
+      const spread = Math.round(3 + t * 11);
+      for (let c = wCenter - spread; c <= wCenter + spread; c++) binary[r][c] = WATER_DEEP;
+    } else if (r <= 56) {
+      for (let c = 54; c <= 62; c++) binary[r][c] = WATER_DEEP;
+      for (let c = 80; c <= 88; c++) binary[r][c] = WATER_DEEP;
+    } else if (r <= 66) {
+      const t = (r - 56) / 10.0;
+      const wCenter = Math.round(71 + t * 13);
+      const spread = Math.round(14 - t * 11);
+      for (let c = wCenter - spread; c <= wCenter + spread; c++) binary[r][c] = WATER_DEEP;
+    } else if (r <= 76) {
+      const rc = 84;
+      for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WATER_DEEP;
     } else {
-      for (let c = rc - 2; c <= rc + 2; c++) {
-        if (c >= 2 && c < COLS - 2) binary[r][c] = WATER_DEEP;
+      const rc = Math.round(84 + (r - 76) * 0.5);
+      for (let c = rc - 3; c <= rc + 3; c++) {
+        if (c < COLS - 5) binary[r][c] = WATER_DEEP;
       }
     }
   }
 
   // 4. Sturdy wooden bridges across the river (anchored on land on both sides)
-  // North Bridge (rows 18-19, cols 52..60)
-  for (let c = 52; c <= 60; c++) {
+  // North Bridge (rows 18-19, cols 49..58)
+  for (let c = 49; c <= 58; c++) {
     binary[18][c] = BRIDGE_TOP;
     binary[19][c] = BRIDGE_BOT;
   }
-  // West Island Bridge (rows 48-49, cols 58..66)
-  for (let c = 58; c <= 66; c++) {
+  // West Island Bridge (rows 48-49, cols 52..64)
+  for (let c = 52; c <= 64; c++) {
     binary[48][c] = BRIDGE_TOP;
     binary[49][c] = BRIDGE_BOT;
   }
-  // East Island Bridge (rows 48-49, cols 76..84)
-  for (let c = 76; c <= 84; c++) {
+  // East Island Bridge (rows 48-49, cols 78..90)
+  for (let c = 78; c <= 90; c++) {
     binary[48][c] = BRIDGE_TOP;
     binary[49][c] = BRIDGE_BOT;
   }
-  // South Bridge (rows 72-73, cols 80..90)
-  for (let c = 80; c <= 90; c++) {
+  // South Bridge (rows 72-73, cols 79..89)
+  for (let c = 79; c <= 89; c++) {
     binary[72][c] = BRIDGE_TOP;
     binary[73][c] = BRIDGE_BOT;
   }
 
-  // 5. Zone clearings & POIs
-  // Zone 1: Campsite (Spawn)
-  carveRect(binary, 8, 14, 18, 15, FLOOR);
-  carveRect(binary, 10, 16, 14, 11, PATH);
+  // 5. 10 Thematic Zone Clearings & POIs
+  // 1. Campsite
+  carveRoadH(binary, 10, 24, 20, 5);
+  carveRoadV(binary, 14, 16, 26, 5);
+  // 2. Sawmill
+  carveRoadH(binary, 36, 50, 20, 5);
+  carveRoadV(binary, 44, 12, 26, 5);
+  // 3. River Docks
+  carveRoadH(binary, 52, 62, 30, 4);
+  // 4. Island
+  carveRoadH(binary, 64, 78, 48, 5);
+  carveRoadV(binary, 71, 42, 54, 5);
+  // 5. Witch Glade
+  carveRoadH(binary, 16, 28, 40, 5);
+  carveRoadV(binary, 22, 36, 44, 5);
+  // 6. Bandit Base
+  carveRoadH(binary, 96, 122, 26, 7);
+  carveRoadV(binary, 108, 16, 40, 7);
+  // 7. Necropolis
+  carveRoadH(binary, 20, 42, 66, 5);
+  carveRoadV(binary, 32, 54, 76, 5);
+  // 8. Smuggler Grotto
+  carveRoadH(binary, 92, 102, 78, 5);
+  // 9. Sunken Ruin
+  carveRoadH(binary, 52, 64, 72, 5);
+  carveRoadV(binary, 58, 66, 76, 5);
+  // 10. Altar Grove
+  carveRoadH(binary, 98, 126, 70, 7);
+  carveRoadV(binary, 112, 60, 80, 7);
 
-  // Zone 2: Lumberjack Hamlet
-  carveRect(binary, 34, 10, 20, 20, FLOOR);
-  carveRect(binary, 36, 12, 16, 16, PATH);
-
-  // Zone 3: Secret Island
-  carveRect(binary, 65, 43, 13, 11, FLOOR);
-  carveRect(binary, 68, 45, 7, 7, PATH);
-
-  // Zone 4: Undead Stronghold
-  carveRect(binary, 94, 16, 30, 28, FLOOR);
-  carveRect(binary, 98, 20, 22, 20, PATH);
-
-  // Zone 5: Druidic Necropolis
-  carveRect(binary, 18, 50, 28, 28, FLOOR);
-  carveRect(binary, 22, 54, 20, 20, PATH);
-
-  // Zone 6: Sacred Altar Grove & Exit
-  carveRect(binary, 96, 56, 34, 28, FLOOR);
-  carveRect(binary, 102, 62, 22, 16, PATH);
-
-  // 6. 3-Tile Wide Road Network with Autotiling
-  // Spawn -> Hamlet
+  // 6. Comprehensive 3-Tile Wide Road Network connecting all 10 POIs
+  // Spawn -> Sawmill
   carveRoadH(binary, 14, 44, 20, 3);
-  // Spawn -> Necropolis branch
-  carveRoadV(binary, 20, 20, 60, 3);
-  carveRoadH(binary, 20, 32, 60, 3);
-  // Hamlet -> North Bridge
-  carveRoadH(binary, 44, 52, 19, 3);
-  // North Bridge -> Stronghold
-  carveRoadH(binary, 60, 98, 19, 3);
-  carveRoadV(binary, 98, 19, 28, 3);
-  // Trail to Island (West)
+  // Spawn -> Witch Glade
+  carveRoadV(binary, 22, 20, 40, 3);
+  // Witch Glade -> Necropolis
+  carveRoadV(binary, 24, 40, 58, 3);
+  // Sawmill -> River Docks
+  carveRoadH(binary, 44, 54, 30, 3);
+  // River Docks -> North Bridge
+  carveRoadV(binary, 52, 19, 30, 3);
+  // North Bridge -> Bandit Outpost
+  carveRoadH(binary, 58, 96, 19, 3);
+  carveRoadV(binary, 96, 19, 26, 3);
+  // Trail to Island (West Bridge)
   carveRoadV(binary, 46, 20, 48, 3);
-  carveRoadH(binary, 46, 58, 48, 3);
-  // Trail from Island (East) -> Stronghold/Altar
-  carveRoadH(binary, 84, 94, 48, 3);
-  carveRoadV(binary, 94, 48, 68, 3);
-  // Stronghold -> Altar Grove
-  carveRoadV(binary, 110, 38, 68, 3);
-  // Necropolis -> South Bridge
-  carveRoadH(binary, 32, 80, 72, 3);
+  carveRoadH(binary, 46, 52, 48, 3);
+  // Trail from Island (East Bridge) -> Bandit Base / Altar
+  carveRoadH(binary, 88, 96, 48, 3);
+  carveRoadV(binary, 96, 48, 68, 3);
+  // Bandit Outpost -> Altar Grove
+  carveRoadV(binary, 110, 36, 68, 3);
+  // Necropolis -> Sunken Ruin
+  carveRoadH(binary, 36, 54, 72, 3);
+  // Sunken Ruin -> South Bridge
+  carveRoadH(binary, 54, 79, 72, 3);
+  // South Bridge -> Smuggler Grotto
+  carveRoadV(binary, 96, 72, 78, 3);
   // South Bridge -> Altar Grove
-  carveRoadH(binary, 90, 106, 72, 3);
+  carveRoadH(binary, 88, 110, 72, 3);
 
-  // 7. Autotiling Step
+  // 7. Mountain Rock Cliff Autotiling & Vegetation Layer
   const rand = prand(1001 + depth * 19);
   const data: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(TILE_INDEX.GRASS_1));
 
@@ -258,13 +299,18 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
         const lW = isWall(r, c - 1);
         const rW = isWall(r, c + 1);
 
-        if (!tW && !lW) data[r][c] = TILE_INDEX.WALL_CORNER_TL;
-        else if (!tW && !rW) data[r][c] = TILE_INDEX.WALL_CORNER_TR;
-        else if (!bW && !lW) data[r][c] = TILE_INDEX.WALL_CORNER_BL;
-        else if (!bW && !rW) data[r][c] = TILE_INDEX.WALL_CORNER_BR;
-        else if (!lW) data[r][c] = TILE_INDEX.WALL_SIDE_L;
-        else if (!rW) data[r][c] = TILE_INDEX.WALL_SIDE_R;
-        else data[r][c] = TILE_INDEX.WALL_RUIN;
+        if (!tW && !lW) data[r][c] = TILE_INDEX.CLIFF_TOP_TL;
+        else if (!tW && !rW) data[r][c] = TILE_INDEX.CLIFF_TOP_TR;
+        else if (!bW && !lW) data[r][c] = TILE_INDEX.CLIFF_BOT_BL;
+        else if (!bW && !rW) data[r][c] = TILE_INDEX.CLIFF_BOT_BR;
+        else if (!tW) data[r][c] = TILE_INDEX.CLIFF_TOP_TM;
+        else if (!bW) data[r][c] = TILE_INDEX.CLIFF_BOT_BM;
+        else if (!lW) data[r][c] = TILE_INDEX.CLIFF_MID_L;
+        else if (!rW) data[r][c] = TILE_INDEX.CLIFF_MID_R;
+        else {
+          if (!isWall(r + 2, c)) data[r][c] = TILE_INDEX.CLIFF_FACE;
+          else data[r][c] = TILE_INDEX.CLIFF_MID_M;
+        }
       } else if (cell === BRIDGE_TOP) {
         data[r][c] = TILE_INDEX.WOOD_BRIDGE;
       } else if (cell === BRIDGE_BOT) {
@@ -319,42 +365,48 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
         else if (brGrass) data[r][c] = TILE_INDEX.PATH_INNER_BR;
         else {
           const v = rand();
-          data[r][c] = v < 0.6 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
+          data[r][c] = v < 0.7 ? TILE_INDEX.DIRT_1 : TILE_INDEX.DIRT_2;
         }
       } else {
         const v = rand();
-        data[r][c] = v < 0.45 ? TILE_INDEX.GRASS_1 : v < 0.75 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;
+        data[r][c] = v < 0.65 ? TILE_INDEX.GRASS_1 : v < 0.88 ? TILE_INDEX.GRASS_2 : TILE_INDEX.GRASS_3;
       }
     }
   }
 
-  // 8. Forest Trees
+  // 8. Rich Forest Trees (Canopy clusters framing zones and trails)
   const trees: TreeObject[] = [
     // Campsite rim
     { col: 6, row: 12, kind: 'oak' }, { col: 12, row: 10, kind: 'pine' }, { col: 18, row: 10, kind: 'oak' },
     { col: 24, row: 12, kind: 'pine' }, { col: 6, row: 28, kind: 'pine' }, { col: 12, row: 30, kind: 'oak' },
     { col: 18, row: 30, kind: 'pine' }, { col: 24, row: 28, kind: 'oak' },
-    // Hamlet rim
+    // Sawmill rim
     { col: 34, row: 8, kind: 'pine' }, { col: 42, row: 8, kind: 'oak' }, { col: 50, row: 8, kind: 'pine' },
-    { col: 54, row: 12, kind: 'oak' }, { col: 54, row: 28, kind: 'pine' }, { col: 34, row: 30, kind: 'oak' },
+    { col: 54, row: 12, kind: 'oak' }, { col: 54, row: 24, kind: 'pine' }, { col: 34, row: 30, kind: 'oak' },
     { col: 42, row: 32, kind: 'pine' }, { col: 50, row: 32, kind: 'oak' },
-    // Riverbank groves
-    { col: 56, row: 12, kind: 'pine' }, { col: 56, row: 28, kind: 'oak' }, { col: 58, row: 42, kind: 'pine' },
-    { col: 58, row: 52, kind: 'oak' }, { col: 64, row: 32, kind: 'pine' }, { col: 64, row: 62, kind: 'oak' },
-    { col: 86, row: 12, kind: 'oak' }, { col: 86, row: 34, kind: 'pine' }, { col: 88, row: 52, kind: 'oak' },
-    { col: 88, row: 62, kind: 'pine' },
+    // Witch Glade cluster
+    { col: 12, row: 34, kind: 'pine' }, { col: 12, row: 44, kind: 'oak' }, { col: 28, row: 34, kind: 'oak' },
+    { col: 28, row: 44, kind: 'pine' }, { col: 18, row: 48, kind: 'oak' },
+    // Riverbank groves & Docks
+    { col: 52, row: 14, kind: 'pine' }, { col: 52, row: 38, kind: 'oak' }, { col: 50, row: 42, kind: 'pine' },
+    { col: 50, row: 52, kind: 'oak' }, { col: 46, row: 34, kind: 'pine' }, { col: 64, row: 62, kind: 'oak' },
+    { col: 86, row: 12, kind: 'oak' }, { col: 86, row: 34, kind: 'pine' }, { col: 90, row: 52, kind: 'oak' },
+    { col: 90, row: 62, kind: 'pine' },
     // Island trees
     { col: 68, row: 43, kind: 'oak' }, { col: 74, row: 43, kind: 'pine' },
     { col: 68, row: 53, kind: 'pine' }, { col: 74, row: 53, kind: 'oak' },
-    // Stronghold buffer
+    // Bandit Outpost buffer
     { col: 92, row: 14, kind: 'pine' }, { col: 92, row: 20, kind: 'oak' }, { col: 92, row: 36, kind: 'pine' },
     { col: 92, row: 44, kind: 'oak' }, { col: 124, row: 14, kind: 'pine' }, { col: 124, row: 38, kind: 'oak' },
     { col: 124, row: 46, kind: 'pine' },
     // Necropolis grove
-    { col: 16, row: 48, kind: 'oak' }, { col: 24, row: 48, kind: 'pine' }, { col: 32, row: 48, kind: 'oak' },
-    { col: 40, row: 48, kind: 'pine' }, { col: 46, row: 54, kind: 'oak' }, { col: 46, row: 64, kind: 'pine' },
+    { col: 16, row: 50, kind: 'oak' }, { col: 24, row: 50, kind: 'pine' }, { col: 32, row: 50, kind: 'oak' },
+    { col: 40, row: 50, kind: 'pine' }, { col: 46, row: 54, kind: 'oak' }, { col: 46, row: 64, kind: 'pine' },
     { col: 46, row: 74, kind: 'oak' }, { col: 16, row: 76, kind: 'pine' }, { col: 24, row: 80, kind: 'oak' },
     { col: 32, row: 80, kind: 'pine' }, { col: 40, row: 80, kind: 'oak' },
+    // Sunken Ruin & Smuggler Grotto buffer
+    { col: 48, row: 64, kind: 'pine' }, { col: 48, row: 78, kind: 'oak' }, { col: 68, row: 66, kind: 'pine' },
+    { col: 68, row: 78, kind: 'oak' }, { col: 78, row: 82, kind: 'pine' }, { col: 92, row: 82, kind: 'oak' },
     // Altar sacred trees
     { col: 98, row: 54, kind: 'pine' }, { col: 106, row: 54, kind: 'oak' }, { col: 114, row: 54, kind: 'pine' },
     { col: 122, row: 54, kind: 'oak' }, { col: 126, row: 60, kind: 'pine' }, { col: 126, row: 74, kind: 'oak' },
@@ -362,9 +414,9 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 114, row: 82, kind: 'oak' }, { col: 122, row: 82, kind: 'pine' },
   ];
 
-  // 9. Decorations & Props
+  // 9. Rich Decorations & Thematic POI Props
   const decorations: DecorationObject[] = [
-    // Zone 1: Campsite
+    // Zone 1: Ashen Campsite (Spawn)
     { col: 10, row: 24, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
     { col: 12, row: 16, key: TEXTURE.PROP_WORKBENCH, solid: true },
     { col: 11, row: 18, key: TEXTURE.PROP_BARREL, solid: true },
@@ -373,159 +425,228 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 12, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
     { col: 8, row: 18, key: TEXTURE.PROP_FENCE, solid: true },
     { col: 8, row: 20, key: TEXTURE.PROP_FENCE, solid: true },
-    // Zone 2: Hamlet
+    { col: 14, row: 24, key: TEXTURE.PROP_BUSH, solid: false },
+
+    // Zone 2: Lumberjack Sawmill
     { col: 38, row: 14, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
     { col: 48, row: 14, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
     { col: 42, row: 18, key: TEXTURE.PROP_WORKBENCH, solid: true },
     { col: 46, row: 22, key: TEXTURE.PROP_WORKBENCH, solid: true },
     { col: 40, row: 16, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 42, row: 16, key: TEXTURE.PROP_CRATE, solid: true },
     { col: 50, row: 16, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 44, row: 26, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 35, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
     { col: 52, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
-    // Zone 3: River & Island
-    { col: 55, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 57, row: 40, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 68, row: 45, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 74, row: 51, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 86, row: 65, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 54, row: 24, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 70, row: 45, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 88, row: 67, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 68, row: 50, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 74, row: 46, key: TEXTURE.PROP_LUPINE, solid: false },
-    // Zone 4: Stronghold
-    { col: 96, row: 22, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 96, row: 23, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 96, row: 33, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 96, row: 34, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 122, row: 22, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 122, row: 34, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 102, row: 24, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 102, row: 32, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 114, row: 22, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 114, row: 34, key: TEXTURE.PROP_CRATE, solid: true },
-    // Zone 5: Necropolis
-    { col: 22, row: 56, key: PROP.TOMBSTONE, solid: true },
-    { col: 26, row: 56, key: PROP.TOMBSTONE, solid: true },
-    { col: 30, row: 56, key: PROP.TOMBSTONE, solid: true },
-    { col: 22, row: 62, key: PROP.TOMBSTONE, solid: true },
-    { col: 26, row: 62, key: PROP.TOMBSTONE, solid: true },
-    { col: 30, row: 62, key: PROP.TOMBSTONE, solid: true },
-    { col: 36, row: 58, key: PROP.TOMBSTONE, solid: true },
-    { col: 40, row: 58, key: PROP.TOMBSTONE, solid: true },
-    { col: 36, row: 64, key: PROP.TOMBSTONE, solid: true },
-    { col: 40, row: 64, key: PROP.TOMBSTONE, solid: true },
-    { col: 20, row: 70, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
-    { col: 42, row: 70, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
-    { col: 28, row: 76, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: true },
-    // Zone 6: Altar Grove
-    { col: 104, row: 62, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 120, row: 76, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 106, row: 64, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 118, row: 64, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 106, row: 76, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 36, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 52, row: 26, key: TEXTURE.PROP_BUSH, solid: false },
+
+    // Zone 3: River Fisherman's Docks & Rapids
+    { col: 48, row: 26, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    { col: 46, row: 28, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 48, row: 28, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 50, row: 26, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 46, row: 22, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 52, row: 34, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 52, row: 36, key: TEXTURE.PROP_REEDS, solid: false },
+
+    // Zone 4: Secret Island of Mists
+    { col: 68, row: 45, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 74, row: 45, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 67, row: 51, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 75, row: 51, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 70, row: 44, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 72, row: 52, key: TEXTURE.PROP_REEDS, solid: false },
+
+    // Zone 5: Witch's Herbal Glade
+    { col: 20, row: 36, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    { col: 24, row: 36, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 18, row: 42, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 26, row: 42, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 16, row: 38, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 28, row: 38, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 20, row: 44, key: TEXTURE.PROP_BUSH, solid: false },
+
+    // Zone 6: Forgotten Bandit Outpost & Watchtower
+    { col: 96, row: 18, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.3 },
+    { col: 116, row: 18, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.3 },
+    { col: 100, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 102, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 110, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 112, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 96, row: 32, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 122, row: 32, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 104, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 106, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 108, row: 22, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 114, row: 24, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 120, row: 28, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 100, row: 34, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    { col: 116, row: 34, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    { col: 122, row: 22, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+
+    // Zone 7: Druidic Necropolis & Mausoleum
+    { col: 20, row: 56, key: PROP.TOMBSTONE, solid: false },
+    { col: 24, row: 56, key: PROP.TOMBSTONE, solid: false },
+    { col: 28, row: 56, key: PROP.TOMBSTONE, solid: false },
+    { col: 36, row: 56, key: PROP.TOMBSTONE, solid: false },
+    { col: 40, row: 56, key: PROP.TOMBSTONE, solid: false },
+    { col: 20, row: 62, key: PROP.TOMBSTONE, solid: false },
+    { col: 40, row: 62, key: PROP.TOMBSTONE, solid: false },
+    { col: 20, row: 70, key: PROP.TOMBSTONE, solid: false },
+    { col: 28, row: 70, key: PROP.TOMBSTONE, solid: false },
+    { col: 36, row: 70, key: PROP.TOMBSTONE, solid: false },
+    { col: 40, row: 70, key: PROP.TOMBSTONE, solid: false },
+    { col: 28, row: 60, key: TEXTURE.PROP_PRISON_BARS, solid: true },
+    { col: 34, row: 60, key: TEXTURE.PROP_PRISON_BARS, solid: true },
+    { col: 30, row: 64, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 34, row: 68, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 22, row: 76, key: TEXTURE.PROP_CHAINS, solid: false },
+    { col: 38, row: 76, key: TEXTURE.PROP_CHAINS, solid: false },
+    { col: 26, row: 78, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 34, row: 78, key: TEXTURE.PROP_LUPINE, solid: false },
+
+    // Zone 8: Smuggler's Hidden Grotto
+    { col: 94, row: 76, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 100, row: 76, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 94, row: 80, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 96, row: 80, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 98, row: 80, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 92, row: 80, key: TEXTURE.PROP_BUSH, solid: false },
+
+    // Zone 9: Ancient Sunken Ruin & Angel Sanctuary
+    { col: 58, row: 68, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 52, row: 70, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 64, row: 70, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 54, row: 76, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 62, row: 76, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 58, row: 78, key: TEXTURE.PROP_BUSH, solid: false },
+
+    // Zone 10: Sacred Altar Grove & Abyssal Descent
+    { col: 104, row: 60, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 120, row: 60, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 104, row: 78, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 120, row: 78, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 108, row: 64, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 116, row: 64, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 110, row: 76, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 114, row: 76, key: TEXTURE.PROP_BUSH, solid: false },
+
+    // Roadside Props & River Details
+    { col: 26, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 44, row: 48, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 86, row: 48, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 88, row: 68, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 78, row: 72, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 92, row: 72, key: TEXTURE.PROP_REEDS, solid: false },
   ];
 
-  const bonfires = [
-    { col: 14, row: 18 },
-    { col: 44, row: 16 },
-    { col: 106, row: 24 },
-    { col: 114, row: 32 },
-    { col: 118, row: 70 },
-  ];
-
+  // 10. Atmospheric Torches
   const torches = [
-    // Spawn
-    { col: 22, row: 19 }, { col: 22, row: 21 },
-    // Hamlet
-    { col: 36, row: 19 }, { col: 44, row: 19 }, { col: 50, row: 19 },
-    // North Bridge
-    { col: 52, row: 17 }, { col: 60, row: 17 },
-    // Island Bridges
-    { col: 58, row: 47 }, { col: 66, row: 47 }, { col: 76, row: 47 }, { col: 84, row: 47 },
+    // Campsite
+    { col: 8, row: 14 }, { col: 24, row: 14 }, { col: 8, row: 28 }, { col: 24, row: 28 },
+    // Sawmill
+    { col: 34, row: 10 }, { col: 52, row: 10 }, { col: 34, row: 28 }, { col: 52, row: 28 },
+    // River Docks & North Bridge
+    { col: 49, row: 18 }, { col: 58, row: 18 }, { col: 48, row: 24 },
+    // Secret Island
+    { col: 66, row: 44 }, { col: 76, row: 44 }, { col: 66, row: 52 }, { col: 76, row: 52 },
+    // Witch Glade
+    { col: 16, row: 34 }, { col: 28, row: 34 },
+    // Bandit Outpost
+    { col: 94, row: 14 }, { col: 122, row: 14 }, { col: 94, row: 42 }, { col: 122, row: 42 },
     // Necropolis
-    { col: 22, row: 54 }, { col: 32, row: 54 }, { col: 32, row: 74 },
-    // Stronghold
-    { col: 96, row: 24 }, { col: 96, row: 32 }, { col: 106, row: 20 }, { col: 114, row: 20 },
+    { col: 18, row: 54 }, { col: 44, row: 54 }, { col: 18, row: 80 }, { col: 44, row: 80 },
+    // Smuggler Grotto & Sunken Ruin
+    { col: 92, row: 74 }, { col: 102, row: 74 }, { col: 52, row: 64 }, { col: 64, row: 64 },
     // South Bridge
-    { col: 80, row: 71 }, { col: 90, row: 71 },
-    // Altar Ritual Circle
-    { col: 108, row: 66 }, { col: 116, row: 66 }, { col: 116, row: 74 }, { col: 108, row: 74 },
+    { col: 79, row: 72 }, { col: 89, row: 72 },
+    // Altar Grove Circle
+    { col: 106, row: 64 }, { col: 118, row: 64 }, { col: 106, row: 76 }, { col: 118, row: 76 },
   ];
 
+  // 11. Bonfires
+  const bonfires = [
+    { col: 14, row: 20 },  // Zone 1: Campsite
+    { col: 44, row: 20 },  // Zone 2: Sawmill
+    { col: 108, row: 28 }, // Zone 6: Bandit Outpost
+    { col: 32, row: 64 },  // Zone 7: Necropolis
+    { col: 58, row: 74 },  // Zone 9: Sunken Ruin
+    { col: 112, row: 66 }, // Zone 10: Altar Grove
+  ];
+
+  // 12. Strategic Chests
   const chests = [
-    { col: 48, row: 24 },
-    { col: 71, row: 48 },
-    { col: 118, row: 24 },
-    { col: 120, row: 64 },
+    { col: 48, row: 24 },  // Zone 2: Sawmill Stash
+    { col: 71, row: 48 },  // Zone 4: Secret Island Relic
+    { col: 118, row: 24 }, // Zone 6: Bandit Stronghold Hoard
+    { col: 24, row: 74 },  // Zone 7: Necropolis Crypt
+    { col: 98, row: 78 },  // Zone 8: Smuggler Grotto Cache
   ];
 
+  // 13. Shrines
   const shrines = [
-    { col: 38, row: 24, kind: 'chance' as const },
-    { col: 32, row: 66, kind: 'blood' as const },
+    { col: 38, row: 24, kind: 'chance' as const }, // Zone 2: Fortune Shrine
+    { col: 32, row: 66, kind: 'blood' as const },  // Zone 7: Blood Shrine
+    { col: 58, row: 72, kind: 'chance' as const }, // Zone 9: Sunken Ruin Angel Shrine
   ];
 
+  // 14. Supply Flasks
   const flasks = [
-    { col: 18, row: 18, key: PROP.FLASK_RED },
-    { col: 56, row: 32, key: PROP.FLASK_BLUE },
-    { col: 104, row: 66, key: PROP.FLASK_RED },
+    { col: 18, row: 18, key: PROP.FLASK_RED },  // Zone 1: Campsite HP Flask
+    { col: 48, row: 30, key: PROP.FLASK_BLUE }, // Zone 3: River Docks Mana Flask
+    { col: 22, row: 40, key: PROP.FLASK_RED },  // Zone 5: Witch Glade Elixir
+    { col: 104, row: 36, key: PROP.FLASK_BLUE }, // Zone 6: Bandit Outpost Mana Flask
   ];
 
+  // 15. Tactical Enemies (42 enemies scaled across 10 POIs)
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
     // Zone 1 -> Zone 2 Trail: Wolf Pack (2)
-    { col: 26, row: 18, kind: 'wolf' },
-    { col: 28, row: 22, kind: 'wolf' },
-    // Zone 2: Hamlet (6)
-    { col: 40, row: 12, kind: 'imp' },
-    { col: 46, row: 12, kind: 'imp' },
-    { col: 42, row: 22, kind: 'imp' },
-    { col: 48, row: 22, kind: 'imp' },
-    { col: 36, row: 26, kind: 'wolf' },
-    { col: 50, row: 26, kind: 'wolf' },
-    // Zone 3: River & Island (10)
-    { col: 54, row: 14, kind: 'wolf' },
-    { col: 62, row: 14, kind: 'wolf' },
-    { col: 54, row: 19, kind: 'imp' },
-    { col: 58, row: 19, kind: 'skeleton' },
-    { col: 70, row: 46, kind: 'skeleton' },
-    { col: 74, row: 50, kind: 'imp' },
-    { col: 58, row: 36, kind: 'imp' },
-    { col: 62, row: 56, kind: 'imp' },
-    { col: 82, row: 73, kind: 'skeleton' },
-    { col: 88, row: 73, kind: 'skeleton' },
-    // Zone 4: Stronghold (12)
-    { col: 98, row: 26, kind: 'skeleton' },
-    { col: 98, row: 30, kind: 'skeleton' },
-    { col: 104, row: 22, kind: 'imp' },
-    { col: 104, row: 34, kind: 'imp' },
-    { col: 108, row: 28, kind: 'skeleton' },
-    { col: 112, row: 26, kind: 'skeleton' },
-    { col: 112, row: 32, kind: 'imp' },
-    { col: 116, row: 24, kind: 'imp' },
-    { col: 116, row: 32, kind: 'skeleton' },
-    { col: 120, row: 28, kind: 'imp' },
-    { col: 118, row: 20, kind: 'skeleton' },
-    { col: 122, row: 20, kind: 'skeleton' },
-    // Zone 5: Necropolis & Southern Woods (7)
-    { col: 24, row: 58, kind: 'skeleton' },
-    { col: 28, row: 64, kind: 'skeleton' },
-    { col: 36, row: 62, kind: 'skeleton' },
-    { col: 34, row: 72, kind: 'skeleton' },
-    { col: 24, row: 74, kind: 'skeleton' },
-    { col: 20, row: 66, kind: 'wolf' },
-    { col: 44, row: 68, kind: 'wolf' },
-    // Zone 6: Altar Grove (10)
-    { col: 100, row: 64, kind: 'wolf' },
-    { col: 100, row: 76, kind: 'wolf' },
-    { col: 104, row: 68, kind: 'skeleton' },
-    { col: 104, row: 72, kind: 'imp' },
-    { col: 108, row: 62, kind: 'skeleton' },
-    { col: 108, row: 78, kind: 'imp' },
-    { col: 116, row: 62, kind: 'imp' },
-    { col: 116, row: 78, kind: 'skeleton' },
-    { col: 120, row: 68, kind: 'skeleton' },
-    { col: 120, row: 72, kind: 'imp' },
+    { col: 24, row: 18, kind: 'wolf' }, { col: 26, row: 22, kind: 'wolf' },
+
+    // Zone 2: Sawmill (4 imps + 2 wolves)
+    { col: 38, row: 18, kind: 'imp' }, { col: 46, row: 18, kind: 'imp' },
+    { col: 36, row: 24, kind: 'imp' }, { col: 44, row: 22, kind: 'imp' },
+    { col: 40, row: 26, kind: 'wolf' }, { col: 48, row: 26, kind: 'wolf' },
+
+    // Zone 3: River Docks & North Bridge (2 skeletons + 2 wolves)
+    { col: 46, row: 24, kind: 'skeleton' }, { col: 50, row: 32, kind: 'skeleton' },
+    { col: 50, row: 16, kind: 'wolf' }, { col: 58, row: 16, kind: 'wolf' },
+
+    // Zone 4: Secret Island (2 elite champions)
+    { col: 69, row: 49, kind: 'skeleton' }, { col: 73, row: 49, kind: 'imp' },
+
+    // Zone 5: Witch Glade (3 imps)
+    { col: 18, row: 38, kind: 'imp' }, { col: 24, row: 38, kind: 'imp' },
+    { col: 22, row: 44, kind: 'imp' },
+
+    // Zone 6: Bandit Outpost (10 enemies)
+    { col: 100, row: 22, kind: 'imp' }, { col: 112, row: 22, kind: 'skeleton' },
+    { col: 106, row: 26, kind: 'imp' }, { col: 114, row: 26, kind: 'skeleton' },
+    { col: 102, row: 30, kind: 'skeleton' }, { col: 110, row: 30, kind: 'imp' },
+    { col: 118, row: 30, kind: 'imp' }, { col: 104, row: 36, kind: 'skeleton' },
+    { col: 112, row: 36, kind: 'skeleton' }, { col: 118, row: 36, kind: 'imp' },
+
+    // Zone 7: Necropolis (6 skeletons + 2 wolves)
+    { col: 24, row: 60, kind: 'skeleton' }, { col: 36, row: 60, kind: 'skeleton' },
+    { col: 26, row: 66, kind: 'skeleton' }, { col: 38, row: 66, kind: 'skeleton' },
+    { col: 28, row: 74, kind: 'skeleton' }, { col: 36, row: 74, kind: 'skeleton' },
+    { col: 20, row: 66, kind: 'wolf' }, { col: 44, row: 68, kind: 'wolf' },
+
+    // Zone 8: Smuggler Grotto (3 imps)
+    { col: 94, row: 78, kind: 'imp' }, { col: 96, row: 76, kind: 'imp' },
+    { col: 100, row: 78, kind: 'imp' },
+
+    // Zone 9: Sunken Ruin (4 skeletons)
+    { col: 54, row: 68, kind: 'skeleton' }, { col: 62, row: 68, kind: 'skeleton' },
+    { col: 54, row: 76, kind: 'skeleton' }, { col: 62, row: 76, kind: 'skeleton' },
+
+    // Zone 10: Altar Grove (8 elite demon guards + 2 dire wolves)
+    { col: 100, row: 64, kind: 'wolf' }, { col: 100, row: 76, kind: 'wolf' },
+    { col: 104, row: 66, kind: 'imp' }, { col: 120, row: 66, kind: 'imp' },
+    { col: 106, row: 72, kind: 'skeleton' }, { col: 118, row: 72, kind: 'skeleton' },
+    { col: 108, row: 76, kind: 'imp' }, { col: 116, row: 76, kind: 'skeleton' },
+    { col: 110, row: 62, kind: 'skeleton' }, { col: 114, row: 62, kind: 'imp' },
   ];
 
   return {
@@ -534,9 +655,9 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     rows: ROWS,
     data,
     spawn: { col: 14, row: 20 },
-    torches,
     bonfires,
     trees,
+    torches,
     decorations,
     flasks,
     chests,

@@ -69,8 +69,8 @@ export class HeroFrame {
       fontStyle: '700',
       color: classColor,
     });
-    this.classNameText.setStroke('#000000', 4);
-    this.classNameText.setShadow(0, 2, '#000000', 2, true, true);
+    this.classNameText.setStroke('#000000', 2.5);
+    this.classNameText.setShadow(0, 1, '#000000', 2, true, true);
     this.container.add(this.classNameText);
 
     // 4. 3D Beveled Health Bar
@@ -107,7 +107,7 @@ export class HeroFrame {
       color: '#ffffff',
     });
     this.hpText.setOrigin(0.5, 0.5);
-    this.hpText.setStroke('#000000', 4);
+    this.hpText.setStroke('#000000', 2.5);
     this.hpText.setShadow(0, 1, '#000000', 2, true, true);
     this.container.add(this.hpText);
 
@@ -129,7 +129,7 @@ export class HeroFrame {
       fontStyle: '700',
       color: '#fbbf24',
     });
-    this.goldText.setStroke('#451a03', 3);
+    this.goldText.setStroke('#451a03', 2);
     this.container.add(this.goldText);
 
     // Embers Inset Badge
@@ -148,38 +148,66 @@ export class HeroFrame {
       fontStyle: '700',
       color: '#f97316',
     });
-    this.embersText.setStroke('#431407', 3);
+    this.embersText.setStroke('#431407', 2);
     this.container.add(this.embersText);
+
+    // Danger pulse glow for low HP
+    this.dangerGlow = scene.add.rectangle(frameW / 2, frameH / 2, frameW + 4, frameH + 4, 0xef4444, 0);
+    this.dangerGlow.setStrokeStyle(2, 0xef4444, 0);
+    this.container.add(this.dangerGlow);
+    this.container.sendToBack(this.dangerGlow);
 
     // Ignore world camera
     scene.cameras.main.ignore(this.container);
   }
 
-  public update(player: Player): void {
+  private dangerGlow?: Phaser.GameObjects.Rectangle;
+  private ghostLagTimer = 0;
+
+  public update(player: Player, delta = 16): void {
+    const oldHp = this.currentHp;
     this.currentHp = player.hp;
     this.maxHp = player.maxHp;
+
+    if (this.currentHp < oldHp) {
+      // Took damage -> reset ghost decay timer (250ms hold)
+      this.ghostLagTimer = 250;
+    }
 
     const ratio = Math.max(0, Math.min(1, this.currentHp / this.maxHp));
     const targetW = Math.round(this.maxBarWidth * ratio);
 
     this.hpBarFill.width = targetW;
 
-    // Smooth ghost damage lag
-    if (this.hpBarGhost.width > targetW) {
-      this.hpBarGhost.width += (targetW - this.hpBarGhost.width) * 0.08;
+    // Smooth delayed ghost damage decay
+    if (this.ghostLagTimer > 0) {
+      this.ghostLagTimer -= delta;
+    } else if (this.hpBarGhost.width > targetW) {
+      const decaySpeed = Math.max(1, (this.hpBarGhost.width - targetW) * 0.12);
+      this.hpBarGhost.width = Math.max(targetW, this.hpBarGhost.width - decaySpeed);
     } else {
       this.hpBarGhost.width = targetW;
     }
 
     this.hpText.setText(`${this.currentHp} / ${this.maxHp} HP`);
 
-    // Low HP danger pulse
-    if (this.currentHp <= 1) {
+    // Low HP danger pulse (< 33% max HP)
+    const isCritical = ratio <= 0.34;
+    if (isCritical) {
       this.hpBarFill.fillColor = 0xef4444;
       this.classNameText.setColor('#ef4444');
+      if (this.dangerGlow) {
+        const pulse = (Math.sin(this.scene.time.now * 0.008) + 1) * 0.5;
+        this.dangerGlow.setAlpha(0.2 + pulse * 0.4);
+        this.dangerGlow.setStrokeStyle(2, 0xef4444, 0.4 + pulse * 0.6);
+      }
     } else {
       this.hpBarFill.fillColor = 0xdc2626;
       this.classNameText.setColor(player.heroClass === 'wizard' ? '#9a68cc' : player.heroClass === 'ranger' ? '#38b068' : '#2a8ac0');
+      if (this.dangerGlow) {
+        this.dangerGlow.setAlpha(0);
+        this.dangerGlow.setStrokeStyle(0, 0xef4444, 0);
+      }
     }
 
     this.goldText.setText(`${player.gold}`);

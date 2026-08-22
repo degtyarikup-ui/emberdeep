@@ -1343,7 +1343,7 @@ export class GameScene extends Phaser.Scene {
     this.updateCamera();
 
     if (this.heroFrame && this.myPlayer) {
-      this.heroFrame.update(this.myPlayer);
+      this.heroFrame.update(this.myPlayer, delta);
     }
     if (this.partyFrames && this.myPlayer) {
       this.partyFrames.update(this.players, this.myPlayer);

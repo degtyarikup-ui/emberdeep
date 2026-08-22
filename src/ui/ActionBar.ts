@@ -26,6 +26,7 @@ export class ActionBar {
   private interactSlot!: Phaser.GameObjects.Container;
   private interactGlow!: Phaser.GameObjects.Rectangle;
   private interactPromptText!: Phaser.GameObjects.Text;
+  private wasSpecialOnCd = false;
 
   private heroClass: HeroClass;
 
@@ -276,7 +277,20 @@ export class ActionBar {
 
       this.specialCooldownText.setText(specialCooldownSec > 0 ? specialCooldownSec.toFixed(1) : '');
       this.specialCooldownText.setVisible(true);
+      this.wasSpecialOnCd = true;
     } else {
+      if (this.wasSpecialOnCd) {
+        this.wasSpecialOnCd = false;
+        // Pop tween on ready!
+        this.scene.tweens.add({
+          targets: this.specialSlot,
+          scaleX: 1.14,
+          scaleY: 1.14,
+          duration: 90,
+          yoyo: true,
+          ease: 'Back.easeOut',
+        });
+      }
       this.specialCooldownText.setVisible(false);
     }
 

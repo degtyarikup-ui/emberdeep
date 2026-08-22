@@ -92,7 +92,7 @@ export class SettingsModal {
         color: '#fbbf24',
       })
       .setOrigin(0, 0.5);
-    this.titleText.setStroke('#000000', 4);
+    this.titleText.setStroke('#000000', 2.5);
     this.container.add(this.titleText);
 
     // Close [X] Button on Header
@@ -415,14 +415,16 @@ export class SettingsModal {
 
     this.container.setPosition(this.scene.scale.width / 2, this.scene.scale.height / 2);
     this.container.setVisible(true);
+    this.container.setAlpha(0);
     this.isVisible = true;
 
     SoundFX.playModalOpen();
 
-    this.container.setScale(0.85);
+    this.container.setScale(0.92);
     this.scene.tweens.add({
       targets: this.container,
       scale: 1,
+      alpha: 1,
       duration: 160,
       ease: 'Back.easeOut',
     });
@@ -433,8 +435,10 @@ export class SettingsModal {
     SoundFX.playModalClose();
     this.scene.tweens.add({
       targets: this.container,
-      scale: 0.9,
-      duration: 100,
+      scale: 0.94,
+      alpha: 0,
+      duration: 110,
+      ease: 'Quad.easeIn',
       onComplete: () => {
         this.container.setVisible(false);
         this.isVisible = false;

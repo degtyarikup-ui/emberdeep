@@ -40,43 +40,50 @@ export class Tooltip {
       fontStyle: '700',
       color: '#fde047',
     });
-    this.titleText.setStroke('#000000', 4);
+    this.titleText.setStroke('#000000', 2.5);
     this.titleText.setShadow(0, 1, '#000000', 2, true, true);
     this.container.add(this.titleText);
 
+    // Decorative 1px Divider Line
+    this.dividerLine = scene.add.rectangle(12, 26, 186, 1, 0x475569, 0.8);
+    this.dividerLine.setOrigin(0, 0);
+    this.container.add(this.dividerLine);
+
     // 3. Description Text
-    this.descText = scene.add.text(12, 28, '', {
+    this.descText = scene.add.text(12, 32, '', {
       fontFamily: FONT.UI,
       fontSize: '10px',
-      color: '#e2e8f0',
+      color: '#e2d9c8',
       wordWrap: { width: 186 },
     });
-    this.descText.setStroke('#000000', 3);
+    this.descText.setStroke('#000000', 2);
     this.container.add(this.descText);
 
     // 4. Stats Text
-    this.statsText = scene.add.text(12, 50, '', {
+    this.statsText = scene.add.text(12, 52, '', {
       fontFamily: FONT.UI,
       fontSize: '10px',
       fontStyle: '700',
       color: '#4ade80',
     });
-    this.statsText.setStroke('#000000', 3);
+    this.statsText.setStroke('#000000', 2);
     this.container.add(this.statsText);
 
     // 5. Subtext / Lore
-    this.subText = scene.add.text(12, 68, '', {
+    this.subText = scene.add.text(12, 70, '', {
       fontFamily: FONT.UI,
       fontSize: '9px',
       fontStyle: 'italic',
       color: '#94a3b8',
     });
-    this.subText.setStroke('#000000', 3);
+    this.subText.setStroke('#000000', 2);
     this.container.add(this.subText);
 
     // Ignore world camera
     scene.cameras.main.ignore(this.container);
   }
+
+  private dividerLine!: Phaser.GameObjects.Rectangle;
 
   public static get(scene?: Phaser.Scene): Tooltip {
     if (!Tooltip.instance && scene) {
@@ -91,7 +98,7 @@ export class Tooltip {
 
     this.descText.setText(data.description);
 
-    let curY = 30 + this.descText.height + 6;
+    let curY = 34 + this.descText.height + 6;
     if (data.stats && data.stats.length > 0) {
       this.statsText.setText(data.stats.join('\n'));
       this.statsText.setPosition(12, curY);

@@ -268,7 +268,7 @@ export class StatsModal {
         fontStyle: '700',
         color: stat.col,
       }).setOrigin(1, 0.5);
-      val.setStroke('#000000', 3);
+      val.setStroke('#000000', 2);
       this.container.add(val);
       this.statsTexts.push(val);
     });

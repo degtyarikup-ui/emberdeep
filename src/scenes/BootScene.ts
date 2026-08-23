@@ -75,6 +75,7 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`${TEXTURE.CHEST_ANIM}_f${i}`, asset(`chest_full_open_anim_f${i}.png`));
     }
     this.load.image(TEXTURE.STAFF, asset('weapon_red_magic_staff.png'));
+    this.load.image(TEXTURE.WEAPON_BOSS_ORC_AXE, asset('weapon-boss-orc-axe.png'));
     this.load.spritesheet(TEXTURE.WATER_WAVES, asset('water-waves-32rogues.png'), { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet(TEXTURE.ITEMS_32ROGUES, asset('items-32rogues.png'), { frameWidth: 32, frameHeight: 32 });
 

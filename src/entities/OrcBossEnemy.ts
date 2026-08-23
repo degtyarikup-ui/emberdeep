@@ -30,6 +30,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
   private isSpawning = true;
   private hitFlashTimer = 0;
   private shadow!: Phaser.GameObjects.Sprite;
+  private axe!: Phaser.GameObjects.Sprite;
   private light?: Phaser.GameObjects.Light;
 
   // Net puppet interpolation
@@ -57,6 +58,13 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     body.setVelocity(0, 0);
     this.setDepth(DEPTH.YSORT_BASE + y);
 
+    this.axe = scene.add.sprite(x + 14, y - 12, TEXTURE.WEAPON_BOSS_ORC_AXE);
+    this.axe.setOrigin(0.5, 0.85);
+    this.axe.setScale(1.55);
+    this.axe.setPipeline('Light2D');
+    this.axe.setDepth(DEPTH.YSORT_BASE + y + 1);
+    this.axe.setAlpha(0);
+
     this.light = scene.lights.addLight(x, y - 20, 160, 0xf59e0b, 0.9);
     this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.4).setScale(2.4).setDepth(DEPTH.SHADOW);
 
@@ -64,7 +72,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
 
     // Intro summon / stomp tween
     scene.tweens.add({
-      targets: this,
+      targets: [this, this.axe],
       alpha: 1,
       scaleX: 1.75,
       scaleY: 1.75,
@@ -161,7 +169,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     this.setTint(0x7f1d1d);
 
     this.scene.tweens.add({
-      targets: [this, this.shadow],
+      targets: [this, this.shadow, this.axe],
       alpha: 0,
       scaleX: 0.1,
       scaleY: 0.1,
@@ -171,6 +179,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       onComplete: () => {
         if (this.light) this.scene.lights.removeLight(this.light);
         this.shadow.destroy();
+        this.axe.destroy();
         this.destroy();
         onComplete?.();
       },
@@ -191,14 +200,22 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
     if (this.light) this.light.setPosition(this.x, this.y - 20);
 
+    // Update axe base position & depth
+    const axeOffsetX = this.flipX ? -15 : 15;
+    this.axe.setPosition(this.x + axeOffsetX, this.y - 12);
+    this.axe.setFlipX(this.flipX);
+    this.axe.setDepth(DEPTH.YSORT_BASE + this.y + (this.flipX ? -1 : 1));
+
     // Hit flash decay
     if (this.hitFlashTimer > 0) {
       this.hitFlashTimer -= delta;
       if (this.hitFlashTimer <= 0) {
         if (this.isEnraged) {
           this.setTint(0xff6b6b);
+          this.axe.setTint(0xff7777);
         } else {
           this.clearTint();
+          this.axe.clearTint();
         }
       }
     }
@@ -217,6 +234,10 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       case 'idle':
       case 'chase': {
         this.setFlipX(dx < 0);
+
+        // Gentle combat bobbing of axe in hand
+        const bob = Math.sin(this.scene.time.now * 0.007) * 12;
+        this.axe.setAngle((this.flipX ? -18 : 18) + (this.flipX ? -bob : bob));
 
         // Check Warcry Minion Spawn
         if (this.warcryCooldown <= 0) {
@@ -237,6 +258,8 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
           body.setVelocity(0, 0);
           this.setTint(0xf97316);
           this.setScale(1.9, 1.6);
+          this.axe.setAngle(this.flipX ? 85 : -85);
+          this.axe.setTint(0xf97316);
           break;
         }
 
@@ -249,6 +272,8 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
           body.setVelocity(0, 0);
           this.setTint(0xef4444);
           this.setScale(1.9, 1.5);
+          this.axe.setAngle(this.flipX ? -45 : 45);
+          this.axe.setTint(0xef4444);
           SoundFX.playOrcRoar();
           break;
         }
@@ -269,9 +294,12 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
         this.stateTimer -= delta;
         body.setVelocity(0, 0);
         this.setFlipX(dx < 0);
+        this.axe.setAngle(this.flipX ? 85 : -85);
 
         if (this.stateTimer <= 0) {
           this.clearTint();
+          if (this.isEnraged) this.axe.setTint(0xff7777); else this.axe.clearTint();
+          this.axe.setAngle(this.flipX ? -65 : 65);
           this.setScale(1.75);
           SoundFX.playGroundSlam();
           this.scene.cameras.main.shake(300, 0.007);
@@ -307,9 +335,11 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
         this.stateTimer -= delta;
         body.setVelocity(0, 0);
         this.setFlipX(dx < 0);
+        this.axe.setAngle(this.flipX ? -45 : 45);
 
         if (this.stateTimer <= 0) {
           this.clearTint();
+          if (this.isEnraged) this.axe.setTint(0xff7777); else this.axe.clearTint();
           this.setScale(1.75);
           this.orcState = 'charging';
           this.stateTimer = 750;
@@ -323,6 +353,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
         this.stateTimer -= delta;
         body.setVelocity(Math.cos(this.chargeAngle) * this.chargeSpeed, Math.sin(this.chargeAngle) * this.chargeSpeed);
         this.setFlipX(Math.cos(this.chargeAngle) < 0);
+        this.axe.setAngle(this.flipX ? -40 : 40);
 
         // Check if collision with target
         if (dist <= 36) {
@@ -345,6 +376,8 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       case 'recovery': {
         this.stateTimer -= delta;
         body.setVelocity(0, 0);
+        this.axe.setAngle(this.flipX ? -15 : 15);
+
         if (this.anims.currentAnim?.key !== ANIM.BOSS_ORC_IDLE) {
           this.play(ANIM.BOSS_ORC_IDLE);
           this.animState = 'idle';
@@ -368,6 +401,12 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     this.hp = hp;
     this.phase = phase;
 
+    const axeOffsetX = flipX ? -15 : 15;
+    if (this.axe) {
+      this.axe.setPosition(this.x + axeOffsetX, this.y - 12);
+      this.axe.setFlipX(flipX);
+    }
+
     if (this.animState !== anim) {
       this.animState = anim;
       if (anim === 'idle') this.play(ANIM.BOSS_ORC_IDLE, true);
@@ -375,6 +414,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       else if (anim === 'dead') {
         (this.body as Phaser.Physics.Arcade.Body).enable = false;
         if (this.light) this.light.setVisible(false);
+        if (this.axe) this.axe.setVisible(false);
       }
     }
   }
@@ -393,5 +433,10 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     this.setDepth(DEPTH.YSORT_BASE + this.y);
     if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
     if (this.light) this.light.setPosition(this.x, this.y - 20);
+    if (this.axe) {
+      const axeOffsetX = this.flipX ? -15 : 15;
+      this.axe.setPosition(this.x + axeOffsetX, this.y - 12);
+      this.axe.setFlipX(this.flipX);
+    }
   }
 }

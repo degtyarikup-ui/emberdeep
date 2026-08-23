@@ -26,6 +26,7 @@ export const TEXTURE = {
   WIZARD_IDLE: 'tex-wizard-idle',
   WIZARD_RUN: 'tex-wizard-run',
   STAFF: 'tex-weapon-staff',
+  WEAPON_BOSS_ORC_AXE: 'tex-weapon-boss-orc-axe',
   PROJECTILE_ENERGY: 'tex-projectile-energy',
   TILES_BIOME: 'tex-tiles-biome',
   TREE_PINE: 'tex-tree-pine',

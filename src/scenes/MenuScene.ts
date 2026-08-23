@@ -966,11 +966,16 @@ export class MenuScene extends Phaser.Scene {
         },
       },
       {
-        label: 'СБРОСИТЬ ВЕСЬ ПРОГРЕСС',
+        label: 'ПОЛНЫЙ СБРОС АККАУНТА',
         color: 0xef4444,
         hex: '#fca5a5',
         onClick: () => {
           MetaManager.get().resetProgress();
+          AchievementManager.get().reset();
+          try {
+            localStorage.removeItem('emberdeep_meta');
+            localStorage.removeItem('emberdeep_achievements');
+          } catch {}
           modal.destroy();
           this.scene.restart();
         },

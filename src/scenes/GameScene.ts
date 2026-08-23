@@ -18,6 +18,7 @@ import { ItemDef } from '../items/types';
 import { getRandomItem } from '../items/registry';
 import { ITEM_SPRITE_MAP } from '../gfx/UIAtlas';
 import { AchievementManager } from '../achievements/AchievementManager';
+import { ACHIEVEMENTS } from '../achievements/registry';
 import { MetaManager } from '../meta/MetaManager';
 import { ParticleFactory } from '../gfx/ParticleFactory';
 import { ScreenShake } from '../gfx/ScreenShake';
@@ -991,7 +992,7 @@ export class GameScene extends Phaser.Scene {
     this.debugContainer = modal;
 
     const modalW = 420;
-    const modalH = 360;
+    const modalH = 410;
 
     const bg = this.add.rectangle(0, 0, modalW, modalH, 0x0a0614, 0.97);
     bg.setStrokeStyle(2, 0x818cf8);
@@ -1007,7 +1008,7 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const currentLevelLabel = this.add
-      .text(0, -modalH / 2 + 42, `Текущая глубина: ${this.depth} · Уровень угрозы: ${this.currentThreatTier + 1}`, {
+      .text(0, -modalH / 2 + 40, `Текущая глубина: ${this.depth} · Уровень угрозы: ${this.currentThreatTier + 1}`, {
         fontFamily: FONT.UI,
         fontSize: '10px',
         color: '#94a3b8',
@@ -1029,7 +1030,7 @@ export class GameScene extends Phaser.Scene {
 
     // Section 1: Teleport to Levels
     const sec1Title = this.add
-      .text(-modalW / 2 + 20, -110, 'ПЕРЕХОД МЕЖДУ УРОВНЯМИ:', {
+      .text(-modalW / 2 + 20, -138, 'ПЕРЕХОД МЕЖДУ УРОВНЯМИ:', {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '700',
@@ -1047,7 +1048,7 @@ export class GameScene extends Phaser.Scene {
 
     levels.forEach((lvl, i) => {
       const btnX = -100 + (i % 2) * 200;
-      const btnY = -80 + Math.floor(i / 2) * 32;
+      const btnY = -108 + Math.floor(i / 2) * 32;
 
       const btnBg = this.add.rectangle(btnX, btnY, 185, 26, this.depth === lvl.depth ? 0x312e81 : 0x1e1b4b, 0.9);
       btnBg.setStrokeStyle(1.5, lvl.color);
@@ -1078,7 +1079,7 @@ export class GameScene extends Phaser.Scene {
 
     // Section 2: Cheats & Testing Tools
     const sec2Title = this.add
-      .text(-modalW / 2 + 20, -5, 'ТЕСТОВЫЕ КОМАНДЫ И ЧИТЫ:', {
+      .text(-modalW / 2 + 20, -38, 'ТЕСТОВЫЕ КОМАНДЫ И ЧИТЫ:', {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '700',
@@ -1132,10 +1133,10 @@ export class GameScene extends Phaser.Scene {
       },
       {
         id: 'embers',
-        label: () => '+10 УГЛЕЙ',
+        label: () => '+100 УГЛЕЙ (EMBERS)',
         active: () => false,
         onClick: () => {
-          MetaManager.get().addEmbers(10);
+          MetaManager.get().addEmbers(100);
           this.heroFrame?.update(this.myPlayer);
           SoundFX.playCoinPickup();
         },
@@ -1202,35 +1203,61 @@ export class GameScene extends Phaser.Scene {
         active: () => !!(this.boss && !this.boss.isDead),
         onClick: () => {
           if (!this.boss || this.boss.isDead) {
-            // triggerAltarEvent is the only boss-spawn path; clear its
-            // one-shot guard so the cheat can re-summon after a kill.
             this.altarActivated = false;
             this.triggerAltarEvent();
           }
+        },
+      },
+      {
+        id: 'achievements',
+        label: () => 'ОТКРЫТЬ ВСЕ АЧИВКИ',
+        active: () => false,
+        onClick: () => {
+          Object.values(ACHIEVEMENTS).forEach((a) => AchievementManager.get().unlock(a.id, this));
+        },
+      },
+      {
+        id: 'wipe_account',
+        label: () => 'ПОЛНЫЙ СБРОС АККАУНТА',
+        active: () => false,
+        onClick: () => {
+          MetaManager.get().resetProgress();
+          AchievementManager.get().reset();
+          try {
+            localStorage.removeItem('emberdeep_meta');
+            localStorage.removeItem('emberdeep_achievements');
+          } catch {}
+          this.closeDebugMenu();
+          SoundFX.stopMusic();
+          this.scene.start(SCENE.MENU);
         },
       },
     ];
 
     cheats.forEach((c, i) => {
       const btnX = -100 + (i % 2) * 200;
-      const btnY = 22 + Math.floor(i / 2) * 32;
+      const btnY = -8 + Math.floor(i / 2) * 32;
 
-      const btnBg = this.add.rectangle(btnX, btnY, 185, 26, c.active() ? 0x065f46 : 0x18181b, 0.9);
-      btnBg.setStrokeStyle(1.5, c.active() ? 0x34d399 : 0x52525b);
+      const isWipe = c.id === 'wipe_account';
+      const isWarn = isWipe || c.id === 'kill_all';
+      const btnBg = this.add.rectangle(btnX, btnY, 185, 26, isWipe ? 0x3b0707 : c.active() ? 0x065f46 : 0x18181b, 0.9);
+      btnBg.setStrokeStyle(1.5, isWipe ? 0xef4444 : c.active() ? 0x34d399 : isWarn ? 0xf87171 : 0x52525b);
 
       const btnText = this.add
         .text(btnX, btnY, c.label(), {
           fontFamily: FONT.UI,
           fontSize: '9px',
           fontStyle: '700',
-          color: c.active() ? '#6ee7b7' : '#e4e4e7',
+          color: isWipe ? '#fca5a5' : c.active() ? '#6ee7b7' : '#e4e4e7',
         })
         .setOrigin(0.5);
 
       btnBg.setInteractive({ useHandCursor: true });
       btnBg.on('pointerdown', () => {
         c.onClick();
-        this.openDebugMenu(); // re-render to update state toggles
+        if (this.debugOpen) {
+          this.openDebugMenu(); // re-render to update state toggles
+        }
       });
 
       modal.add([btnBg, btnText]);

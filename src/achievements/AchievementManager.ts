@@ -58,6 +58,19 @@ export class AchievementManager {
     return this.unlocked.has(id);
   }
 
+  /** Wipes all achievements and statistics back to a fresh save. Debug-menu only. */
+  reset(): void {
+    this.unlocked.clear();
+    this.cratesBroken = 0;
+    this.enemiesKilled = 0;
+    this.coinsCollected = 0;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Storage unavailable
+    }
+  }
+
   unlock(id: string, scene: Phaser.Scene): boolean {
     if (this.unlocked.has(id)) return false;
     const def = ACHIEVEMENTS[id];

@@ -106,7 +106,7 @@ export const ANIM = {
 
 export const FONT = {
   TITLE: '"Cinzel Decorative", serif',
-  UI: '"Pixelify Sans", sans-serif',
+  UI: '"Russo One", sans-serif',
 } as const;
 
 // per-slot tint applied to remote-controlled players so 2-4 knights on

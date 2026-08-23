@@ -265,9 +265,10 @@ export class BootScene extends Phaser.Scene {
     try {
       await Promise.all([
         document.fonts.load('900 48px "Cinzel Decorative"'),
-        document.fonts.load('16px "Pixelify Sans"'),
-        document.fonts.load('700 16px "Pixelify Sans"'),
+        document.fonts.load('400 16px "Russo One"'),
+        document.fonts.load('700 16px "Russo One"'),
       ]);
+      await document.fonts.ready;
     } catch {
       // fonts failed to load — Phaser will fall back to a default font
     }

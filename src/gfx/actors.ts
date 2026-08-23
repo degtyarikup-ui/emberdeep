@@ -22,8 +22,8 @@ export interface ActorClips {
 
 const HERO: ActorClips = {
   idle: { key: 'anim-hero-idle', url: asset('pc-knight-idle.png'), frameWidth: 32, frameHeight: 32, frameCount: 4, frameRate: 5, repeat: -1 },
-  run: { key: 'anim-hero-run', url: asset('pc-knight-run.png'), frameWidth: 64, frameHeight: 64, frameCount: 6, frameRate: 10, repeat: -1 },
-  death: { key: 'anim-hero-death', url: asset('pc-knight-death.png'), frameWidth: 32, frameHeight: 32, frameCount: 9, frameRate: 10, repeat: 0 },
+  run: { key: 'anim-hero-run', url: asset('pc-knight-run.png'), frameWidth: 64, frameHeight: 64, frameCount: 8, frameRate: 11, repeat: -1 },
+  death: { key: 'anim-hero-death', url: asset('pc-knight-death.png'), frameWidth: 64, frameHeight: 64, frameCount: 5, frameRate: 8, repeat: 0 },
 };
 
 const ORC: ActorClips = {

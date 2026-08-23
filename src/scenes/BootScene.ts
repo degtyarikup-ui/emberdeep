@@ -57,6 +57,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(TEXTURE.PROP_ICE_CRYSTAL, asset('prop_ice_crystal.png'));
     this.load.image(TEXTURE.PROP_VOID_OBELISK, asset('prop_void_obelisk.png'));
     this.load.image(TEXTURE.GAME_EMBLEM, asset('emblem.png'));
+    this.load.image(TEXTURE.UI_HERO_PORTRAIT_KNIGHT, asset('ui-hero-portrait-knight.png'));
 
     // Phase 3 Prop Animations. These frames originate from the 0x72 pack, but
     // load from public/assets like everything else — vendor/ is a source

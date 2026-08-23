@@ -30,7 +30,7 @@ type AnimState = 'idle' | 'run' | 'death';
 const BODY_CONFIG: Record<AnimState, { size: [number, number]; offset: [number, number] }> = {
   idle: { size: [16, 12], offset: [8, 20] }, // 32x32 frame -> feet at bottom (16, 32)
   run: { size: [16, 12], offset: [24, 52] }, // 64x64 frame -> feet at bottom (32, 64)
-  death: { size: [16, 12], offset: [24, 52] }, // 64x64 frame -> feet at bottom (32, 64)
+  death: { size: [16, 12], offset: [8, 20] }, // 32x32 frame
 };
 
 const RANGER_BODY_CONFIG: Record<AnimState, { size: [number, number]; offset: [number, number] }> = {

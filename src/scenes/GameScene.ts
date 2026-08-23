@@ -7,6 +7,7 @@ import { buildLevel1, TILE_SIZE } from '../world/level1';
 import { HeroClass, Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { BossEnemy } from '../entities/BossEnemy';
+import { OrcBossEnemy } from '../entities/OrcBossEnemy';
 import { BossProjectile } from '../entities/BossProjectile';
 import { ArrowProjectile } from '../entities/ArrowProjectile';
 import { EnergyProjectile } from '../entities/EnergyProjectile';
@@ -180,7 +181,7 @@ export class GameScene extends Phaser.Scene {
   private altarActivated = false;
   private altarCharged = false;
   private altarLight?: Phaser.GameObjects.Light;
-  private boss?: BossEnemy;
+  private boss?: BossEnemy | OrcBossEnemy;
   private bossProjectiles: BossProjectile[] = [];
 
   // Threat Meter (Time Scaling)
@@ -2378,15 +2379,21 @@ export class GameScene extends Phaser.Scene {
     this.hitSpark.setPosition(spawnX, spawnY - 14);
     this.hitSpark.explode(25);
 
-    // Spawn Boss: Архидемон Бездны
-    const bossHp = 75 + (this.players.length - 1) * 35 + Math.floor((this.elapsedRunTime / 60000) * 12);
-    this.boss = new BossEnemy(this, spawnX, spawnY, bossHp);
+    // Spawn Boss: On depth 1 (Dark Forest) -> OrcBossEnemy ("Вождь Орков Грог'Нар")
+    // On depth >= 2 -> BossEnemy ("Архидемон Бездны")
+    if (this.currentDepth === 1) {
+      const bossHp = 60 + (this.players.length - 1) * 30 + Math.floor((this.elapsedRunTime / 60000) * 8);
+      this.boss = new OrcBossEnemy(this, spawnX, spawnY, bossHp);
+    } else {
+      const bossHp = 75 + (this.players.length - 1) * 35 + Math.floor((this.elapsedRunTime / 60000) * 12);
+      this.boss = new BossEnemy(this, spawnX, spawnY, bossHp);
+    }
     this.worldLayer.add(this.boss);
 
     this.createBossHealthBar(this.boss);
   }
 
-  private createBossHealthBar(boss: BossEnemy): void {
+  private createBossHealthBar(boss: BossEnemy | OrcBossEnemy): void {
     if (this.bossBarUI) {
       this.bossBarUI.show();
       this.bossBarUI.update(boss);

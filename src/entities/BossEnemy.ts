@@ -13,6 +13,8 @@ export interface BossActionOutput {
 
 export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
   readonly bossName = 'Архидемон Бездны';
+  readonly phase1Label = 'ФАЗА I: СТРАЖ ПЕЧАТИ';
+  readonly phase2Label = 'ФАЗА II: ЯРОСТЬ БЕЗДНЫ';
   readonly contactDamage = 2;
   readonly maxHp: number;
   private hp: number;

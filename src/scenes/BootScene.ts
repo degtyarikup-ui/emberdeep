@@ -66,6 +66,8 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`${TEXTURE.PROP_SPIKES}_f${i}`, asset(`floor_spikes_anim_f${i}.png`));
       this.load.image(`${TEXTURE.WIZARD_IDLE}_f${i}`, asset(`wizzard_m_idle_anim_f${i}.png`));
       this.load.image(`${TEXTURE.WIZARD_RUN}_f${i}`, asset(`wizzard_m_run_anim_f${i}.png`));
+      this.load.image(`${TEXTURE.BOSS_ORC_IDLE}_f${i}`, asset(`ogre_idle_anim_f${i}.png`));
+      this.load.image(`${TEXTURE.BOSS_ORC_RUN}_f${i}`, asset(`ogre_run_anim_f${i}.png`));
     }
     for (let i = 0; i <= 2; i++) {
       this.load.image(`${TEXTURE.FOUNTAIN_BLUE}_f${i}`, asset(`wall_fountain_mid_blue_anim_f${i}.png`));
@@ -127,6 +129,20 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: ANIM.BOSS_DEMON_RUN,
       frames: this.anims.generateFrameNumbers(TEXTURE.BOSS_DEMON, { start: 4, end: 7 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.BOSS_ORC_IDLE,
+      frames: [0, 1, 2, 3].map(i => ({ key: `${TEXTURE.BOSS_ORC_IDLE}_f${i}` })),
+      frameRate: 6,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: ANIM.BOSS_ORC_RUN,
+      frames: [0, 1, 2, 3].map(i => ({ key: `${TEXTURE.BOSS_ORC_RUN}_f${i}` })),
       frameRate: 8,
       repeat: -1,
     });

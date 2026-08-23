@@ -132,13 +132,24 @@ export class BossBar {
     });
   }
 
-  public update(boss: BossEnemy): void {
+  public update(boss: {
+    readonly bossName: string;
+    readonly phase1Label?: string;
+    readonly phase2Label?: string;
+    readonly currentHp: number;
+    readonly maxHp: number;
+    readonly currentPhase: 1 | 2;
+    readonly isDead: boolean;
+    readonly active: boolean;
+  }): void {
     if (!boss || !boss.active || boss.isDead) {
       if (this.isVisible) this.hide();
       return;
     }
 
     if (!this.isVisible) this.show();
+
+    this.titleText.setText(boss.bossName.toUpperCase());
 
     const hpRatio = Math.max(0, Math.min(1, boss.currentHp / boss.maxHp));
     const targetW = Math.round(this.totalWidth * hpRatio);
@@ -155,7 +166,8 @@ export class BossBar {
     if (boss.currentPhase !== this.lastPhase) {
       this.lastPhase = boss.currentPhase;
       if (this.lastPhase === 2) {
-        this.phaseText.setText('[!] ФАЗА II: ЯРОСТЬ БЕЗДНЫ [!]');
+        const label = boss.phase2Label ?? 'ФАЗА II: ЯРОСТЬ БЕЗДНЫ';
+        this.phaseText.setText(`[!] ${label} [!]`);
         this.phaseText.setColor('#ef4444');
         this.titleText.setColor('#fb923c');
 
@@ -168,6 +180,9 @@ export class BossBar {
           repeat: -1,
           ease: 'Sine.easeInOut',
         });
+      } else {
+        const label = boss.phase1Label ?? 'ФАЗА I: СТРАЖ ПЕЧАТИ';
+        this.phaseText.setText(label);
       }
     }
   }

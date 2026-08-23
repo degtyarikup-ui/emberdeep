@@ -1676,6 +1676,111 @@ class SoundFXManager {
     osc.stop(t + 0.08);
   }
 
+  /** Orc Warchief intimidating roar / warcry */
+  playOrcRoar(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const gain = ctx.createGain();
+
+    lfo.frequency.setValueAtTime(18, t);
+    lfoGain.gain.setValueAtTime(45, t);
+    lfo.connect(osc.frequency);
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.linearRampToValueAtTime(155, t + 0.35);
+    osc.frequency.exponentialRampToValueAtTime(65, t + 0.8);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(550, t);
+    filter.Q.setValueAtTime(3.0, t);
+
+    gain.gain.setValueAtTime(0.01, t);
+    gain.gain.linearRampToValueAtTime(0.42, t + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain);
+
+    lfo.start(t);
+    osc.start(t);
+    lfo.stop(t + 0.8);
+    osc.stop(t + 0.8);
+  }
+
+  /** Orc Warchief Ground Slam shockwave & impact */
+  playGroundSlam(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    // Sub-bass seismic boom
+    const boom = ctx.createOscillator();
+    const boomGain = ctx.createGain();
+    boom.type = 'sine';
+    boom.frequency.setValueAtTime(120, t);
+    boom.frequency.exponentialRampToValueAtTime(25, t + 0.45);
+
+    boomGain.gain.setValueAtTime(0.65, t);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+    boom.connect(boomGain);
+    boomGain.connect(this.sfxGain);
+    boom.start(t);
+    boom.stop(t + 0.45);
+
+    // Crashing stone debris noise
+    const bufSize = Math.floor(ctx.sampleRate * 0.35);
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(650, t);
+    filter.frequency.exponentialRampToValueAtTime(90, t + 0.35);
+
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.45, t);
+    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+    noise.connect(filter);
+    filter.connect(nGain);
+    nGain.connect(this.sfxGain);
+    noise.start(t);
+    noise.stop(t + 0.35);
+  }
+
+  /** Orc Warchief Berserk Charge rush */
+  playOrcCharge(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(110, t);
+    osc.frequency.exponentialRampToValueAtTime(240, t + 0.4);
+
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.45);
+  }
+
   /** Stairs descent */
   playStairsDescent(): void {
     const ctx = this.ensureContext();

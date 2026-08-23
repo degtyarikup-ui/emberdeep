@@ -3,13 +3,14 @@ import { DEPTH, FONT, TEXTURE } from '../gfx/registry';
 import { HeroClass, Player } from '../entities/Player';
 import { MetaManager } from '../meta/MetaManager';
 import { PixelUI, PIXEL_UI_TEXTURE } from '../gfx/PixelUI';
+import { HUD_ICON } from '../gfx/hud';
 
 export class HeroFrame {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
   private portraitSprite: Phaser.GameObjects.Sprite;
-  private hpBarFill: Phaser.GameObjects.Rectangle;
-  private hpBarGhost: Phaser.GameObjects.Rectangle;
+  private heartsContainer: Phaser.GameObjects.Container;
+  private heartSprites: Phaser.GameObjects.Sprite[] = [];
   private hpText: Phaser.GameObjects.Text;
   private goldText: Phaser.GameObjects.Text;
   private embersText: Phaser.GameObjects.Text;
@@ -17,7 +18,6 @@ export class HeroFrame {
 
   private currentHp = 3;
   private maxHp = 3;
-  private maxBarWidth = 160;
 
   constructor(scene: Phaser.Scene, heroClass: HeroClass) {
     this.scene = scene;
@@ -73,40 +73,21 @@ export class HeroFrame {
     this.classNameText.setShadow(0, 1, '#000000', 2, true, true);
     this.container.add(this.classNameText);
 
-    // 4. 3D Beveled Health Bar
+    // 4. Heart-based Health Display
     const barX = 64;
-    const barY = 30;
-    const barH = 14;
+    const barY = 28;
 
-    // Outer Dark Metallic Cavity
-    const hpCavity = scene.add.rectangle(barX, barY, this.maxBarWidth, barH, 0x050811);
-    hpCavity.setOrigin(0, 0);
-    hpCavity.setStrokeStyle(1.5, 0x1e293b);
-    this.container.add(hpCavity);
+    this.heartsContainer = scene.add.container(barX, barY);
+    this.container.add(this.heartsContainer);
 
-    // Ghost Damage Trail (Amber)
-    this.hpBarGhost = scene.add.rectangle(barX, barY, this.maxBarWidth, barH, 0xf59e0b);
-    this.hpBarGhost.setOrigin(0, 0);
-    this.container.add(this.hpBarGhost);
-
-    // Main Ruby Red HP Fill
-    this.hpBarFill = scene.add.rectangle(barX, barY, this.maxBarWidth, barH, 0xdc2626);
-    this.hpBarFill.setOrigin(0, 0);
-    this.container.add(this.hpBarFill);
-
-    // Top Gloss Highlight Line on Bar
-    const gloss = scene.add.rectangle(barX, barY + 1, this.maxBarWidth, 2, 0xffffff, 0.4);
-    gloss.setOrigin(0, 0);
-    this.container.add(gloss);
-
-    // HP Text Numbers (Large, bold, crisp!)
-    this.hpText = scene.add.text(barX + this.maxBarWidth / 2, barY + barH / 2, '3 / 3 HP', {
+    // HP Text Numbers (Compact, bold badge next to hearts)
+    this.hpText = scene.add.text(barX + 110, barY + 6, '3 / 3 HP', {
       fontFamily: FONT.UI,
       fontSize: '11px',
       fontStyle: '700',
-      color: '#ffffff',
+      color: '#fecaca',
     });
-    this.hpText.setOrigin(0.5, 0.5);
+    this.hpText.setOrigin(0, 0.5);
     this.hpText.setStroke('#000000', 2.5);
     this.hpText.setShadow(0, 1, '#000000', 2, true, true);
     this.container.add(this.hpText);
@@ -162,39 +143,80 @@ export class HeroFrame {
   }
 
   private dangerGlow?: Phaser.GameObjects.Rectangle;
-  private ghostLagTimer = 0;
 
-  public update(player: Player, delta = 16): void {
-    const oldHp = this.currentHp;
+  public update(player: Player, _delta = 16): void {
     this.currentHp = player.hp;
     this.maxHp = player.maxHp;
 
-    if (this.currentHp < oldHp) {
-      // Took damage -> reset ghost decay timer (250ms hold)
-      this.ghostLagTimer = 250;
+    const spacing = this.maxHp > 8 ? 14 : 16;
+
+    // Build or adjust heart sprites if maxHp changed
+    if (this.heartSprites.length !== this.maxHp) {
+      this.heartSprites.forEach((s) => s.destroy());
+      this.heartSprites = [];
+
+      for (let i = 0; i < this.maxHp; i++) {
+        const hx = i * spacing + 8;
+        const heart = this.scene.add.sprite(hx, 6, TEXTURE.HUD_ICONS, HUD_ICON.HEART_FULL);
+        heart.setOrigin(0.5, 0.5);
+        heart.setScale(1.25);
+        this.heartsContainer.add(heart);
+        this.heartSprites.push(heart);
+      }
     }
 
     const ratio = Math.max(0, Math.min(1, this.currentHp / this.maxHp));
-    const targetW = Math.round(this.maxBarWidth * ratio);
+    const isCritical = ratio <= 0.34;
 
-    this.hpBarFill.width = targetW;
+    for (let i = 0; i < this.heartSprites.length; i++) {
+      const heart = this.heartSprites[i];
+      const isFull = i < this.currentHp;
 
-    // Smooth delayed ghost damage decay
-    if (this.ghostLagTimer > 0) {
-      this.ghostLagTimer -= delta;
-    } else if (this.hpBarGhost.width > targetW) {
-      const decaySpeed = Math.max(1, (this.hpBarGhost.width - targetW) * 0.12);
-      this.hpBarGhost.width = Math.max(targetW, this.hpBarGhost.width - decaySpeed);
-    } else {
-      this.hpBarGhost.width = targetW;
+      if (isFull) {
+        if (heart.frame.name !== HUD_ICON.HEART_FULL) {
+          heart.setFrame(HUD_ICON.HEART_FULL);
+          // Pop animation on heal
+          this.scene.tweens.add({
+            targets: heart,
+            scaleX: 1.5,
+            scaleY: 1.5,
+            duration: 120,
+            yoyo: true,
+            ease: 'Back.easeOut',
+          });
+        }
+        if (isCritical) {
+          const pulse = (Math.sin(this.scene.time.now * 0.009 + i * 0.4) + 1) * 0.1;
+          heart.setScale(1.25 + pulse);
+        } else {
+          heart.setScale(1.25);
+        }
+      } else {
+        if (heart.frame.name !== HUD_ICON.HEART_EMPTY) {
+          heart.setFrame(HUD_ICON.HEART_EMPTY);
+          // Pop on damage
+          this.scene.tweens.add({
+            targets: heart,
+            scaleX: 0.95,
+            scaleY: 0.95,
+            duration: 90,
+            yoyo: true,
+          });
+        }
+        heart.setScale(1.25);
+      }
     }
 
-    this.hpText.setText(`${this.currentHp} / ${this.maxHp} HP`);
+    // Position HP Text right next to the hearts row
+    const heartsWidth = this.maxHp * spacing;
+    const barX = 64;
+    const barY = 28;
+    this.hpText.setPosition(barX + heartsWidth + 10, barY + 6);
+    this.hpText.setText(`${this.currentHp}/${this.maxHp} HP`);
 
     // Low HP danger pulse (< 33% max HP)
-    const isCritical = ratio <= 0.34;
     if (isCritical) {
-      this.hpBarFill.fillColor = 0xef4444;
+      this.hpText.setColor('#ef4444');
       this.classNameText.setColor('#ef4444');
       if (this.dangerGlow) {
         const pulse = (Math.sin(this.scene.time.now * 0.008) + 1) * 0.5;
@@ -202,7 +224,7 @@ export class HeroFrame {
         this.dangerGlow.setStrokeStyle(2, 0xef4444, 0.4 + pulse * 0.6);
       }
     } else {
-      this.hpBarFill.fillColor = 0xdc2626;
+      this.hpText.setColor('#fecaca');
       this.classNameText.setColor(player.heroClass === 'wizard' ? '#9a68cc' : player.heroClass === 'ranger' ? '#38b068' : '#2a8ac0');
       if (this.dangerGlow) {
         this.dangerGlow.setAlpha(0);

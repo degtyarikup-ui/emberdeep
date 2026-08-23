@@ -9,7 +9,7 @@ import {
   ComboResult,
 } from '../combat/ElementalSystem';
 
-export type EnemyKind = 'imp' | 'skeleton' | 'wolf';
+export type EnemyKind = 'imp' | 'skeleton' | 'wolf' | 'orc_shield' | 'orc_archer' | 'direwolf';
 
 export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'special_windup' | 'recovery' | 'backstep' | 'dead';
 
@@ -18,6 +18,7 @@ export interface EnemyActionOutput {
   damage: number;
   projectile?: { x: number; y: number; targetX: number; targetY: number; damage: number };
   howl?: boolean;
+  minionSpawns?: { x: number; y: number; kind: EnemyKind }[];
 }
 
 export const COMBAT_AGGRO_DURATION = 6000;
@@ -108,6 +109,66 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     canBackstep: true,
     canCircleStrafe: false,
   },
+  orc_shield: {
+    clips: ACTORS.ORC_WARRIOR,
+    originY: { idle: 0.82, run: 0.74, death: 0.74 },
+    bodySize: { idle: [16, 18], run: [18, 18] },
+    bodyOffset: { idle: [0, 5], run: [0, 5] },
+    maxHp: 20,
+    patrolSpeed: 35,
+    chaseSpeed: 70,
+    detectRadius: 220,
+    loseRadius: 320,
+    attackRange: 44,
+    contactDamage: 1,
+    scale: 1.15,
+    windupDuration: 360,
+    lungeDuration: 150,
+    recoveryDuration: 320,
+    lungeSpeed: 180,
+    canBackstep: true,
+    canCircleStrafe: true,
+  },
+  orc_archer: {
+    clips: ACTORS.MASKED_ORC,
+    originY: { idle: 0.82, run: 0.74, death: 0.74 },
+    bodySize: { idle: [16, 18], run: [18, 18] },
+    bodyOffset: { idle: [0, 5], run: [0, 5] },
+    maxHp: 15,
+    patrolSpeed: 40,
+    chaseSpeed: 78,
+    detectRadius: 260,
+    loseRadius: 360,
+    attackRange: 160,
+    contactDamage: 1,
+    scale: 1.1,
+    windupDuration: 360,
+    lungeDuration: 100,
+    recoveryDuration: 550,
+    lungeSpeed: 0,
+    canBackstep: true,
+    canCircleStrafe: true,
+  },
+  direwolf: {
+    clips: ACTORS.WOLF,
+    originY: { idle: 0.95, run: 0.90, death: 0.85 },
+    bodySize: { idle: [28, 20], run: [32, 22] },
+    bodyOffset: { idle: [2, 11], run: [16, 38] },
+    maxHp: 10,
+    patrolSpeed: 65,
+    chaseSpeed: 130,
+    detectRadius: 220,
+    loseRadius: 320,
+    attackRange: 46,
+    contactDamage: 1,
+    scale: 1.25,
+    windupDuration: 140,
+    lungeDuration: 180,
+    recoveryDuration: 180,
+    lungeSpeed: 280,
+    canBackstep: true,
+    canCircleStrafe: false,
+  },
 };
 
 const CONTACT_RADIUS = 24;
@@ -129,6 +190,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private aggroTimer = 0;
   private specialCooldown = 1500 + Math.random() * 2500;
   public howlBuffTimer = 0;
+  private wolfRespawnTimer = 10000;
   private homeX: number;
   private homeY: number;
   private patrolTargetX: number;
@@ -209,6 +271,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setOrigin(0.5, stats.originY.idle);
     this.setScale(stats.scale);
     this.play(stats.clips.idle.key);
+
+    if (kind === 'direwolf') {
+      this.setTint(0x94a3b8);
+    }
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     const [w, h] = stats.bodySize.idle;
@@ -329,6 +395,17 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** Returns true if this hit killed it. */
   takeDamage(amount: number, fromX: number, fromY: number, otherEnemies: Enemy[] = []): boolean {
     if (this.aiState === 'dead' || this.hitLock > 0) return false;
+
+    // Orc Shieldbearer Block (50% chance to block and mitigate damage)
+    if (this.kind === 'orc_shield' && Math.random() < 0.5) {
+      SoundFX.playShieldBlock();
+      if (this.scene) {
+        const spark = this.scene.add.circle(this.x + (this.flipX ? -8 : 8), this.y - 10, 6, 0xf8fafc, 0.9);
+        this.scene.tweens.add({ targets: spark, scale: 2.2, alpha: 0, duration: 200, onComplete: () => spark.destroy() });
+      }
+      amount = Math.max(1, Math.floor(amount * 0.5));
+    }
+
     this.hp -= amount;
     this.hitLock = HIT_LOCK;
 
@@ -580,8 +657,29 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             SoundFX.playCleaveWindup();
             break;
           }
+          // Orc Shieldbearer Cleave Strike
+          if (this.kind === 'orc_shield' && distToPlayer <= 50) {
+            this.aiState = 'special_windup';
+            this.stateTimer = 400;
+            this.specialCooldown = 4200;
+            this.setTint(0xf8fafc);
+            this.setScale(this.stats.scale * 1.2, this.stats.scale * 1.2);
+            body.setVelocity(0, 0);
+            SoundFX.playCleaveWindup();
+            break;
+          }
+          // Orc Archer Arrow Shot
+          if (this.kind === 'orc_archer' && distToPlayer >= 60 && distToPlayer <= 220) {
+            this.aiState = 'special_windup';
+            this.stateTimer = 360;
+            this.specialCooldown = 2200;
+            this.setTint(0x86efac);
+            this.setScale(this.stats.scale * 1.1, this.stats.scale * 0.9);
+            body.setVelocity(0, 0);
+            break;
+          }
           // Wolf Pack Rally Howl
-          if (this.kind === 'wolf' && distToPlayer <= 160 && this.howlBuffTimer <= 0) {
+          if ((this.kind === 'wolf' || this.kind === 'direwolf') && distToPlayer <= 160 && this.howlBuffTimer <= 0) {
             this.aiState = 'special_windup';
             this.stateTimer = 350;
             this.specialCooldown = 6500;
@@ -590,6 +688,27 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             body.setVelocity(0, 0);
             SoundFX.playWolfSnarl();
             break;
+          }
+        }
+
+        // Orc Archer: Tactical retreat if player approaches too close
+        if (this.kind === 'orc_archer' && distToPlayer < 65) {
+          const backAngle = Math.atan2(this.y - playerY, this.x - playerX);
+          body.setVelocity(Math.cos(backAngle) * this.stats.chaseSpeed * 1.1, Math.sin(backAngle) * this.stats.chaseSpeed * 1.1);
+          this.setFlipX(dx < 0);
+          break;
+        }
+
+        // Orc Archer: Companion Direwolf check and summoning
+        if (this.kind === 'orc_archer') {
+          const hasWolf = otherEnemies.some(e => e.kind === 'direwolf' && !e.isDead && e.active);
+          if (!hasWolf) {
+            this.wolfRespawnTimer -= delta;
+            if (this.wolfRespawnTimer <= 0) {
+              this.wolfRespawnTimer = 12000;
+              SoundFX.playWolfHowl();
+              output.minionSpawns = [{ x: this.x - 20, y: this.y, kind: 'direwolf' }];
+            }
           }
         }
 
@@ -686,12 +805,25 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             }
             this.aiState = 'recovery';
             this.stateTimer = 450;
-          } else if (this.kind === 'wolf') {
+          } else if (this.kind === 'orc_shield') {
+            SoundFX.playBoneCleave();
+            if (distToPlayer <= 56) {
+              output.landedHit = true;
+              output.damage = 2; // Cleave Strike deals 2 damage!
+            }
+            this.aiState = 'recovery';
+            this.stateTimer = 400;
+          } else if (this.kind === 'orc_archer') {
+            SoundFX.playArrowShoot();
+            output.projectile = { x: this.x, y: this.y - 6, targetX: playerX, targetY: playerY, damage: 1 };
+            this.aiState = 'recovery';
+            this.stateTimer = 320;
+          } else if (this.kind === 'wolf' || this.kind === 'direwolf') {
             SoundFX.playWolfHowl();
             SoundFX.playWolfFrenzyRally();
             this.howlBuffTimer = 3500;
             for (const other of otherEnemies) {
-              if (other.kind === 'wolf' && !other.isDead) {
+              if ((other.kind === 'wolf' || other.kind === 'direwolf') && !other.isDead) {
                 if (Math.hypot(other.x - this.x, other.y - this.y) <= 140) {
                   other.howlBuffTimer = 3500;
                 }

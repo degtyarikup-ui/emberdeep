@@ -44,7 +44,19 @@ const WOLF: ActorClips = {
   death: { key: 'anim-wolf-death', url: asset('pc-wolf-death.png'), frameWidth: 48, frameHeight: 48, frameCount: 6, frameRate: 10, repeat: 0 },
 };
 
-export const ACTORS = { HERO, ORC, SKELETON, WOLF };
+const ORC_WARRIOR: ActorClips = {
+  idle: { key: 'anim-orc-warrior-idle', url: asset('orc-warrior-idle.png'), frameWidth: 16, frameHeight: 23, frameCount: 4, frameRate: 6, repeat: -1 },
+  run: { key: 'anim-orc-warrior-run', url: asset('orc-warrior-run.png'), frameWidth: 16, frameHeight: 23, frameCount: 4, frameRate: 8, repeat: -1 },
+  death: { key: 'anim-orc-death', url: asset('pc-orc-death.png'), frameWidth: 64, frameHeight: 64, frameCount: 6, frameRate: 10, repeat: 0 },
+};
+
+const MASKED_ORC: ActorClips = {
+  idle: { key: 'anim-masked-orc-idle', url: asset('masked-orc-idle.png'), frameWidth: 16, frameHeight: 23, frameCount: 4, frameRate: 6, repeat: -1 },
+  run: { key: 'anim-masked-orc-run', url: asset('masked-orc-run.png'), frameWidth: 16, frameHeight: 23, frameCount: 4, frameRate: 8, repeat: -1 },
+  death: { key: 'anim-orc-death', url: asset('pc-orc-death.png'), frameWidth: 64, frameHeight: 64, frameCount: 6, frameRate: 10, repeat: 0 },
+};
+
+export const ACTORS = { HERO, ORC, SKELETON, WOLF, ORC_WARRIOR, MASKED_ORC };
 
 export function preloadActor(scene: Phaser.Scene, clips: ActorClips): void {
   for (const clip of Object.values(clips)) {

@@ -1414,6 +1414,14 @@ export class GameScene extends Phaser.Scene {
           onComplete: () => ring.destroy(),
         });
       }
+      if (action.minionSpawns) {
+        for (const m of action.minionSpawns) {
+          const minion = new Enemy(this, m.x, m.y, m.kind, this.enemies.length + 100);
+          this.physics.add.collider(minion, this.solids);
+          this.worldLayer.add(minion);
+          this.enemies.push(minion);
+        }
+      }
     }
 
     if (this.boss && !this.boss.isDead) {
@@ -2384,6 +2392,18 @@ export class GameScene extends Phaser.Scene {
     if (this.depth === 1) {
       const bossHp = 60 + (this.players.length - 1) * 30 + Math.floor((this.elapsedRunTime / 60000) * 8);
       this.boss = new OrcBossEnemy(this, spawnX, spawnY, bossHp);
+
+      // Spawn Elite Bodyguards: Orc Shieldbearer (Left), Orc Archer (Right), Direwolf (Front)
+      const guardShield = new Enemy(this, spawnX - 44, spawnY + 10, 'orc_shield', this.enemies.length + 101);
+      const guardArcher = new Enemy(this, spawnX + 44, spawnY + 10, 'orc_archer', this.enemies.length + 102);
+      const petWolf = new Enemy(this, spawnX, spawnY + 32, 'direwolf', this.enemies.length + 103);
+
+      for (const guard of [guardShield, guardArcher, petWolf]) {
+        this.physics.add.collider(guard, this.solids);
+        this.worldLayer.add(guard);
+        this.enemies.push(guard);
+        guard.provoke(60000, true);
+      }
     } else {
       const bossHp = 75 + (this.players.length - 1) * 35 + Math.floor((this.elapsedRunTime / 60000) * 12);
       this.boss = new BossEnemy(this, spawnX, spawnY, bossHp);

@@ -247,9 +247,20 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   // 9. Sunken Ruin
   carveRoadH(binary, 52, 64, 72, 5);
   carveRoadV(binary, 58, 66, 76, 5);
-  // 10. Altar Grove
-  carveRoadH(binary, 98, 126, 70, 7);
-  carveRoadV(binary, 112, 60, 80, 7);
+  // 10. Orc Warchief Arena («Бойцовский круг Орды»)
+  // Carve circular combat ring around (112, 70) with radius 11
+  for (let r = 58; r <= 82; r++) {
+    for (let c = 100; c <= 124; c++) {
+      const distSq = (c - 112) * (c - 112) + (r - 70) * (r - 70);
+      if (distSq <= 121) {
+        binary[r][c] = PATH;
+      }
+    }
+  }
+  // Arena West Gate path
+  carveRoadH(binary, 90, 104, 70, 5);
+  // Arena East Exit path
+  carveRoadH(binary, 120, 126, 70, 3);
 
   // 6. Comprehensive 3-Tile Wide Road Network connecting all 10 POIs
   // Spawn -> Sawmill
@@ -415,12 +426,13 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 50, row: 60, kind: 'pine' }, { col: 64, row: 60, kind: 'oak' }, { col: 88, row: 76, kind: 'pine' },
     { col: 104, row: 82, kind: 'oak' }, { col: 90, row: 80, kind: 'pine' },
 
-    // Zone 10: Sacred Altar Grove trees
-    { col: 98, row: 62, kind: 'pine' }, { col: 106, row: 62, kind: 'oak' }, { col: 114, row: 54, kind: 'pine' },
-    { col: 122, row: 54, kind: 'oak' }, { col: 126, row: 60, kind: 'pine' }, { col: 126, row: 74, kind: 'oak' },
-    { col: 126, row: 80, kind: 'pine' }, { col: 98, row: 80, kind: 'oak' }, { col: 106, row: 82, kind: 'pine' },
-    { col: 114, row: 82, kind: 'oak' }, { col: 122, row: 82, kind: 'pine' }, { col: 96, row: 60, kind: 'oak' },
-    { col: 96, row: 74, kind: 'pine' }, { col: 126, row: 68, kind: 'oak' },
+    // Zone 10: Orc Arena outer perimeter trees
+    { col: 96, row: 60, kind: 'pine' }, { col: 96, row: 74, kind: 'oak' },
+    { col: 98, row: 56, kind: 'pine' }, { col: 98, row: 82, kind: 'oak' },
+    { col: 106, row: 54, kind: 'pine' }, { col: 118, row: 54, kind: 'oak' },
+    { col: 106, row: 84, kind: 'pine' }, { col: 118, row: 84, kind: 'oak' },
+    { col: 126, row: 60, kind: 'pine' }, { col: 126, row: 68, kind: 'oak' },
+    { col: 126, row: 74, kind: 'pine' }, { col: 126, row: 80, kind: 'oak' },
   ];
 
   // 9. Rich Decorations, Destructible Obstacles & Trap Props
@@ -553,15 +565,43 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 50, row: 72, key: TEXTURE.PROP_ROCK, solid: true },
     { col: 66, row: 72, key: TEXTURE.PROP_ROCK, solid: true },
 
-    // Zone 10: Sacred Altar Grove & Abyssal Descent
-    { col: 104, row: 60, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 120, row: 60, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 104, row: 78, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 120, row: 78, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 108, row: 64, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 116, row: 64, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 110, row: 76, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 114, row: 76, key: TEXTURE.PROP_BUSH, solid: false },
+    // Zone 10: Orc Warchief Arena («Бойцовский круг Орды»)
+    // Palisade Ring enclosing the arena
+    // Top Arc
+    { col: 108, row: 61, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 110, row: 60, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 112, row: 60, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 114, row: 60, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 116, row: 61, key: TEXTURE.PROP_FENCE, solid: true },
+    // Top-Right & Right Arc
+    { col: 118, row: 62, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 120, row: 64, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 121, row: 67, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 121, row: 73, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 120, row: 76, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 118, row: 78, key: TEXTURE.PROP_FENCE, solid: true },
+    // Bottom Arc
+    { col: 116, row: 79, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 114, row: 80, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 112, row: 80, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 110, row: 80, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 108, row: 79, key: TEXTURE.PROP_FENCE, solid: true },
+    // Bottom-Left & Left Arc
+    { col: 106, row: 78, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 104, row: 76, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 103, row: 73, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 103, row: 67, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 104, row: 64, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 106, row: 62, key: TEXTURE.PROP_FENCE, solid: true },
+    // Arena West Gate Totems & Entrance
+    { col: 102, row: 67, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 102, row: 73, key: TEXTURE.PROP_STATUE, solid: true },
+    // Arena East Exit Gate Totems
+    { col: 122, row: 67, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 122, row: 73, key: TEXTURE.PROP_STATUE, solid: true },
+    // Battle Arena ground bloodstains
+    { col: 109, row: 68, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 115, row: 72, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
 
     // Roadside Props, Bridge Obstacles & Spike Traps
     { col: 25, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
@@ -595,8 +635,11 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 92, row: 74 }, { col: 102, row: 74 }, { col: 52, row: 64 }, { col: 64, row: 64 },
     // South Bridge
     { col: 79, row: 72 }, { col: 89, row: 72 },
-    // Altar Grove Circle
-    { col: 106, row: 64 }, { col: 118, row: 64 }, { col: 106, row: 76 }, { col: 118, row: 76 },
+    // Orc Arena Gate & Perimeter Torches
+    { col: 101, row: 68 }, { col: 101, row: 72 }, // West Gate
+    { col: 123, row: 68 }, { col: 123, row: 72 }, // East Exit Gate
+    { col: 106, row: 64 }, { col: 118, row: 64 }, // North Corners
+    { col: 106, row: 76 }, { col: 118, row: 76 }, // South Corners
   ];
 
   // 11. Bonfires
@@ -606,7 +649,7 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 108, row: 28 }, // Zone 6: Bandit Outpost
     { col: 32, row: 64 },  // Zone 7: Necropolis
     { col: 58, row: 74 },  // Zone 9: Sunken Ruin
-    { col: 112, row: 66 }, // Zone 10: Altar Grove
+    { col: 112, row: 64 }, // Zone 10: Orc Arena North Ritual Fire
   ];
 
   // 12. Strategic Chests
@@ -682,13 +725,27 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 54, row: 76, kind: 'skeleton' }, { col: 62, row: 76, kind: 'skeleton' },
     { col: 58, row: 74, kind: 'skeleton' }, { col: 50, row: 74, kind: 'wolf' }, { col: 64, row: 74, kind: 'wolf' },
 
-    // Zone 10: Altar Grove (6 skeletons + 4 imps + 3 dire wolves)
-    { col: 100, row: 64, kind: 'wolf' }, { col: 98, row: 76, kind: 'wolf' }, { col: 102, row: 70, kind: 'wolf' },
-    { col: 104, row: 66, kind: 'imp' }, { col: 120, row: 66, kind: 'imp' },
-    { col: 108, row: 76, kind: 'imp' }, { col: 114, row: 62, kind: 'imp' },
-    { col: 106, row: 72, kind: 'skeleton' }, { col: 118, row: 72, kind: 'skeleton' },
-    { col: 116, row: 76, kind: 'skeleton' }, { col: 110, row: 62, kind: 'skeleton' },
-    { col: 108, row: 68, kind: 'skeleton' }, { col: 116, row: 68, kind: 'skeleton' },
+    // Zone 10: Outer Approaches & Sentry Posts around Orc Arena (13 relocated enemies)
+    // 1. West Gate Outpost / Entrance Guard (3)
+    { col: 98, row: 68, kind: 'skeleton' },
+    { col: 98, row: 72, kind: 'skeleton' },
+    { col: 96, row: 70, kind: 'imp' },
+
+    // 2. North Trail from Bandit Outpost (4)
+    { col: 108, row: 44, kind: 'wolf' },
+    { col: 112, row: 46, kind: 'wolf' },
+    { col: 110, row: 48, kind: 'skeleton' },
+    { col: 112, row: 52, kind: 'skeleton' },
+
+    // 3. South Approach from Bridge & Grotto (4)
+    { col: 90, row: 74, kind: 'wolf' },
+    { col: 94, row: 72, kind: 'wolf' },
+    { col: 92, row: 76, kind: 'imp' },
+    { col: 96, row: 78, kind: 'imp' },
+
+    // 4. North-East Ridge Sentry (2)
+    { col: 122, row: 50, kind: 'imp' },
+    { col: 124, row: 54, kind: 'skeleton' },
   ];
 
   return {

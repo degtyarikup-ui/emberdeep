@@ -17,13 +17,10 @@ export interface TranslationDict {
   selectClass: string;
   knightTitle: string;
   knightStats: string;
-  knightSkill: string;
   rangerTitle: string;
   rangerStats: string;
-  rangerSkill: string;
   wizardTitle: string;
   wizardStats: string;
-  wizardSkill: string;
   langBtn: string;
   
   roomCode: string;
@@ -117,13 +114,10 @@ const RU: TranslationDict = {
   selectClass: 'ВЫБЕРИТЕ КЛАСС',
   knightTitle: 'РЫЦАРЬ',
   knightStats: '6 HP · Меч (Блок щитом)',
-  knightSkill: 'ПКМ / Пробел · Круговой вихрь',
   rangerTitle: 'СЛЕДОПЫТ',
   rangerStats: '4 HP · Лук (Дальний бой)',
-  rangerSkill: 'ЛКМ · Быстрая стрельба стрелами',
   wizardTitle: 'ВОЛШЕБНИК',
   wizardStats: '4 HP · Посох (Магия эфира)',
-  wizardSkill: 'ЛКМ · Сгустки тайной энергии',
   langBtn: 'ЯЗЫК: RU',
 
   roomCode: 'КОД КОМНАТЫ',
@@ -215,13 +209,10 @@ const EN: TranslationDict = {
   selectClass: 'SELECT CLASS',
   knightTitle: 'KNIGHT',
   knightStats: '6 HP · Sword (Shield Block)',
-  knightSkill: 'RMB / Space · Whirlwind Slash',
   rangerTitle: 'RANGER',
   rangerStats: '4 HP · Bow (Ranged Combat)',
-  rangerSkill: 'LMB · Rapid Arrow Fire',
   wizardTitle: 'WIZARD',
   wizardStats: '4 HP · Staff (Ether Magic)',
-  wizardSkill: 'LMB · Arcane Energy Blasts',
   langBtn: 'LANG: EN',
 
   roomCode: 'ROOM CODE',

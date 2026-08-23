@@ -3,6 +3,13 @@ import { ANIM, DEPTH, TEXTURE } from '../gfx/registry';
 import { SoundFX } from '../audio/SoundFX';
 import { BossActionOutput, BossAnimState } from './BossEnemy';
 import { EnemyKind } from './Enemy';
+import type { Player } from './Player';
+
+interface GameSceneContext extends Phaser.Scene {
+  players?: Player[];
+  spawnDamageNumber?: (x: number, y: number, text: string, color: string) => void;
+  buildHeartsUI?: () => void;
+}
 
 export type OrcBossState = 'idle' | 'chase' | 'slam_windup' | 'charge_windup' | 'charging' | 'storm_windup' | 'recovery' | 'dead';
 
@@ -379,7 +386,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
               }
 
               // Check damage on nearest alive player
-              const gs = this.scene as any;
+              const gs = this.scene as GameSceneContext;
               if (gs && gs.players) {
                 for (const player of gs.players) {
                   if (player.isDowned || player.godMode) continue;
@@ -548,7 +555,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     let axeOffsetX = this.flipX ? -24 : 24;
     let axeOffsetY = -6;
     let axeDepth = DEPTH.YSORT_BASE + this.y - 1; // Behind / beside boss body
-    let axeAngle = this.flipX ? -15 : 15;
+    let axeAngle: number;
 
     if (this.orcState === 'slam_windup') {
       axeOffsetX = this.flipX ? -8 : 8;

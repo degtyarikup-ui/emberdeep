@@ -65,7 +65,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     this.axe.setDepth(DEPTH.YSORT_BASE + y + 1);
     this.axe.setAlpha(0);
 
-    this.light = scene.lights.addLight(x, y - 20, 160, 0xf59e0b, 0.9);
+    this.light = scene.lights.addLight(x, y - 20, 260, 0xfbbf24, 1.3);
     this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.4).setScale(2.4).setDepth(DEPTH.SHADOW);
 
     SoundFX.playOrcRoar();

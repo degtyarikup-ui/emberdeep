@@ -530,7 +530,13 @@ export class GameScene extends Phaser.Scene {
     this.altarSprite.setDepth(DEPTH.YSORT_BASE + this.altarY);
     world.add(this.altarSprite);
 
-    this.altarLight = this.lights.addLight(this.altarX, this.altarY - 16, 120, 0xa855f7, 0.7);
+    // Bright radiant Altar / Arena illumination
+    this.altarLight = this.lights.addLight(this.altarX, this.altarY - 16, 280, 0xfde047, 1.25);
+    this.torchLights.push({ light: this.altarLight, base: 1.25, phase: 0 });
+
+    // Wide ambient floodlight centered on the arena to eliminate dark spots and provide comfortable combat lighting
+    const arenaFloodLight = this.lights.addLight(this.altarX, this.altarY, 350, 0xffedd5, 1.2);
+    this.torchLights.push({ light: arenaFloodLight, base: 1.2, phase: Math.PI / 3 });
 
     this.altarPrompt = this.add
       .text(this.altarX, this.altarY - 32, 'E — АКТИВИРОВАТЬ АЛТАРЬ БЕЗДНЫ', {

@@ -58,7 +58,7 @@ export class BossEnemy extends Phaser.Physics.Arcade.Sprite {
     body.setVelocity(0, 0);
     this.setDepth(DEPTH.YSORT_BASE + y);
 
-    this.light = scene.lights.addLight(x, y - 16, 180, 0xef4444, 0.85);
+    this.light = scene.lights.addLight(x, y - 16, 280, 0xef4444, 1.3);
     this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.35).setScale(2.2).setDepth(DEPTH.SHADOW);
     scene.tweens.add({
         targets: this,

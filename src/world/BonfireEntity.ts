@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TEXTURE, ANIM, DEPTH } from '../gfx/registry';
+import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
 import { GameScene } from '../scenes/GameScene';
 
 export class BonfireEntity extends Phaser.GameObjects.Container {
@@ -19,17 +19,21 @@ export class BonfireEntity extends Phaser.GameObjects.Container {
     this.sprite.setPipeline('Light2D');
     this.add(this.sprite);
 
-    // Dynamic light
-    this.light = scene.lights.addLight(x, y, 120, 0xffa500, 1.5);
+    // Dynamic light: vibrant warm bonfire illumination
+    this.light = scene.lights.addLight(x, y, 180, 0xff9922, 1.8);
 
     // Interaction prompt
-    this.promptText = scene.add.text(0, -30, "E — ПОДБРОСИТЬ ДРОВА", {
-      fontFamily: '"Pixelify Sans", sans-serif',
-      fontSize: '12px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5).setVisible(false).setDepth(DEPTH.UI);
+    this.promptText = scene.add
+      .text(0, -30, 'E — ПОДБРОСИТЬ ДРОВА', {
+        fontFamily: FONT.UI,
+        fontSize: '11px',
+        fontStyle: '700',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+      .setVisible(false)
+      .setDepth(DEPTH.UI);
+    this.promptText.setStroke('#000000', 2.5);
     this.add(this.promptText);
 
     // Burn timer: 1 stage every 25s

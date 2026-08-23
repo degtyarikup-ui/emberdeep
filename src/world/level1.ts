@@ -640,6 +640,8 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 123, row: 68 }, { col: 123, row: 72 }, // East Exit Gate
     { col: 106, row: 64 }, { col: 118, row: 64 }, // North Corners
     { col: 106, row: 76 }, { col: 118, row: 76 }, // South Corners
+    { col: 112, row: 61 }, { col: 112, row: 79 }, // North & South Apex
+    { col: 104, row: 70 }, { col: 120, row: 70 }, // West & East Mid Flanks
   ];
 
   // 11. Bonfires
@@ -649,7 +651,10 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 108, row: 28 }, // Zone 6: Bandit Outpost
     { col: 32, row: 64 },  // Zone 7: Necropolis
     { col: 58, row: 74 },  // Zone 9: Sunken Ruin
-    { col: 112, row: 64 }, // Zone 10: Orc Arena North Ritual Fire
+    { col: 108, row: 66 }, // Zone 10: Orc Arena North-West Ritual Fire
+    { col: 116, row: 66 }, // Zone 10: Orc Arena North-East Ritual Fire
+    { col: 108, row: 74 }, // Zone 10: Orc Arena South-West Ritual Fire
+    { col: 116, row: 74 }, // Zone 10: Orc Arena South-East Ritual Fire
   ];
 
   // 12. Strategic Chests

@@ -284,7 +284,7 @@ export class MenuScene extends Phaser.Scene {
     knightSword.setAngle(20);
 
     const knightText = this.add
-      .text(-cardW / 2 + 64, -18, t().knightTitle, {
+      .text(-cardW / 2 + 64, -19, t().knightTitle, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '700',
@@ -293,17 +293,17 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0, 0);
     knightText.setStroke('#000000', 2);
 
-    const knightHearts = this.add.container(-cardW / 2 + 64, -1);
+    const knightHearts = this.add.container(-cardW / 2 + 64, 2);
     const knightHeartSprites: Phaser.GameObjects.Sprite[] = [];
     for (let i = 0; i < 6; i++) {
-      const heart = this.add.sprite(i * 12 + 6, 0, TEXTURE.HUD_ICONS, HUD_ICON.HEART_FULL);
-      heart.setScale(0.95);
+      const heart = this.add.sprite(i * 14 + 6, 0, TEXTURE.HUD_ICONS, HUD_ICON.HEART_FULL);
+      heart.setScale(1.0);
       knightHearts.add(heart);
       knightHeartSprites.push(heart);
     }
 
     const knightSub = this.add
-      .text(-cardW / 2 + 64, 13, t().knightStats, {
+      .text(-cardW / 2 + 64, 16, t().knightStats, {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '600',
@@ -332,7 +332,7 @@ export class MenuScene extends Phaser.Scene {
     rangerBow.setScale(1.15);
 
     const rangerText = this.add
-      .text(-cardW / 2 + 64, -18, t().rangerTitle, {
+      .text(-cardW / 2 + 64, -19, t().rangerTitle, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '700',
@@ -341,17 +341,17 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0, 0);
     rangerText.setStroke('#000000', 2);
 
-    const rangerHearts = this.add.container(-cardW / 2 + 64, -1);
+    const rangerHearts = this.add.container(-cardW / 2 + 64, 2);
     const rangerHeartSprites: Phaser.GameObjects.Sprite[] = [];
     for (let i = 0; i < 4; i++) {
-      const heart = this.add.sprite(i * 12 + 6, 0, TEXTURE.HUD_ICONS, HUD_ICON.HEART_FULL);
-      heart.setScale(0.95);
+      const heart = this.add.sprite(i * 14 + 6, 0, TEXTURE.HUD_ICONS, HUD_ICON.HEART_FULL);
+      heart.setScale(1.0);
       rangerHearts.add(heart);
       rangerHeartSprites.push(heart);
     }
 
     const rangerSub = this.add
-      .text(-cardW / 2 + 64, 13, t().rangerStats, {
+      .text(-cardW / 2 + 64, 16, t().rangerStats, {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '600',
@@ -381,7 +381,7 @@ export class MenuScene extends Phaser.Scene {
     wizardStaff.setAngle(12);
 
     const wizardText = this.add
-      .text(-cardW / 2 + 64, -18, t().wizardTitle, {
+      .text(-cardW / 2 + 64, -19, t().wizardTitle, {
         fontFamily: FONT.UI,
         fontSize: '13px',
         fontStyle: '700',
@@ -390,17 +390,17 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0, 0);
     wizardText.setStroke('#000000', 2);
 
-    const wizardHearts = this.add.container(-cardW / 2 + 64, -1);
+    const wizardHearts = this.add.container(-cardW / 2 + 64, 2);
     const wizardHeartSprites: Phaser.GameObjects.Sprite[] = [];
     for (let i = 0; i < 4; i++) {
-      const heart = this.add.sprite(i * 12 + 6, 0, TEXTURE.HUD_ICONS, HUD_ICON.HEART_FULL);
-      heart.setScale(0.95);
+      const heart = this.add.sprite(i * 14 + 6, 0, TEXTURE.HUD_ICONS, HUD_ICON.HEART_FULL);
+      heart.setScale(1.0);
       wizardHearts.add(heart);
       wizardHeartSprites.push(heart);
     }
 
     const wizardSub = this.add
-      .text(-cardW / 2 + 64, 13, t().wizardStats, {
+      .text(-cardW / 2 + 64, 16, t().wizardStats, {
         fontFamily: FONT.UI,
         fontSize: '10px',
         fontStyle: '600',

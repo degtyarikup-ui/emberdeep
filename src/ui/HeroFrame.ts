@@ -148,7 +148,7 @@ export class HeroFrame {
     this.currentHp = player.hp;
     this.maxHp = player.maxHp;
 
-    const spacing = this.maxHp > 8 ? 14 : 16;
+    const spacing = this.maxHp > 8 ? 14 : 15;
 
     // Build or adjust heart sprites if maxHp changed
     if (this.heartSprites.length !== this.maxHp) {
@@ -156,10 +156,10 @@ export class HeroFrame {
       this.heartSprites = [];
 
       for (let i = 0; i < this.maxHp; i++) {
-        const hx = i * spacing + 8;
+        const hx = i * spacing + 7;
         const heart = this.scene.add.sprite(hx, 6, TEXTURE.HUD_ICONS, HUD_ICON.HEART_FULL);
         heart.setOrigin(0.5, 0.5);
-        heart.setScale(1.25);
+        heart.setScale(1.0);
         this.heartsContainer.add(heart);
         this.heartSprites.push(heart);
       }
@@ -178,18 +178,18 @@ export class HeroFrame {
           // Pop animation on heal
           this.scene.tweens.add({
             targets: heart,
-            scaleX: 1.5,
-            scaleY: 1.5,
+            scaleX: 1.3,
+            scaleY: 1.3,
             duration: 120,
             yoyo: true,
             ease: 'Back.easeOut',
           });
         }
         if (isCritical) {
-          const pulse = (Math.sin(this.scene.time.now * 0.009 + i * 0.4) + 1) * 0.1;
-          heart.setScale(1.25 + pulse);
+          const pulse = (Math.sin(this.scene.time.now * 0.009 + i * 0.4) + 1) * 0.08;
+          heart.setScale(1.0 + pulse);
         } else {
-          heart.setScale(1.25);
+          heart.setScale(1.0);
         }
       } else {
         if (heart.frame.name !== HUD_ICON.HEART_EMPTY) {
@@ -197,13 +197,13 @@ export class HeroFrame {
           // Pop on damage
           this.scene.tweens.add({
             targets: heart,
-            scaleX: 0.95,
-            scaleY: 0.95,
+            scaleX: 0.8,
+            scaleY: 0.8,
             duration: 90,
             yoyo: true,
           });
         }
-        heart.setScale(1.25);
+        heart.setScale(1.0);
       }
     }
 
@@ -211,7 +211,7 @@ export class HeroFrame {
     const heartsWidth = this.maxHp * spacing;
     const barX = 64;
     const barY = 28;
-    this.hpText.setPosition(barX + heartsWidth + 10, barY + 6);
+    this.hpText.setPosition(barX + heartsWidth + 8, barY + 6);
     this.hpText.setText(`${this.currentHp}/${this.maxHp} HP`);
 
     // Low HP danger pulse (< 33% max HP)

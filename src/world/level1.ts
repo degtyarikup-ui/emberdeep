@@ -428,7 +428,7 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
 
     // Zone 10: Orc Arena outer perimeter trees
     { col: 96, row: 60, kind: 'pine' }, { col: 96, row: 74, kind: 'oak' },
-    { col: 98, row: 56, kind: 'pine' }, { col: 98, row: 82, kind: 'oak' },
+    { col: 98, row: 64, kind: 'pine' }, { col: 98, row: 82, kind: 'oak' },
     { col: 106, row: 54, kind: 'pine' }, { col: 118, row: 54, kind: 'oak' },
     { col: 106, row: 84, kind: 'pine' }, { col: 118, row: 84, kind: 'oak' },
     { col: 126, row: 60, kind: 'pine' }, { col: 126, row: 68, kind: 'oak' },

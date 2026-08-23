@@ -2381,7 +2381,7 @@ export class GameScene extends Phaser.Scene {
 
     // Spawn Boss: On depth 1 (Dark Forest) -> OrcBossEnemy ("Вождь Орков Грог'Нар")
     // On depth >= 2 -> BossEnemy ("Архидемон Бездны")
-    if (this.currentDepth === 1) {
+    if (this.depth === 1) {
       const bossHp = 60 + (this.players.length - 1) * 30 + Math.floor((this.elapsedRunTime / 60000) * 8);
       this.boss = new OrcBossEnemy(this, spawnX, spawnY, bossHp);
     } else {

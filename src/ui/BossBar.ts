@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { DEPTH, FONT, TEXTURE } from '../gfx/registry';
-import { BossEnemy } from '../entities/BossEnemy';
 import { PixelUI } from '../gfx/PixelUI';
 
 export class BossBar {

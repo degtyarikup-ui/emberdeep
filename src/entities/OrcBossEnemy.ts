@@ -156,7 +156,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       body.enable = false;
     }
 
-    SoundFX.playEnemyDeath();
+    SoundFX.playBossDeath();
     this.setTint(0x7f1d1d);
 
     this.scene.tweens.add({
@@ -291,9 +291,8 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
             const angle = i * step;
             const targetPosX = this.x + Math.cos(angle) * 160;
             const targetPosY = this.y + Math.sin(angle) * 160;
-            const proj = new BossProjectile(this.scene, this.x, this.y - 10, targetPosX, targetPosY);
+            const proj = new BossProjectile(this.scene, this.x, this.y - 10, targetPosX, targetPosY, 120, 1);
             proj.setTint(this.isEnraged ? 0xef4444 : 0xf59e0b);
-            proj.damage = 1;
             output.projectiles.push(proj);
           }
 

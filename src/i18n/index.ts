@@ -6,6 +6,8 @@ export interface TranslationDict {
   playSolo: string;
   playCoop: string;
   upgradesBtn: string;
+  altarTitle: string;
+  embersAvailable: string;
   achievementsBtn: string;
   controlsTitle: string;
   wasdMove: string;
@@ -102,7 +104,9 @@ const RU: TranslationDict = {
   gameSubtitle: 'тёмное фэнтези · кооп-рогалик · до 4 игроков',
   playSolo: 'ОДИНОЧНЫЙ СПУСК',
   playCoop: 'КООПЕРАТИВ (ОНЛАЙН)',
-  upgradesBtn: 'УЛУЧШЕНИЯ У КОСТРА',
+  upgradesBtn: 'УЛУЧШЕНИЯ',
+  altarTitle: 'АЛТАРЬ ДУШ · УЛУЧШЕНИЯ',
+  embersAvailable: 'Доступно углей:',
   achievementsBtn: 'ДОСТИЖЕНИЯ',
   controlsTitle: 'УПРАВЛЕНИЕ',
   wasdMove: 'WASD / Стрелки — Передвижение',
@@ -197,7 +201,9 @@ const EN: TranslationDict = {
   gameSubtitle: 'dark fantasy · coop roguelite · up to 4 players',
   playSolo: 'SOLO EXPEDITION',
   playCoop: 'CO-OP MULTIPLAYER',
-  upgradesBtn: 'BONFIRE UPGRADES',
+  upgradesBtn: 'UPGRADES',
+  altarTitle: 'SOUL ALTAR · UPGRADES',
+  embersAvailable: 'Embers Available:',
   achievementsBtn: 'ACHIEVEMENTS',
   controlsTitle: 'CONTROLS',
   wasdMove: 'WASD / Arrow Keys — Movement',

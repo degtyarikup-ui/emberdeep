@@ -74,19 +74,8 @@ function createMenuButton(
   const gloss = scene.add.rectangle(0, -height / 2 + 2, width - 4, 2, 0xffffff, 0.2);
   container.add(gloss);
 
-  // Optional icon
-  const hasIcon = opts.iconFrame !== undefined;
-  const iconOffsetX = hasIcon ? -width / 2 + 22 : 0;
-  const textOffsetX = hasIcon ? 10 : 0;
-
-  if (hasIcon && opts.iconFrame !== undefined) {
-    const icon = scene.add.sprite(iconOffsetX, 0, PIXEL_UI_TEXTURE.ICONS_SHEET, opts.iconFrame);
-    icon.setScale(1.1);
-    container.add(icon);
-  }
-
   const txt = scene.add
-    .text(textOffsetX, 0, label, {
+    .text(0, 0, label, {
       fontFamily: FONT.UI,
       fontSize: opts.fontSize ?? (theme === 'primary' ? '14px' : '11px'),
       fontStyle: '700',
@@ -96,6 +85,20 @@ function createMenuButton(
   txt.setStroke('#000000', 2);
   txt.setShadow(0, 1, '#000000', 2, true, true);
   container.add(txt);
+
+  // Optional icon: perfectly spaced next to text and centered as a group
+  if (opts.iconFrame !== undefined) {
+    const gap = 8;
+    const iconW = 16;
+    const totalW = iconW + gap + txt.width;
+    const iconX = -totalW / 2 + iconW / 2;
+    const txtX = totalW / 2 - txt.width / 2;
+
+    const icon = scene.add.sprite(iconX, 0, PIXEL_UI_TEXTURE.ICONS_SHEET, opts.iconFrame);
+    icon.setScale(1.1);
+    container.add(icon);
+    txt.setX(txtX);
+  }
 
   bg.on('pointerover', () => {
     bg.setFillStyle(hoverFillHex, 1);
@@ -590,29 +593,39 @@ export class MenuScene extends Phaser.Scene {
     backdrop.setInteractive();
 
     const title = this.add
-      .text(width / 2, 45, 'АЛТАРЬ ДУШ · ВЕЧНАЯ ПРОКАЧКА', {
+      .text(width / 2, 42, t().altarTitle, {
         fontFamily: FONT.TITLE,
-        fontSize: '22px',
+        fontSize: '20px',
         fontStyle: '700',
         color: '#f97316',
       })
       .setOrigin(0.5)
-      .setStroke('#000000', 5);
+      .setStroke('#000000', 4);
 
     const embersLabel = this.add
-      .text(width / 2, 75, `Доступно Углей: ${MetaManager.get().embers}`, {
+      .text(width / 2, 70, `${t().embersAvailable} ${MetaManager.get().embers}`, {
         fontFamily: FONT.UI,
-        fontSize: '14px',
+        fontSize: '13px',
         fontStyle: '600',
         color: '#fbbf24',
       })
       .setOrigin(0.5);
+    embersLabel.setStroke('#000000', 2);
 
     modal.add([backdrop, title, embersLabel]);
 
-    const startY = 115;
-    const cardH = 50;
+    const startY = 104;
+    const cardW = Math.min(width * 0.94, 520);
+    const cardH = 52;
     const meta = MetaManager.get();
+
+    const UPGRADE_ICONS: Record<string, number> = {
+      vitality: PIXEL_ICON.HEART,
+      might: PIXEL_ICON.SWORDS,
+      agility: PIXEL_ICON.BOOT,
+      fortune: PIXEL_ICON.TARGET,
+      bounty: PIXEL_ICON.COIN,
+    };
 
     const renderUpgrades = () => {
       // Clean previous cards
@@ -620,10 +633,10 @@ export class MenuScene extends Phaser.Scene {
         if ((child as { isCard?: boolean }).isCard) child.destroy();
       });
 
-      embersLabel.setText(`Доступно Углей: ${meta.embers}`);
+      embersLabel.setText(`${t().embersAvailable} ${meta.embers}`);
 
       META_UPGRADES.forEach((upg, idx) => {
-        const y = startY + idx * (cardH + 8);
+        const y = startY + idx * (cardH + 7);
         const card = this.add.container(width / 2, y);
         (card as { isCard?: boolean }).isCard = true;
 
@@ -632,62 +645,76 @@ export class MenuScene extends Phaser.Scene {
         const cost = meta.getUpgradeCost(upg.id);
         const canAfford = cost !== null && meta.embers >= cost;
 
-        const bg = this.add.rectangle(0, 0, Math.min(width * 0.9, 440), cardH, 0x171024, 0.9);
+        const bg = this.add.rectangle(0, 0, cardW, cardH, 0x140e22, 0.95);
         bg.setStrokeStyle(1.5, isMax ? 0xf59e0b : 0x475569);
 
-        const icon = this.add
-          .text(-190, 0, upg.icon, {
-            fontSize: '18px',
-          })
-          .setOrigin(0.5);
+        // Icon Slot & Illustration Sprite
+        const iconSlot = this.add.rectangle(-cardW / 2 + 28, 0, 36, 36, 0x07040d, 0.9);
+        iconSlot.setStrokeStyle(1, isMax ? 0x78350f : 0x3b2d54);
 
+        const iconFrame = UPGRADE_ICONS[upg.id] ?? PIXEL_ICON.HEART;
+        const iconSprite = this.add.sprite(-cardW / 2 + 28, 0, PIXEL_UI_TEXTURE.ICONS_SHEET, iconFrame);
+        iconSprite.setScale(1.35);
+
+        // Upgrade Name & Description
         const name = this.add
-          .text(-165, -10, upg.name, {
+          .text(-cardW / 2 + 56, -10, upg.name, {
             fontFamily: FONT.UI,
             fontSize: '12px',
             fontStyle: '700',
             color: upg.color,
           })
           .setOrigin(0, 0.5);
+        name.setStroke('#000000', 2);
 
         const desc = this.add
-          .text(-165, 10, upg.desc, {
+          .text(-cardW / 2 + 56, 11, upg.desc, {
             fontFamily: FONT.UI,
             fontSize: '9px',
             color: '#94a3b8',
           })
           .setOrigin(0, 0.5);
 
+        // Level Indicators & Current Bonus
         const bars = '■'.repeat(currentLvl) + '□'.repeat(upg.maxLevel - currentLvl);
         const lvlText = this.add
-          .text(45, -10, `${bars} (${currentLvl}/${upg.maxLevel})`, {
+          .text(cardW / 2 - 165, -10, `${bars}  ${currentLvl}/${upg.maxLevel}`, {
             fontFamily: FONT.UI,
-            fontSize: '10px',
+            fontSize: '11px',
             fontStyle: '700',
             color: isMax ? '#f59e0b' : '#94a3b8',
           })
-          .setOrigin(0.5);
+          .setOrigin(0.5, 0.5);
+        lvlText.setStroke('#000000', 2);
 
         const bonusText = this.add
-          .text(45, 10, currentLvl > 0 ? upg.formatValue(currentLvl) : 'нет', {
+          .text(cardW / 2 - 165, 11, currentLvl > 0 ? upg.formatValue(currentLvl) : '---', {
             fontFamily: FONT.UI,
-            fontSize: '10px',
+            fontSize: '11px',
+            fontStyle: '700',
             color: currentLvl > 0 ? '#4ade80' : '#64748b',
           })
-          .setOrigin(0.5);
+          .setOrigin(0.5, 0.5);
+        bonusText.setStroke('#000000', 2);
 
-        // Buy button
-        const btnBg = this.add.rectangle(150, 0, 95, 28, isMax ? 0x27272a : canAfford ? 0xc2410c : 0x3f3f46, 1);
-        btnBg.setStrokeStyle(1, isMax ? 0x52525b : canAfford ? 0xf97316 : 0x71717a);
+        // Buy / Max Button
+        const btnW = 96;
+        const btnH = 32;
+        const btnX = cardW / 2 - 58;
 
+        const btnBg = this.add.rectangle(btnX, 0, btnW, btnH, isMax ? 0x27272a : canAfford ? 0xc2410c : 0x271717, 1);
+        btnBg.setStrokeStyle(1.5, isMax ? 0x52525b : canAfford ? 0xf97316 : 0x522222);
+
+        const btnLabel = isMax ? 'МАКС.' : `КУПИТЬ (${cost})`;
         const btnText = this.add
-          .text(150, 0, isMax ? 'МАКС.' : `КУПИТЬ (${cost})`, {
+          .text(btnX, 0, btnLabel, {
             fontFamily: FONT.UI,
-            fontSize: '9px',
+            fontSize: '10px',
             fontStyle: '700',
-            color: isMax ? '#a1a1aa' : canAfford ? '#ffffff' : '#a1a1aa',
+            color: isMax ? '#a1a1aa' : canAfford ? '#ffffff' : '#71717a',
           })
-          .setOrigin(0.5);
+          .setOrigin(0.5, 0.5);
+        btnText.setStroke('#000000', 2);
 
         if (!isMax && canAfford) {
           btnBg.setInteractive({ useHandCursor: true });
@@ -699,7 +726,7 @@ export class MenuScene extends Phaser.Scene {
           });
         }
 
-        card.add([bg, icon, name, desc, lvlText, bonusText, btnBg, btnText]);
+        card.add([bg, iconSlot, iconSprite, name, desc, lvlText, bonusText, btnBg, btnText]);
         modal.add(card);
       });
     };

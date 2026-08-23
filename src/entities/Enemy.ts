@@ -16,7 +16,7 @@ export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'speci
 export interface EnemyActionOutput {
   landedHit: boolean;
   damage: number;
-  projectile?: { x: number; y: number; targetX: number; targetY: number; damage: number };
+  projectile?: { x: number; y: number; targetX: number; targetY: number; damage: number; isArrow?: boolean };
   howl?: boolean;
   minionSpawns?: { x: number; y: number; kind: EnemyKind }[];
 }
@@ -112,16 +112,16 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   orc_shield: {
     clips: ACTORS.ORC_WARRIOR,
     originY: { idle: 0.82, run: 0.74, death: 0.74 },
-    bodySize: { idle: [16, 18], run: [18, 18] },
-    bodyOffset: { idle: [0, 5], run: [0, 5] },
+    bodySize: { idle: [20, 22], run: [20, 22] },
+    bodyOffset: { idle: [2, 4], run: [2, 4] },
     maxHp: 20,
     patrolSpeed: 35,
     chaseSpeed: 70,
     detectRadius: 220,
     loseRadius: 320,
-    attackRange: 44,
+    attackRange: 50,
     contactDamage: 1,
-    scale: 1.15,
+    scale: 1.5,
     windupDuration: 360,
     lungeDuration: 150,
     recoveryDuration: 320,
@@ -132,16 +132,16 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   orc_archer: {
     clips: ACTORS.MASKED_ORC,
     originY: { idle: 0.82, run: 0.74, death: 0.74 },
-    bodySize: { idle: [16, 18], run: [18, 18] },
-    bodyOffset: { idle: [0, 5], run: [0, 5] },
+    bodySize: { idle: [20, 22], run: [20, 22] },
+    bodyOffset: { idle: [2, 4], run: [2, 4] },
     maxHp: 15,
     patrolSpeed: 40,
     chaseSpeed: 78,
     detectRadius: 260,
     loseRadius: 360,
-    attackRange: 160,
+    attackRange: 180,
     contactDamage: 1,
-    scale: 1.1,
+    scale: 1.5,
     windupDuration: 360,
     lungeDuration: 100,
     recoveryDuration: 550,
@@ -159,9 +159,9 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     chaseSpeed: 130,
     detectRadius: 220,
     loseRadius: 320,
-    attackRange: 46,
+    attackRange: 48,
     contactDamage: 1,
-    scale: 1.25,
+    scale: 1.35,
     windupDuration: 140,
     lungeDuration: 180,
     recoveryDuration: 180,
@@ -815,7 +815,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             this.stateTimer = 400;
           } else if (this.kind === 'orc_archer') {
             SoundFX.playArrowShoot();
-            output.projectile = { x: this.x, y: this.y - 6, targetX: playerX, targetY: playerY, damage: 1 };
+            output.projectile = { x: this.x, y: this.y - 6, targetX: playerX, targetY: playerY, damage: 1, isArrow: true };
             this.aiState = 'recovery';
             this.stateTimer = 320;
           } else if (this.kind === 'wolf' || this.kind === 'direwolf') {

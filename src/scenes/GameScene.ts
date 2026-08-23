@@ -183,6 +183,7 @@ export class GameScene extends Phaser.Scene {
   private altarLight?: Phaser.GameObjects.Light;
   private boss?: BossEnemy | OrcBossEnemy;
   private bossProjectiles: BossProjectile[] = [];
+  private enemyArrows: ArrowProjectile[] = [];
 
   // Threat Meter (Time Scaling)
   private elapsedRunTime = 0;
@@ -295,6 +296,7 @@ export class GameScene extends Phaser.Scene {
     this.torchLights = [];
     this.playerArrows = [];
     this.bossProjectiles = [];
+    this.enemyArrows = [];
     this.spikeTraps = [];
     this.boss = undefined;
     this.bannerContainer = undefined;
@@ -946,6 +948,7 @@ export class GameScene extends Phaser.Scene {
       this.chests = [];
       this.players = [];
       this.bossProjectiles = [];
+      this.enemyArrows = [];
     });
   }
 
@@ -1338,6 +1341,7 @@ export class GameScene extends Phaser.Scene {
     this.updateThreatMeter(delta);
     this.updateBossProjectiles(delta);
     this.updatePlayerArrows(delta);
+    this.updateEnemyArrows(delta);
     this.updateSpikeTraps(delta);
     this.updateCoins(delta);
     this.updateCamera();
@@ -1395,11 +1399,18 @@ export class GameScene extends Phaser.Scene {
       }
       if (action.projectile) {
         const p = action.projectile;
-        const proj = new BossProjectile(this, p.x, p.y, p.targetX, p.targetY, 130, p.damage);
-        proj.setTint(0xf97316);
-        proj.setScale(0.95);
-        this.worldLayer.add(proj);
-        this.bossProjectiles.push(proj);
+        if (p.isArrow) {
+          const angle = Math.atan2(p.targetY - p.y, p.targetX - p.x);
+          const arrow = new ArrowProjectile(this, p.x, p.y, angle, p.damage, 1, 340);
+          this.worldLayer.add(arrow);
+          this.enemyArrows.push(arrow);
+        } else {
+          const proj = new BossProjectile(this, p.x, p.y, p.targetX, p.targetY, 130, p.damage);
+          proj.setTint(0xf97316);
+          proj.setScale(0.95);
+          this.worldLayer.add(proj);
+          this.bossProjectiles.push(proj);
+        }
       }
       if (action.howl) {
         const ring = this.add.circle(enemy.x, enemy.y - 10, 12, 0xfacc15, 0.45);
@@ -2501,6 +2512,52 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.bossProjectiles = this.bossProjectiles.filter((p) => !p.isDestroyed);
+  }
+
+  private updateEnemyArrows(delta: number): void {
+    for (const arrow of this.enemyArrows) {
+      const active = arrow.update(delta);
+      if (!active) continue;
+
+      for (const player of this.players) {
+        if (player.isDowned || player.godMode || (player === this.myPlayer && this.godMode)) continue;
+        const dist = Phaser.Math.Distance.Between(arrow.x, arrow.y, player.x, player.y - 8);
+        if (dist < 16) {
+          arrow.destroyProjectile();
+          SoundFX.playArrowHit();
+          const applied = player.takeDamage(arrow.damage, arrow.x, arrow.y);
+          if (applied) {
+            SoundFX.playPlayerHurt();
+            if (player === this.myPlayer) {
+              this.spawnDamageNumber(player.x, player.y, `-${arrow.damage}`, '#ff7a7a');
+              this.damageFlash.setAlpha(0.55);
+              this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 260 });
+              this.worldCam.shake(80, 0.0025);
+            }
+            this.buildHeartsUI();
+            if (player.hp <= 0) {
+              if (player.immortalCharges > 0) {
+                player.items['immortal_crown'] -= 1;
+                player.hp = player.maxHp;
+                this.buildHeartsUI();
+                if (player === this.myPlayer) this.updateInventoryHUD();
+                SoundFX.playItemAcquired();
+                this.spawnDamageNumber(player.x, player.y - 16, 'ВОСКРЕШЕНИЕ!', '#facc15');
+                this.hitSpark.setPosition(player.x, player.y - 12);
+                this.hitSpark.explode(20);
+              } else {
+                player.playDeath(() => {
+                  if (this.players.every((p) => p.isDowned)) this.triggerGameOver();
+                });
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    this.enemyArrows = this.enemyArrows.filter((p) => !p.isDestroyed);
   }
 
   private breakProp(prop: DestructibleProp): void {

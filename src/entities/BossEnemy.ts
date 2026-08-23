@@ -3,12 +3,14 @@ import { ANIM, DEPTH, TEXTURE } from '../gfx/registry';
 import { SoundFX } from '../audio/SoundFX';
 import { BossProjectile } from './BossProjectile';
 
+import { EnemyKind } from './Enemy';
+
 export type BossAnimState = 'idle' | 'run' | 'dead';
 
 export interface BossActionOutput {
   landedMelee: boolean;
   projectiles: BossProjectile[];
-  minionSpawns: { x: number; y: number; kind: 'imp' | 'skeleton' }[];
+  minionSpawns: { x: number; y: number; kind: EnemyKind }[];
 }
 
 export class BossEnemy extends Phaser.Physics.Arcade.Sprite {

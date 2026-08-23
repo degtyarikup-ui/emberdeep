@@ -3,6 +3,7 @@ import { ANIM, DEPTH, TEXTURE } from '../gfx/registry';
 import { SoundFX } from '../audio/SoundFX';
 import { BossProjectile } from './BossProjectile';
 import { BossActionOutput, BossAnimState } from './BossEnemy';
+import { EnemyKind } from './Enemy';
 
 export type OrcBossState = 'idle' | 'chase' | 'slam_windup' | 'charge_windup' | 'charging' | 'recovery' | 'dead';
 
@@ -223,7 +224,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
           SoundFX.playOrcRoar();
           this.scene.cameras.main.shake(200, 0.004);
           output.minionSpawns.push(
-            { x: this.x - 36, y: this.y - 12, kind: 'wolf' as any },
+            { x: this.x - 36, y: this.y - 12, kind: 'wolf' as EnemyKind },
             { x: this.x + 36, y: this.y - 12, kind: 'skeleton' }
           );
         }

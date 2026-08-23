@@ -17,7 +17,7 @@ export class BossBar {
   private totalWidth = 340;
   private barHeight = 14;
   private isVisible = false;
-  private lastPhase = 1;
+  private lastPhase = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -33,7 +33,7 @@ export class BossBar {
     this.container.add(this.outerFrame);
 
     // 2. Boss Title
-    this.titleText = scene.add.text(0, -12, 'АРХИДЕМОН БЕЗДНЫ', {
+    this.titleText = scene.add.text(0, -12, '', {
       fontFamily: FONT.TITLE,
       fontSize: '13px',
       fontStyle: '700',
@@ -45,7 +45,7 @@ export class BossBar {
     this.container.add(this.titleText);
 
     // 3. Phase Subtitle
-    this.phaseText = scene.add.text(0, -22, 'ФАЗА I: СТРАЖ ПЕЧАТИ', {
+    this.phaseText = scene.add.text(0, -22, '', {
       fontFamily: FONT.UI,
       fontSize: '8px',
       fontStyle: '700',
@@ -117,6 +117,7 @@ export class BossBar {
   public hide(): void {
     if (!this.isVisible) return;
     this.isVisible = false;
+    this.lastPhase = 0;
 
     this.scene.tweens.add({
       targets: this.container,

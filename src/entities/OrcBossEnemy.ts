@@ -1,11 +1,10 @@
 import Phaser from 'phaser';
 import { ANIM, DEPTH, TEXTURE } from '../gfx/registry';
 import { SoundFX } from '../audio/SoundFX';
-import { BossProjectile } from './BossProjectile';
 import { BossActionOutput, BossAnimState } from './BossEnemy';
 import { EnemyKind } from './Enemy';
 
-export type OrcBossState = 'idle' | 'chase' | 'slam_windup' | 'charge_windup' | 'charging' | 'recovery' | 'dead';
+export type OrcBossState = 'idle' | 'chase' | 'slam_windup' | 'charge_windup' | 'charging' | 'storm_windup' | 'recovery' | 'dead';
 
 export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
   readonly bossName = 'Вождь Орков Грог\'Нар';
@@ -21,6 +20,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
   private stateTimer = 0;
   private slamCooldown = 3200;
   private chargeCooldown = 6500;
+  private stormCooldown = 8000;
   private warcryCooldown = 15000;
   private hasEnraged = false;
 
@@ -32,6 +32,12 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
   private shadow!: Phaser.GameObjects.Sprite;
   private axe!: Phaser.GameObjects.Sprite;
   private light?: Phaser.GameObjects.Light;
+
+  private slamTelegraph?: {
+    circle: Phaser.GameObjects.Arc;
+    border: Phaser.GameObjects.Arc;
+    crack: Phaser.GameObjects.Graphics;
+  };
 
   // Net puppet interpolation
   private netTargetX = 0;
@@ -58,11 +64,12 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     body.setVelocity(0, 0);
     this.setDepth(DEPTH.YSORT_BASE + y);
 
-    this.axe = scene.add.sprite(x + 14, y - 12, TEXTURE.WEAPON_BOSS_ORC_AXE);
+    // Axe positioned clearly to the side/behind to leave the detailed body & face 100% visible
+    this.axe = scene.add.sprite(x + 24, y - 6, TEXTURE.WEAPON_BOSS_ORC_AXE);
     this.axe.setOrigin(0.5, 0.85);
-    this.axe.setScale(1.55);
+    this.axe.setScale(1.4);
     this.axe.setPipeline('Light2D');
-    this.axe.setDepth(DEPTH.YSORT_BASE + y + 1);
+    this.axe.setDepth(DEPTH.YSORT_BASE + y - 1);
     this.axe.setAlpha(0);
 
     this.light = scene.lights.addLight(x, y - 20, 260, 0xfbbf24, 1.3);
@@ -108,6 +115,15 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
 
   get isEnraged(): boolean {
     return this.phase === 2;
+  }
+
+  private destroySlamTelegraph(): void {
+    if (this.slamTelegraph) {
+      this.slamTelegraph.circle.destroy();
+      this.slamTelegraph.border.destroy();
+      this.slamTelegraph.crack.destroy();
+      this.slamTelegraph = undefined;
+    }
   }
 
   public takeDamage(amount: number, fromX?: number, fromY?: number): boolean {
@@ -158,6 +174,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     if (this.isDead) return;
     this.animState = 'dead';
     this.orcState = 'dead';
+    this.destroySlamTelegraph();
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (body) {
@@ -200,12 +217,6 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
     if (this.light) this.light.setPosition(this.x, this.y - 20);
 
-    // Update axe base position & depth
-    const axeOffsetX = this.flipX ? -15 : 15;
-    this.axe.setPosition(this.x + axeOffsetX, this.y - 12);
-    this.axe.setFlipX(this.flipX);
-    this.axe.setDepth(DEPTH.YSORT_BASE + this.y + (this.flipX ? -1 : 1));
-
     // Hit flash decay
     if (this.hitFlashTimer > 0) {
       this.hitFlashTimer -= delta;
@@ -223,6 +234,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     // Cooldown ticks
     this.slamCooldown -= delta;
     this.chargeCooldown -= delta;
+    this.stormCooldown -= delta;
     this.warcryCooldown -= delta;
 
     const dx = targetX - this.x;
@@ -235,10 +247,6 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       case 'chase': {
         this.setFlipX(dx < 0);
 
-        // Gentle combat bobbing of axe in hand
-        const bob = Math.sin(this.scene.time.now * 0.007) * 12;
-        this.axe.setAngle((this.flipX ? -18 : 18) + (this.flipX ? -bob : bob));
-
         // Check Warcry Minion Spawn
         if (this.warcryCooldown <= 0) {
           this.warcryCooldown = this.isEnraged ? 14000 : 18000;
@@ -250,20 +258,147 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
           );
         }
 
-        // Check Ground Slam trigger
-        if (this.slamCooldown <= 0 && dist <= 75) {
+        // 1. Check Ground Slam trigger (Close range AoE)
+        if (this.slamCooldown <= 0 && dist <= 80) {
           this.orcState = 'slam_windup';
-          this.stateTimer = 600;
+          this.stateTimer = 650;
           this.slamCooldown = this.isEnraged ? 3200 : 4500;
           body.setVelocity(0, 0);
           this.setTint(0xf97316);
           this.setScale(1.9, 1.6);
-          this.axe.setAngle(this.flipX ? 85 : -85);
           this.axe.setTint(0xf97316);
+
+          // Spawn prominent Danger Zone Telegraph
+          this.destroySlamTelegraph();
+          const circle = this.scene.add.circle(this.x, this.y, 80, 0xef4444, 0.28).setDepth(DEPTH.SHADOW + 1);
+          const border = this.scene.add.circle(this.x, this.y, 80).setStrokeStyle(3, 0xdc2626, 0.95).setDepth(DEPTH.SHADOW + 2);
+          const crack = this.scene.add.graphics().setDepth(DEPTH.SHADOW + 3);
+          crack.lineStyle(2, 0xf97316, 0.85);
+          for (let c = 0; c < 6; c++) {
+            const cang = (c / 6) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+            crack.beginPath();
+            crack.moveTo(this.x, this.y);
+            crack.lineTo(this.x + Math.cos(cang) * 45, this.y + Math.sin(cang) * 45);
+            crack.lineTo(this.x + Math.cos(cang + 0.2) * 75, this.y + Math.sin(cang + 0.2) * 75);
+            crack.strokePath();
+          }
+          this.slamTelegraph = { circle, border, crack };
+          this.scene.tweens.add({
+            targets: [circle, border],
+            scaleX: 1.05,
+            scaleY: 1.05,
+            duration: 300,
+            yoyo: true,
+            repeat: 1,
+          });
           break;
         }
 
-        // Check Berserk Charge trigger
+        // 2. Check Shaman Lightning Storm trigger (Lightning strikes around boss)
+        if (this.stormCooldown <= 0 && dist <= 260) {
+          this.orcState = 'storm_windup';
+          this.stateTimer = 750;
+          this.stormCooldown = this.isEnraged ? 7000 : 10500;
+          body.setVelocity(0, 0);
+          this.setTint(0x38bdf8);
+          this.setScale(1.85, 1.6);
+          this.axe.setTint(0x60a5fa);
+          SoundFX.playOrcRoar();
+
+          // Spawn 4-6 Lightning Strike Zones around the boss
+          const numStrikes = this.isEnraged ? 6 : 4;
+          for (let i = 0; i < numStrikes; i++) {
+            const ang = (i / numStrikes) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+            const rDist = 45 + Math.random() * 140;
+            const lx = this.x + Math.cos(ang) * rDist;
+            const ly = this.y + Math.sin(ang) * rDist;
+            const strikeDelay = 800 + Math.random() * 300;
+
+            // 1. Telegraph Ring on Ground
+            const zoneGlow = this.scene.add.circle(lx, ly, 26, 0x38bdf8, 0.3).setDepth(DEPTH.SHADOW + 1);
+            const zoneRing = this.scene.add.circle(lx, ly, 26).setStrokeStyle(2, 0x0284c7, 0.9).setDepth(DEPTH.SHADOW + 2);
+            this.scene.tweens.add({
+              targets: [zoneGlow, zoneRing],
+              scaleX: 1.15,
+              scaleY: 1.15,
+              duration: 250,
+              yoyo: true,
+              repeat: 2,
+            });
+
+            // Spark particles swirling in telegraph
+            for (let s = 0; s < 3; s++) {
+              const spk = this.scene.add.rectangle(lx + (Math.random() - 0.5) * 20, ly + (Math.random() - 0.5) * 20, 3, 3, 0x67e8f9, 1).setDepth(DEPTH.SHADOW + 3);
+              this.scene.tweens.add({
+                targets: spk,
+                alpha: 0,
+                y: spk.y - 12,
+                duration: strikeDelay,
+                onComplete: () => spk.destroy(),
+              });
+            }
+
+            // 2. Delayed Lightning Strike Execution
+            this.scene.time.delayedCall(strikeDelay, () => {
+              zoneGlow.destroy();
+              zoneRing.destroy();
+              if (!this.scene || this.isDead) return;
+
+              // Vertical Lightning Bolt
+              const boltTop = ly - 260;
+              const bolt = this.scene.add.rectangle(lx, (ly + boltTop) / 2, 6, 260, 0xf8fafc).setDepth(DEPTH.UI - 10);
+              const boltGlow = this.scene.add.rectangle(lx, (ly + boltTop) / 2, 14, 260, 0x38bdf8, 0.7).setDepth(DEPTH.UI - 11);
+
+              SoundFX.playLightningZap();
+              this.scene.cameras.main.shake(140, 0.0035);
+
+              this.scene.tweens.add({
+                targets: [bolt, boltGlow],
+                alpha: 0,
+                scaleX: 0.1,
+                duration: 180,
+                onComplete: () => {
+                  bolt.destroy();
+                  boltGlow.destroy();
+                },
+              });
+
+              // Ground Impact Spark Burst
+              for (let p = 0; p < 8; p++) {
+                const pang = (p / 8) * Math.PI * 2;
+                const pdist = 18 + Math.random() * 16;
+                const pspk = this.scene.add.rectangle(lx, ly, 3, 3, 0x67e8f9, 1).setDepth(DEPTH.YSORT_BASE + ly + 10);
+                this.scene.tweens.add({
+                  targets: pspk,
+                  x: lx + Math.cos(pang) * pdist,
+                  y: ly + Math.sin(pang) * pdist,
+                  alpha: 0,
+                  duration: 220,
+                  onComplete: () => pspk.destroy(),
+                });
+              }
+
+              // Check damage on nearest alive player
+              const gs = this.scene as any;
+              if (gs && gs.players) {
+                for (const player of gs.players) {
+                  if (player.isDowned || player.godMode) continue;
+                  if (Phaser.Math.Distance.Between(player.x, player.y, lx, ly) < 28) {
+                    player.takeDamage(1, lx, ly);
+                    SoundFX.playPlayerHurt();
+                    if (gs.spawnDamageNumber) {
+                      gs.spawnDamageNumber(player.x, player.y, '-1', '#38bdf8');
+                    }
+                    if (gs.buildHeartsUI) gs.buildHeartsUI();
+                  }
+                }
+              }
+            });
+          }
+          break;
+        }
+
+        // 3. Check Berserk Charge trigger
         if (this.chargeCooldown <= 0 && dist >= 85 && dist <= 280) {
           this.orcState = 'charge_windup';
           this.stateTimer = 500;
@@ -272,7 +407,6 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
           body.setVelocity(0, 0);
           this.setTint(0xef4444);
           this.setScale(1.9, 1.5);
-          this.axe.setAngle(this.flipX ? -45 : 45);
           this.axe.setTint(0xef4444);
           SoundFX.playOrcRoar();
           break;
@@ -294,35 +428,43 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
         this.stateTimer -= delta;
         body.setVelocity(0, 0);
         this.setFlipX(dx < 0);
-        this.axe.setAngle(this.flipX ? 85 : -85);
 
         if (this.stateTimer <= 0) {
+          this.destroySlamTelegraph();
           this.clearTint();
           if (this.isEnraged) this.axe.setTint(0xff7777); else this.axe.clearTint();
-          this.axe.setAngle(this.flipX ? -65 : 65);
           this.setScale(1.75);
           SoundFX.playGroundSlam();
-          this.scene.cameras.main.shake(300, 0.007);
+          this.scene.cameras.main.shake(350, 0.009);
 
-          // Impact shockwave circle
-          const shock = this.scene.add.circle(this.x, this.y, 35, 0xd97706, 0.6);
-          this.scene.tweens.add({ targets: shock, scale: 2.2, alpha: 0, duration: 350, onComplete: () => shock.destroy() });
+          // Triple Expanding Shockwave Rings
+          const shock1 = this.scene.add.circle(this.x, this.y, 30, 0xd97706, 0.7).setDepth(DEPTH.SHADOW + 2);
+          this.scene.tweens.add({ targets: shock1, scale: 2.8, alpha: 0, duration: 380, onComplete: () => shock1.destroy() });
+          const shock2 = this.scene.add.circle(this.x, this.y, 20, 0xef4444, 0.85).setDepth(DEPTH.SHADOW + 3);
+          this.scene.tweens.add({ targets: shock2, scale: 3.6, alpha: 0, duration: 420, onComplete: () => shock2.destroy() });
+          const shock3 = this.scene.add.circle(this.x, this.y, 10).setStrokeStyle(3, 0xfacc15, 1).setDepth(DEPTH.SHADOW + 4);
+          this.scene.tweens.add({ targets: shock3, scale: 7.5, alpha: 0, duration: 320, onComplete: () => shock3.destroy() });
 
-          // Melee area damage (2 damage in 55px radius)
-          if (dist <= 55) {
-            output.landedMelee = true;
+          // Flying Rock Debris Particles
+          for (let i = 0; i < 10; i++) {
+            const col = [0x78350f, 0x451a03, 0x94a3b8, 0xd97706][i % 4];
+            const rk = this.scene.add.rectangle(this.x, this.y - 6, 4 + (i % 3), 4 + (i % 3), col, 1).setDepth(DEPTH.YSORT_BASE + this.y + 5);
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 60 + Math.random() * 90;
+            this.scene.tweens.add({
+              targets: rk,
+              x: this.x + Math.cos(ang) * spd,
+              y: this.y + Math.sin(ang) * spd * 0.7 + 10,
+              alpha: 0,
+              rotation: (Math.random() - 0.5) * 6,
+              duration: 350,
+              onComplete: () => rk.destroy(),
+            });
           }
 
-          // Launch rock projectiles (4 in Phase 1, 8 in Phase 2)
-          const count = this.isEnraged ? 8 : 4;
-          const step = (Math.PI * 2) / count;
-          for (let i = 0; i < count; i++) {
-            const angle = i * step;
-            const targetPosX = this.x + Math.cos(angle) * 160;
-            const targetPosY = this.y + Math.sin(angle) * 160;
-            const proj = new BossProjectile(this.scene, this.x, this.y - 10, targetPosX, targetPosY, 120, 1);
-            proj.setTint(this.isEnraged ? 0xef4444 : 0xf59e0b);
-            output.projectiles.push(proj);
+          // Melee Area Slam Damage (2 damage in 80px radius) - NO magic projectiles!
+          if (dist <= 80) {
+            output.landedMelee = true;
           }
 
           this.orcState = 'recovery';
@@ -331,11 +473,25 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
         break;
       }
 
+      case 'storm_windup': {
+        this.stateTimer -= delta;
+        body.setVelocity(0, 0);
+        this.setFlipX(dx < 0);
+
+        if (this.stateTimer <= 0) {
+          this.clearTint();
+          if (this.isEnraged) this.axe.setTint(0xff7777); else this.axe.clearTint();
+          this.setScale(1.75);
+          this.orcState = 'recovery';
+          this.stateTimer = 350;
+        }
+        break;
+      }
+
       case 'charge_windup': {
         this.stateTimer -= delta;
         body.setVelocity(0, 0);
         this.setFlipX(dx < 0);
-        this.axe.setAngle(this.flipX ? -45 : 45);
 
         if (this.stateTimer <= 0) {
           this.clearTint();
@@ -353,7 +509,6 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
         this.stateTimer -= delta;
         body.setVelocity(Math.cos(this.chargeAngle) * this.chargeSpeed, Math.sin(this.chargeAngle) * this.chargeSpeed);
         this.setFlipX(Math.cos(this.chargeAngle) < 0);
-        this.axe.setAngle(this.flipX ? -40 : 40);
 
         // Check if collision with target
         if (dist <= 36) {
@@ -376,7 +531,6 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       case 'recovery': {
         this.stateTimer -= delta;
         body.setVelocity(0, 0);
-        this.axe.setAngle(this.flipX ? -15 : 15);
 
         if (this.anims.currentAnim?.key !== ANIM.BOSS_ORC_IDLE) {
           this.play(ANIM.BOSS_ORC_IDLE);
@@ -390,6 +544,38 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
+    // Update Axe Positioning & Layering (Behind / side in regular state so model is 100% visible)
+    let axeOffsetX = this.flipX ? -24 : 24;
+    let axeOffsetY = -6;
+    let axeDepth = DEPTH.YSORT_BASE + this.y - 1; // Behind / beside boss body
+    let axeAngle = this.flipX ? -15 : 15;
+
+    if (this.orcState === 'slam_windup') {
+      axeOffsetX = this.flipX ? -8 : 8;
+      axeOffsetY = -28; // Raised high above head
+      axeDepth = DEPTH.YSORT_BASE + this.y + 2;
+      axeAngle = this.flipX ? 75 : -75;
+    } else if (this.orcState === 'storm_windup') {
+      axeOffsetX = this.flipX ? -4 : 4;
+      axeOffsetY = -30; // Pointed straight to heaven
+      axeDepth = DEPTH.YSORT_BASE + this.y + 2;
+      axeAngle = 0;
+    } else if (this.orcState === 'charge_windup' || this.orcState === 'charging') {
+      axeOffsetX = this.flipX ? -26 : 26;
+      axeOffsetY = -8;
+      axeDepth = DEPTH.YSORT_BASE + this.y - 1;
+      axeAngle = this.flipX ? -45 : 45;
+    } else {
+      // Idle / chase / recovery gentle bob
+      const bob = Math.sin(this.scene.time.now * 0.007) * 10;
+      axeAngle = (this.flipX ? -15 : 15) + (this.flipX ? -bob : bob);
+    }
+
+    this.axe.setPosition(this.x + axeOffsetX, this.y + axeOffsetY);
+    this.axe.setFlipX(this.flipX);
+    this.axe.setDepth(axeDepth);
+    this.axe.setAngle(axeAngle);
+
     return output;
   }
 
@@ -401,9 +587,9 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     this.hp = hp;
     this.phase = phase;
 
-    const axeOffsetX = flipX ? -15 : 15;
+    const axeOffsetX = flipX ? -24 : 24;
     if (this.axe) {
-      this.axe.setPosition(this.x + axeOffsetX, this.y - 12);
+      this.axe.setPosition(this.x + axeOffsetX, this.y - 6);
       this.axe.setFlipX(flipX);
     }
 
@@ -434,9 +620,10 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
     if (this.light) this.light.setPosition(this.x, this.y - 20);
     if (this.axe) {
-      const axeOffsetX = this.flipX ? -15 : 15;
-      this.axe.setPosition(this.x + axeOffsetX, this.y - 12);
+      const axeOffsetX = this.flipX ? -24 : 24;
+      this.axe.setPosition(this.x + axeOffsetX, this.y - 6);
       this.axe.setFlipX(this.flipX);
+      this.axe.setDepth(DEPTH.YSORT_BASE + this.y - 1);
     }
   }
 }

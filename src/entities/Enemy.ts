@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH, FONT, TEXTURE } from '../gfx/registry';
 import { ACTORS, ActorClips } from '../gfx/actors';
+import { SoundFX } from '../audio/SoundFX';
 import {
   StatusState,
   ElementType,
@@ -565,6 +566,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             this.setTint(0xf97316);
             this.setScale(this.stats.scale * 1.2, this.stats.scale * 0.9);
             body.setVelocity(0, 0);
+            SoundFX.playEnemyFireballCharge();
             break;
           }
           // Skeleton Bone Cleave at close range
@@ -575,6 +577,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             this.setTint(0x67e8f9);
             this.setScale(this.stats.scale * 1.15, this.stats.scale * 1.15);
             body.setVelocity(0, 0);
+            SoundFX.playCleaveWindup();
             break;
           }
           // Wolf Pack Rally Howl
@@ -585,6 +588,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             this.setTint(0xfacc15);
             this.setScale(this.stats.scale * 0.95, this.stats.scale * 1.25);
             body.setVelocity(0, 0);
+            SoundFX.playWolfSnarl();
             break;
           }
         }
@@ -673,7 +677,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             output.projectile = { x: this.x, y: this.y - 8, targetX: playerX, targetY: playerY, damage: 1 };
             this.aiState = 'recovery';
             this.stateTimer = 350;
+            SoundFX.playEnemyFireball();
           } else if (this.kind === 'skeleton') {
+            SoundFX.playBoneCleave();
             if (distToPlayer <= 52) {
               output.landedHit = true;
               output.damage = 2; // Bone Cleave deals 2 damage!
@@ -681,6 +687,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             this.aiState = 'recovery';
             this.stateTimer = 450;
           } else if (this.kind === 'wolf') {
+            SoundFX.playWolfHowl();
+            SoundFX.playWolfFrenzyRally();
             this.howlBuffTimer = 3500;
             for (const other of otherEnemies) {
               if (other.kind === 'wolf' && !other.isDead) {

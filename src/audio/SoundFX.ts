@@ -1329,8 +1329,147 @@ class SoundFXManager {
     osc.stop(t + 0.12);
   }
 
-  /** Imp fireball spit sound */
+  /** Imp fireball telegraph charging sizzle */
+  playEnemyFireballCharge(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    // Rising sizzle oscillator
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(540, t + 0.35);
+
+    gain.gain.setValueAtTime(0.01, t);
+    gain.gain.linearRampToValueAtTime(0.22, t + 0.28);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.35);
+
+    // Crackling white noise sizzle burst
+    const bufSize = Math.floor(ctx.sampleRate * 0.35);
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      d[i] = (Math.random() * 2 - 1) * (Math.random() < 0.2 ? 0.9 : 0.2);
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(600, t);
+    filter.frequency.exponentialRampToValueAtTime(1800, t + 0.35);
+    filter.Q.setValueAtTime(3.0, t);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.05, t);
+    noiseGain.gain.linearRampToValueAtTime(0.25, t + 0.3);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.sfxGain);
+    noise.start(t);
+    noise.stop(t + 0.35);
+  }
+
+  /** Imp fireball spit combustion launch */
   playEnemyFireball(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    // Tonal flaming pitch drop
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(110, t + 0.22);
+
+    gain.gain.setValueAtTime(0.38, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.22);
+
+    // Explosive flame puff noise
+    const bufSize = Math.floor(ctx.sampleRate * 0.2);
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(800, t);
+    filter.frequency.exponentialRampToValueAtTime(200, t + 0.2);
+
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.35, t);
+    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+    noise.connect(filter);
+    filter.connect(nGain);
+    nGain.connect(this.sfxGain);
+    noise.start(t);
+    noise.stop(t + 0.2);
+  }
+
+  /** Fireball projectile detonation / impact */
+  playFireballImpact(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    // Sub-bass thud
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(130, t);
+    osc.frequency.exponentialRampToValueAtTime(35, t + 0.22);
+
+    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.22);
+
+    // Crackling fiery blast
+    const bufSize = Math.floor(ctx.sampleRate * 0.25);
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1100, t);
+    filter.frequency.exponentialRampToValueAtTime(300, t + 0.25);
+
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.40, t);
+    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+
+    noise.connect(filter);
+    filter.connect(nGain);
+    nGain.connect(this.sfxGain);
+    noise.start(t);
+    noise.stop(t + 0.25);
+  }
+
+  /** Skeleton bone cleave telegraph (sinister blade scrape) */
+  playCleaveWindup(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
 
@@ -1338,59 +1477,182 @@ class SoundFXManager {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(480, t);
-    osc.frequency.exponentialRampToValueAtTime(140, t + 0.16);
+    osc.frequency.setValueAtTime(190, t);
+    osc.frequency.linearRampToValueAtTime(340, t + 0.3);
 
-    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.32);
+  }
+
+  /** Skeleton heavy bone cleave swing (deep razor-sharp whoosh) */
+  playBoneCleave(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    // Heavy tonal sweep
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(340, t);
+    osc.frequency.exponentialRampToValueAtTime(55, t + 0.24);
+
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.24);
+
+    // Cleaving air turbulence noise
+    const bufSize = Math.floor(ctx.sampleRate * 0.22);
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(950, t);
+    filter.frequency.exponentialRampToValueAtTime(180, t + 0.22);
+
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.35, t);
+    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    noise.connect(filter);
+    filter.connect(nGain);
+    nGain.connect(this.sfxGain);
+    noise.start(t);
+    noise.stop(t + 0.22);
+  }
+
+  /** Heavy bone cleave impact strike */
+  playCleaveImpact(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+
+    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.15);
+  }
+
+  /** Wolf menacing snarl windup */
+  playWolfSnarl(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const gain = ctx.createGain();
+
+    lfo.frequency.setValueAtTime(24, t); // rapid growl modulation
+    lfoGain.gain.setValueAtTime(40, t);
+    lfo.connect(osc.frequency);
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(130, t);
+    osc.frequency.linearRampToValueAtTime(180, t + 0.25);
+
+    gain.gain.setValueAtTime(0.28, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+
+    lfo.start(t);
+    osc.start(t);
+    lfo.stop(t + 0.28);
+    osc.stop(t + 0.28);
+  }
+
+  /** Wolf multi-harmonic pack rally howl */
+  playWolfHowl(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    // Lead howling voice
+    const lead = ctx.createOscillator();
+    const leadGain = ctx.createGain();
+    lead.type = 'sawtooth';
+    lead.frequency.setValueAtTime(240, t);
+    lead.frequency.linearRampToValueAtTime(540, t + 0.26);
+    lead.frequency.exponentialRampToValueAtTime(260, t + 0.75);
+
+    leadGain.gain.setValueAtTime(0.01, t);
+    leadGain.gain.linearRampToValueAtTime(0.35, t + 0.15);
+    leadGain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+
+    // Chorus harmony voice for eerie pack depth
+    const chorus = ctx.createOscillator();
+    const chorusGain = ctx.createGain();
+    chorus.type = 'triangle';
+    chorus.frequency.setValueAtTime(236, t);
+    chorus.frequency.linearRampToValueAtTime(532, t + 0.26);
+    chorus.frequency.exponentialRampToValueAtTime(255, t + 0.75);
+
+    chorusGain.gain.setValueAtTime(0.01, t);
+    chorusGain.gain.linearRampToValueAtTime(0.28, t + 0.18);
+    chorusGain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+
+    // Resonant vocal formant filter
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(620, t);
+    filter.Q.setValueAtTime(2.2, t);
+
+    lead.connect(leadGain);
+    chorus.connect(chorusGain);
+    leadGain.connect(filter);
+    chorusGain.connect(filter);
+    filter.connect(this.sfxGain);
+
+    lead.start(t);
+    chorus.start(t);
+    lead.stop(t + 0.75);
+    chorus.stop(t + 0.75);
+  }
+
+  /** Wolf pack rally frenzy surge */
+  playWolfFrenzyRally(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(680, t + 0.16);
+
+    gain.gain.setValueAtTime(0.26, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
 
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.16);
-  }
-
-  /** Skeleton heavy bone cleave swing */
-  playBoneCleave(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(260, t);
-    osc.frequency.exponentialRampToValueAtTime(60, t + 0.18);
-
-    gain.gain.setValueAtTime(0.45, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.18);
-  }
-
-  /** Wolf pack rally howl */
-  playWolfHowl(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(280, t);
-    osc.frequency.linearRampToValueAtTime(540, t + 0.22);
-    osc.frequency.exponentialRampToValueAtTime(180, t + 0.55);
-
-    gain.gain.setValueAtTime(0.32, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.55);
   }
 
   /** Knight active shield block clank */

@@ -2440,6 +2440,7 @@ export class GameScene extends Phaser.Scene {
         const dist = Phaser.Math.Distance.Between(proj.x, proj.y, player.x, player.y - 8);
         if (dist < 16) {
           proj.destroyProjectile();
+          SoundFX.playFireballImpact();
           const applied = player.takeDamage(proj.damage, proj.x, proj.y);
           if (applied) {
             SoundFX.playPlayerHurt();
@@ -2613,6 +2614,9 @@ export class GameScene extends Phaser.Scene {
     const applied = player.takeDamage(damage, enemy.x, enemy.y);
     if (!applied) return;
 
+    if (damage >= 2) {
+      SoundFX.playCleaveImpact();
+    }
     SoundFX.playPlayerHurt();
 
     if (player === this.myPlayer) {

@@ -633,54 +633,62 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 104, row: 36, key: PROP.FLASK_BLUE }, // Zone 6: Bandit Outpost Mana Flask
   ];
 
-  // 15. Tactical Enemies (42 enemies scaled across 10 POIs)
+  // 15. Tactical Enemies (65+ enemies in dense tactical squads and wolf packs across 10 POIs)
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
-    // Zone 1 -> Zone 2 Trail: Wolf Pack (2)
+    // Zone 1 -> Zone 2 Trail: Roaming Wolf Pack (4)
     { col: 20, row: 18, kind: 'wolf' }, { col: 24, row: 22, kind: 'wolf' },
+    { col: 22, row: 20, kind: 'wolf' }, { col: 28, row: 20, kind: 'wolf' },
 
-    // Zone 2: Sawmill (4 imps + 2 wolves)
+    // Zone 2: Sawmill (4 imps + 3 wolves + 2 skeletons)
     { col: 38, row: 18, kind: 'imp' }, { col: 46, row: 18, kind: 'imp' },
     { col: 36, row: 24, kind: 'imp' }, { col: 44, row: 22, kind: 'imp' },
-    { col: 40, row: 26, kind: 'wolf' }, { col: 42, row: 26, kind: 'wolf' },
+    { col: 40, row: 26, kind: 'wolf' }, { col: 42, row: 26, kind: 'wolf' }, { col: 44, row: 28, kind: 'wolf' },
+    { col: 48, row: 24, kind: 'skeleton' }, { col: 50, row: 20, kind: 'skeleton' },
 
-    // Zone 3: River Docks & North Bridge (2 skeletons + 2 wolves)
-    { col: 46, row: 24, kind: 'skeleton' }, { col: 50, row: 32, kind: 'skeleton' },
-    { col: 48, row: 20, kind: 'wolf' }, { col: 62, row: 19, kind: 'wolf' },
+    // Zone 3: River Docks & North Bridge (3 skeletons + 3 wolves)
+    { col: 46, row: 24, kind: 'skeleton' }, { col: 50, row: 32, kind: 'skeleton' }, { col: 52, row: 28, kind: 'skeleton' },
+    { col: 48, row: 20, kind: 'wolf' }, { col: 54, row: 18, kind: 'wolf' }, { col: 62, row: 19, kind: 'wolf' },
 
-    // Zone 4: Secret Island (2 elite champions)
-    { col: 69, row: 49, kind: 'skeleton' }, { col: 73, row: 49, kind: 'imp' },
+    // Zone 4: Secret Island (3 champions: 2 skeletons + 1 imp)
+    { col: 69, row: 49, kind: 'skeleton' }, { col: 73, row: 49, kind: 'imp' }, { col: 71, row: 51, kind: 'skeleton' },
 
-    // Zone 5: Witch Glade (3 imps)
+    // Zone 5: Witch Glade (4 imps + 2 wolves)
     { col: 18, row: 38, kind: 'imp' }, { col: 24, row: 38, kind: 'imp' },
-    { col: 22, row: 44, kind: 'imp' },
+    { col: 22, row: 44, kind: 'imp' }, { col: 20, row: 46, kind: 'imp' },
+    { col: 16, row: 42, kind: 'wolf' }, { col: 26, row: 44, kind: 'wolf' },
 
-    // Zone 6: Bandit Outpost (10 enemies)
+    // Zone 6: Bandit Outpost (14 fortress defenders: 7 imps + 7 skeletons)
     { col: 100, row: 22, kind: 'imp' }, { col: 112, row: 22, kind: 'skeleton' },
     { col: 106, row: 26, kind: 'imp' }, { col: 114, row: 26, kind: 'skeleton' },
     { col: 102, row: 30, kind: 'skeleton' }, { col: 110, row: 30, kind: 'imp' },
     { col: 118, row: 30, kind: 'imp' }, { col: 104, row: 36, kind: 'skeleton' },
     { col: 112, row: 36, kind: 'skeleton' }, { col: 118, row: 36, kind: 'imp' },
+    { col: 98, row: 26, kind: 'imp' }, { col: 108, row: 20, kind: 'imp' },
+    { col: 120, row: 24, kind: 'skeleton' }, { col: 116, row: 32, kind: 'skeleton' },
 
-    // Zone 7: Necropolis (6 skeletons + 2 wolves)
+    // Zone 7: Necropolis (8 crypt skeletons + 3 wolves)
     { col: 24, row: 60, kind: 'skeleton' }, { col: 36, row: 60, kind: 'skeleton' },
     { col: 26, row: 66, kind: 'skeleton' }, { col: 38, row: 66, kind: 'skeleton' },
     { col: 28, row: 74, kind: 'skeleton' }, { col: 36, row: 74, kind: 'skeleton' },
-    { col: 20, row: 66, kind: 'wolf' }, { col: 44, row: 68, kind: 'wolf' },
+    { col: 32, row: 62, kind: 'skeleton' }, { col: 32, row: 72, kind: 'skeleton' },
+    { col: 20, row: 66, kind: 'wolf' }, { col: 44, row: 68, kind: 'wolf' }, { col: 22, row: 72, kind: 'wolf' },
 
-    // Zone 8: Smuggler Grotto (3 imps)
+    // Zone 8: Smuggler Grotto (4 imps)
     { col: 94, row: 78, kind: 'imp' }, { col: 96, row: 76, kind: 'imp' },
-    { col: 100, row: 78, kind: 'imp' },
+    { col: 100, row: 78, kind: 'imp' }, { col: 98, row: 78, kind: 'imp' },
 
-    // Zone 9: Sunken Ruin (4 skeletons)
+    // Zone 9: Sunken Ruin (5 skeletons + 2 wolves)
     { col: 54, row: 68, kind: 'skeleton' }, { col: 62, row: 68, kind: 'skeleton' },
     { col: 54, row: 76, kind: 'skeleton' }, { col: 62, row: 76, kind: 'skeleton' },
+    { col: 58, row: 74, kind: 'skeleton' }, { col: 50, row: 74, kind: 'wolf' }, { col: 64, row: 74, kind: 'wolf' },
 
-    // Zone 10: Altar Grove (8 elite demon guards + 2 dire wolves)
-    { col: 100, row: 64, kind: 'wolf' }, { col: 98, row: 76, kind: 'wolf' },
+    // Zone 10: Altar Grove (6 skeletons + 4 imps + 3 dire wolves)
+    { col: 100, row: 64, kind: 'wolf' }, { col: 98, row: 76, kind: 'wolf' }, { col: 102, row: 70, kind: 'wolf' },
     { col: 104, row: 66, kind: 'imp' }, { col: 120, row: 66, kind: 'imp' },
+    { col: 108, row: 76, kind: 'imp' }, { col: 114, row: 62, kind: 'imp' },
     { col: 106, row: 72, kind: 'skeleton' }, { col: 118, row: 72, kind: 'skeleton' },
-    { col: 108, row: 76, kind: 'imp' }, { col: 116, row: 76, kind: 'skeleton' },
-    { col: 110, row: 62, kind: 'skeleton' }, { col: 114, row: 62, kind: 'imp' },
+    { col: 116, row: 76, kind: 'skeleton' }, { col: 110, row: 62, kind: 'skeleton' },
+    { col: 108, row: 68, kind: 'skeleton' }, { col: 116, row: 68, kind: 'skeleton' },
   ];
 
   return {

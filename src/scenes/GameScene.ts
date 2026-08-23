@@ -1388,8 +1388,31 @@ export class GameScene extends Phaser.Scene {
     for (const enemy of this.enemies) {
       const target = this.nearestAlivePlayer(enemy.x, enemy.y);
       if (!target) continue;
-      const landedHit = enemy.updateAI(target.x, target.y, delta, this.enemies, target.isAttacking);
-      if (landedHit) this.handlePlayerHurt(target, enemy);
+      const action = enemy.updateAI(target.x, target.y, delta, this.enemies, target.isAttacking);
+      if (action.landedHit) {
+        this.handlePlayerHurt(target, enemy, action.damage);
+      }
+      if (action.projectile) {
+        const p = action.projectile;
+        const proj = new BossProjectile(this, p.x, p.y, p.targetX, p.targetY, 130, p.damage);
+        proj.setTint(0xf97316);
+        proj.setScale(0.95);
+        this.worldLayer.add(proj);
+        this.bossProjectiles.push(proj);
+      }
+      if (action.howl) {
+        const ring = this.add.circle(enemy.x, enemy.y - 10, 12, 0xfacc15, 0.45);
+        ring.setPipeline('Light2D');
+        ring.setDepth(DEPTH.FLOOR + 2);
+        this.worldLayer.add(ring);
+        this.tweens.add({
+          targets: ring,
+          radius: 140,
+          alpha: 0,
+          duration: 500,
+          onComplete: () => ring.destroy(),
+        });
+      }
     }
 
     if (this.boss && !this.boss.isDead) {
@@ -1397,7 +1420,7 @@ export class GameScene extends Phaser.Scene {
       if (target) {
         const action = this.boss.updateBoss(target.x, target.y, delta);
         if (action.landedMelee) {
-          this.handlePlayerHurt(target, { contactDamage: this.boss.contactDamage, x: this.boss.x, y: this.boss.y } as Enemy);
+          this.handlePlayerHurt(target, { contactDamage: this.boss.contactDamage, x: this.boss.x, y: this.boss.y } as Enemy, this.boss.contactDamage);
         }
         for (const p of action.projectiles) {
           this.worldLayer.add(p);
@@ -2356,7 +2379,7 @@ export class GameScene extends Phaser.Scene {
     this.hitSpark.explode(25);
 
     // Spawn Boss: Архидемон Бездны
-    const bossHp = 45 + (this.players.length - 1) * 25 + Math.floor((this.elapsedRunTime / 60000) * 8);
+    const bossHp = 75 + (this.players.length - 1) * 35 + Math.floor((this.elapsedRunTime / 60000) * 12);
     this.boss = new BossEnemy(this, spawnX, spawnY, bossHp);
     this.worldLayer.add(this.boss);
 
@@ -2585,15 +2608,15 @@ export class GameScene extends Phaser.Scene {
     this.coins = this.coins.filter((c) => !c.collected);
   }
 
-  private handlePlayerHurt(player: Player, enemy: Enemy): void {
+  private handlePlayerHurt(player: Player, enemy: { x: number; y: number; contactDamage?: number }, damage = enemy.contactDamage ?? 1): void {
     if (player.godMode || (player === this.myPlayer && this.godMode)) return;
-    const applied = player.takeDamage(enemy.contactDamage, enemy.x, enemy.y);
+    const applied = player.takeDamage(damage, enemy.x, enemy.y);
     if (!applied) return;
 
     SoundFX.playPlayerHurt();
 
     if (player === this.myPlayer) {
-      this.spawnDamageNumber(player.x, player.y, `-${enemy.contactDamage}`, '#ff7a7a');
+      this.spawnDamageNumber(player.x, player.y, `-${damage}`, '#ff7a7a');
       this.damageFlash.setAlpha(0.55);
       this.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 260 });
       this.worldCam.shake(80, 0.0025);

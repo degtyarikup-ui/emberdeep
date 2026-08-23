@@ -124,7 +124,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (initialHealth?.maxHp !== undefined) {
       this.maxHp = initialHealth.maxHp;
     } else {
-      this.maxHp = (isKnight ? 3 : 2) + bonuses.extraHp;
+      this.maxHp = (isKnight ? 6 : 4) + bonuses.extraHp;
     }
 
     if (initialHealth?.hp !== undefined) {
@@ -370,7 +370,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return false;
     }
 
-    this.hp = Math.max(0, this.hp - amount);
+    // Knight Active Shield / Sword Guard Block
+    let finalAmount = amount;
+    if (this.heroClass === 'knight' && this.isAttacking) {
+      SoundFX.playShieldBlock();
+      if (Math.random() < 0.5) {
+        this.invuln = 450;
+        this.setTint(0x38bdf8);
+        this.scene.time.delayedCall(120, () => this.clearTint());
+        return false; // Complete parry block!
+      }
+      finalAmount = Math.max(1, finalAmount - 1);
+    }
+
+    this.hp = Math.max(0, this.hp - finalAmount);
     this.invuln = INVULN_DURATION;
     this.knockbackLock = KNOCKBACK_LOCK;
 

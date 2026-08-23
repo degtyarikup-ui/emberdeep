@@ -10,7 +10,14 @@ import {
 
 export type EnemyKind = 'imp' | 'skeleton' | 'wolf';
 
-export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recovery' | 'backstep' | 'dead';
+export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'special_windup' | 'recovery' | 'backstep' | 'dead';
+
+export interface EnemyActionOutput {
+  landedHit: boolean;
+  damage: number;
+  projectile?: { x: number; y: number; targetX: number; targetY: number; damage: number };
+  howl?: boolean;
+}
 
 export const COMBAT_AGGRO_DURATION = 6000;
 export const SOCIAL_AGGRO_DURATION = 5000;
@@ -45,17 +52,17 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     originY: { idle: 0.82, run: 0.74, death: 0.74 },
     bodySize: { idle: [16, 14], run: [18, 14] },
     bodyOffset: { idle: [8, 18], run: [23, 50] },
-    maxHp: 3,
-    patrolSpeed: 38,
-    chaseSpeed: 82,
-    detectRadius: 145,
-    loseRadius: 220,
+    maxHp: 5,
+    patrolSpeed: 40,
+    chaseSpeed: 86,
+    detectRadius: 160,
+    loseRadius: 230,
     attackRange: 42,
     contactDamage: 1,
     scale: 0.9,
     windupDuration: 240,
     lungeDuration: 180,
-    recoveryDuration: 320,
+    recoveryDuration: 300,
     lungeSpeed: 210,
     canBackstep: false,
     canCircleStrafe: false,
@@ -65,18 +72,18 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     originY: { idle: 0.82, run: 0.74, death: 0.78 },
     bodySize: { idle: [16, 18], run: [18, 18] },
     bodyOffset: { idle: [8, 14], run: [23, 46] },
-    maxHp: 5,
-    patrolSpeed: 28,
-    chaseSpeed: 58,
-    detectRadius: 130,
-    loseRadius: 195,
-    attackRange: 34,
+    maxHp: 8,
+    patrolSpeed: 30,
+    chaseSpeed: 62,
+    detectRadius: 140,
+    loseRadius: 210,
+    attackRange: 38,
     contactDamage: 1,
     scale: 1.0,
-    windupDuration: 300,
-    lungeDuration: 130,
-    recoveryDuration: 400,
-    lungeSpeed: 140,
+    windupDuration: 280,
+    lungeDuration: 140,
+    recoveryDuration: 360,
+    lungeSpeed: 150,
     canBackstep: true,
     canCircleStrafe: true,
   },
@@ -85,18 +92,18 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     originY: { idle: 0.95, run: 0.90, death: 0.85 },
     bodySize: { idle: [28, 20], run: [32, 22] },
     bodyOffset: { idle: [2, 11], run: [16, 38] },
-    maxHp: 3,
+    maxHp: 5,
     patrolSpeed: 55,
-    chaseSpeed: 115,
+    chaseSpeed: 120,
     detectRadius: 180,
     loseRadius: 260,
     attackRange: 42,
     contactDamage: 1,
     scale: 1.05,
-    windupDuration: 160,
+    windupDuration: 150,
     lungeDuration: 160,
-    recoveryDuration: 220,
-    lungeSpeed: 260,
+    recoveryDuration: 200,
+    lungeSpeed: 270,
     canBackstep: true,
     canCircleStrafe: false,
   },
@@ -119,6 +126,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   // Timers & AI Variables
   private stateTimer = 0;
   private aggroTimer = 0;
+  private specialCooldown = 1500 + Math.random() * 2500;
+  public howlBuffTimer = 0;
   private homeX: number;
   private homeY: number;
   private patrolTargetX: number;
@@ -210,7 +219,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   get isDead(): boolean {
-    return this.aiState === 'dead';
+    return this.aiState === 'dead' || this.hp <= 0;
   }
 
   get currentAnim(): 'idle' | 'run' | 'dead' {
@@ -322,12 +331,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.hp -= amount;
     this.hitLock = HIT_LOCK;
 
-    // Interrupt windup or lunge when hit
-    if (this.aiState === 'windup' || this.aiState === 'lunge') {
-      this.clearTint();
-      this.setScale(this.stats.scale);
-    }
-
     // Turn to face attacker (opposite of knockback)
     const dx = this.x - fromX;
     const dy = this.y - fromY;
@@ -374,7 +377,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.scene.tweens.add({ targets: this, alpha: 0, duration: 200, onComplete: () => {
         // spawn blood/bone explosion
         for(let i=0; i<5; i++) {
-            const part = this.scene.add.rectangle(this.x, this.y - 10, 3, 3, this.kind === 'imp' ? 0xcc0000 : 0xdddddd);
+            const part = this.scene.add.rectangle(this.x, this.y - 10, 3, 3, this.kind === 'imp' ? 0xcc0000 : (this.kind === 'wolf' ? 0x992222 : 0xdddddd));
             this.scene.tweens.add({
                 targets: part,
                 x: this.x + (Math.random()-0.5)*30,
@@ -392,18 +395,19 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   /** Advances AI and returns whether it just landed a contact hit on the player this frame. */
   update(playerX: number, playerY: number, delta: number): boolean {
-    return this.updateAI(playerX, playerY, delta, [], false);
+    return this.updateAI(playerX, playerY, delta, [], false).landedHit;
   }
 
-  /** Full Enhanced AI update with Flocking, State Machine, Windup, and Archetype Tactics. */
+  /** Full Enhanced AI update with Flocking, State Machine, Windup, and Special Attacks. */
   updateAI(
     playerX: number,
     playerY: number,
     delta: number,
     otherEnemies: Enemy[] = [],
     playerAttacking = false
-  ): boolean {
-    if (this.aiState === 'dead') return false;
+  ): EnemyActionOutput {
+    const output: EnemyActionOutput = { landedHit: false, damage: this.stats.contactDamage };
+    if (this.aiState === 'dead') return output;
 
     if (this.aggroTimer > 0) this.aggroTimer -= delta;
 
@@ -411,8 +415,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.hitLock -= delta;
       this.setDepth(DEPTH.YSORT_BASE + this.y);
       if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
-      return false;
+      return output;
     }
+
+    if (this.specialCooldown > 0) this.specialCooldown -= delta;
+    if (this.howlBuffTimer > 0) this.howlBuffTimer -= delta;
 
     // Process Status Effects (Burning, Poison, Frost, Shock)
     if (this.statusState.burningDuration > 0) {
@@ -421,7 +428,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       if (this.burnTickTimer >= 600) {
         this.burnTickTimer = 0;
         this.takeDamage(1, this.x, this.y);
-        if (this.hp <= 0) return false;
+        if (this.hp <= 0) return output;
       }
     }
     if (this.statusState.poisonDuration > 0) {
@@ -430,7 +437,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       if (this.poisonTickTimer >= 750) {
         this.poisonTickTimer = 0;
         this.takeDamage(1, this.x, this.y);
-        if (this.hp <= 0) return false;
+        if (this.hp <= 0) return output;
       }
     }
     if (this.statusState.frozenDuration > 0) {
@@ -438,7 +445,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       const body = this.body as Phaser.Physics.Arcade.Body;
       if (body) body.setVelocity(0, 0);
       this.setTint(0x38bdf8);
-      return false;
+      return output;
     }
     if (this.statusState.slowDuration > 0) {
       this.statusState.slowDuration -= delta;
@@ -450,8 +457,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     } else if (this.statusState.shockDuration > 0) {
       this.statusState.shockDuration -= delta;
       this.setTint(0xfacc15);
+    } else if (this.howlBuffTimer > 0) {
+      this.setTint(0xfde047);
     } else {
-      if (this.hitLock <= 0 && this.aiState !== 'windup') {
+      if (this.hitLock <= 0 && this.aiState !== 'windup' && this.aiState !== 'special_windup') {
         this.clearTint();
       }
     }
@@ -459,12 +468,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (this.backstepCooldown > 0) this.backstepCooldown -= delta;
 
     const speedMult = this.statusState.slowDuration > 0 ? this.statusState.slowFactor : 1.0;
+    const speedBuff = this.howlBuffTimer > 0 ? 1.35 : 1.0;
+    const currentChaseSpeed = this.stats.chaseSpeed * speedMult * speedBuff;
+
     const dx = playerX - this.x;
     const dy = playerY - this.y;
     const distToPlayer = Math.hypot(dx, dy);
     const body = this.body as Phaser.Physics.Arcade.Body;
-
-    let landedHit = false;
 
     // ==========================================
     // FSM LOGIC
@@ -545,6 +555,40 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           break;
         }
 
+        // Check Special Attack triggers
+        if (this.specialCooldown <= 0) {
+          // Imp Fireball Spit at mid-range
+          if (this.kind === 'imp' && distToPlayer >= 65 && distToPlayer <= 150) {
+            this.aiState = 'special_windup';
+            this.stateTimer = 450;
+            this.specialCooldown = 4200;
+            this.setTint(0xf97316);
+            this.setScale(this.stats.scale * 1.2, this.stats.scale * 0.9);
+            body.setVelocity(0, 0);
+            break;
+          }
+          // Skeleton Bone Cleave at close range
+          if (this.kind === 'skeleton' && distToPlayer <= 46) {
+            this.aiState = 'special_windup';
+            this.stateTimer = 400;
+            this.specialCooldown = 5000;
+            this.setTint(0x67e8f9);
+            this.setScale(this.stats.scale * 1.15, this.stats.scale * 1.15);
+            body.setVelocity(0, 0);
+            break;
+          }
+          // Wolf Pack Rally Howl
+          if (this.kind === 'wolf' && distToPlayer <= 160 && this.howlBuffTimer <= 0) {
+            this.aiState = 'special_windup';
+            this.stateTimer = 350;
+            this.specialCooldown = 6500;
+            this.setTint(0xfacc15);
+            this.setScale(this.stats.scale * 0.95, this.stats.scale * 1.25);
+            body.setVelocity(0, 0);
+            break;
+          }
+        }
+
         // Check if tactical backstep is needed (Skeleton vs attacking player)
         if (this.stats.canBackstep && playerAttacking && distToPlayer < 36 && this.backstepCooldown <= 0) {
           if (Math.random() < 0.55) {
@@ -611,8 +655,44 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         }
 
         const totalLen = Math.hypot(moveDirX, moveDirY) || 1;
-        body.setVelocity((moveDirX / totalLen) * this.stats.chaseSpeed * speedMult, (moveDirY / totalLen) * this.stats.chaseSpeed * speedMult);
+        body.setVelocity((moveDirX / totalLen) * currentChaseSpeed, (moveDirY / totalLen) * currentChaseSpeed);
         this.setFlipX(dx < 0);
+        break;
+      }
+
+      case 'special_windup': {
+        this.stateTimer -= delta;
+        this.setFlipX(dx < 0);
+        body.setVelocity(0, 0);
+
+        if (this.stateTimer <= 0) {
+          this.clearTint();
+          this.setScale(this.stats.scale);
+
+          if (this.kind === 'imp') {
+            output.projectile = { x: this.x, y: this.y - 8, targetX: playerX, targetY: playerY, damage: 1 };
+            this.aiState = 'recovery';
+            this.stateTimer = 350;
+          } else if (this.kind === 'skeleton') {
+            if (distToPlayer <= 52) {
+              output.landedHit = true;
+              output.damage = 2; // Bone Cleave deals 2 damage!
+            }
+            this.aiState = 'recovery';
+            this.stateTimer = 450;
+          } else if (this.kind === 'wolf') {
+            this.howlBuffTimer = 3500;
+            for (const other of otherEnemies) {
+              if (other.kind === 'wolf' && !other.isDead) {
+                if (Math.hypot(other.x - this.x, other.y - this.y) <= 140) {
+                  other.howlBuffTimer = 3500;
+                }
+              }
+            }
+            output.howl = true;
+            this.aiState = 'chase';
+          }
+        }
         break;
       }
 
@@ -649,7 +729,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
         // Check if hit lands on player
         if (distToPlayer < CONTACT_RADIUS) {
-          landedHit = true;
+          output.landedHit = true;
           this.aiState = 'recovery';
           this.stateTimer = this.stats.recoveryDuration;
           body.setVelocity(0, 0);
@@ -689,7 +769,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setDepth(DEPTH.YSORT_BASE + this.y);
 
     if (this.shadow) this.shadow.setPosition(this.x, this.y + 2);
-    return landedHit;
+    return output;
   }
 
   private setAnimState(next: 'idle' | 'run'): void {

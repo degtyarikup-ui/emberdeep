@@ -100,16 +100,17 @@ export class HeroFrame {
     goldSlot.setStrokeStyle(1, 0x78350f);
     this.container.add(goldSlot);
 
-    const goldIcon = scene.add.sprite(barX + 8, resY + 10, PIXEL_UI_TEXTURE.ICONS_SHEET, 6);
+    const goldIcon = scene.add.sprite(barX + 10, resY + 10, PIXEL_UI_TEXTURE.ICONS_SHEET, 6);
     goldIcon.setScale(1.0);
     this.container.add(goldIcon);
 
-    this.goldText = scene.add.text(barX + 22, resY + 3, '0', {
+    this.goldText = scene.add.text(barX + 24, resY + 10, '0', {
       fontFamily: FONT.UI,
-      fontSize: '12px',
+      fontSize: '11px',
       fontStyle: '700',
       color: '#fbbf24',
     });
+    this.goldText.setOrigin(0, 0.5);
     this.goldText.setStroke('#451a03', 2);
     this.container.add(this.goldText);
 
@@ -118,17 +119,18 @@ export class HeroFrame {
     emberSlot.setStrokeStyle(1, 0x7c2d12);
     this.container.add(emberSlot);
 
-    const emberIcon = scene.add.sprite(barX + 92, resY + 10, PIXEL_UI_TEXTURE.ICONS_SHEET, 7);
+    const emberIcon = scene.add.sprite(barX + 94, resY + 10, PIXEL_UI_TEXTURE.ICONS_SHEET, 7);
     emberIcon.setScale(1.0);
     this.container.add(emberIcon);
 
     const embersCount = MetaManager.get().embers;
-    this.embersText = scene.add.text(barX + 106, resY + 3, `${embersCount}`, {
+    this.embersText = scene.add.text(barX + 108, resY + 10, `${embersCount}`, {
       fontFamily: FONT.UI,
-      fontSize: '12px',
+      fontSize: '11px',
       fontStyle: '700',
       color: '#f97316',
     });
+    this.embersText.setOrigin(0, 0.5);
     this.embersText.setStroke('#431407', 2);
     this.container.add(this.embersText);
 
@@ -237,13 +239,18 @@ export class HeroFrame {
   }
 
   public triggerGoldBump(): void {
+    this.goldText.setScale(1.0);
+    this.scene.tweens.killTweensOf(this.goldText);
     this.scene.tweens.add({
       targets: this.goldText,
-      scaleX: 1.35,
-      scaleY: 1.35,
-      duration: 120,
+      scaleX: 1.25,
+      scaleY: 1.25,
+      duration: 110,
       yoyo: true,
       ease: 'Back.easeOut',
+      onComplete: () => {
+        this.goldText.setScale(1.0);
+      },
     });
   }
 

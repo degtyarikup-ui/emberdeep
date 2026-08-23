@@ -264,9 +264,9 @@ export class BootScene extends Phaser.Scene {
   private async loadFontsThenStart(): Promise<void> {
     try {
       await Promise.all([
-        document.fonts.load('900 48px "Cinzel Decorative"'),
         document.fonts.load('400 16px "Russo One"'),
         document.fonts.load('700 16px "Russo One"'),
+        document.fonts.load('900 48px "Russo One"'),
       ]);
       await document.fonts.ready;
     } catch {

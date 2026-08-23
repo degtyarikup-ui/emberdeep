@@ -105,7 +105,7 @@ export const ANIM = {
 } as const;
 
 export const FONT = {
-  TITLE: '"Cinzel Decorative", serif',
+  TITLE: '"Russo One", sans-serif',
   UI: '"Russo One", sans-serif',
 } as const;
 

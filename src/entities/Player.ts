@@ -395,13 +395,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // Hit reaction
     this.setTint(0xff4422);
     this.scene.time.delayedCall(100, () => this.clearTint());
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: this.baseScale * 1.15,
-      scaleY: this.baseScale * 0.85,
-      duration: 80,
-      yoyo: true,
-    });
+    this.triggerSquash(1.15, 0.85, 80);
     if (this.heroClass === 'knight') {
       this.setAnimState('hit');
     }
@@ -413,6 +407,23 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     body.setVelocity((dx / len) * 150, (dy / len) * 150);
 
     return true;
+  }
+
+  private triggerSquash(scaleXMult: number, scaleYMult: number, duration: number, ease = 'Quad.easeOut'): void {
+    if (!this.scene) return;
+    this.scene.tweens.killTweensOf(this);
+    this.setScale(this.baseScale);
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: this.baseScale * scaleXMult,
+      scaleY: this.baseScale * scaleYMult,
+      duration: duration / 2,
+      yoyo: true,
+      ease,
+      onComplete: () => {
+        this.setScale(this.baseScale);
+      },
+    });
   }
 
   private triggerThornsBurst(): void {
@@ -666,14 +677,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       onComplete: () => ring.destroy(),
     });
 
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: this.baseScale * 1.3,
-      scaleY: this.baseScale * 0.85,
-      duration: 100,
-      yoyo: true,
-      ease: 'Quad.easeOut',
-    });
+    this.triggerSquash(1.3, 0.85, 100);
   }
 
   private playRangerShootAnimation(aimAngle: number): void {
@@ -695,14 +699,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.sword.setPosition(this.x + 6 * dir + recoilX, this.y - 14 + recoilY);
 
     // Body squash/recoil
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: this.baseScale * 1.12,
-      scaleY: this.baseScale * 0.92,
-      duration: 50,
-      yoyo: true,
-      ease: 'Quad.easeOut',
-    });
+    this.triggerSquash(1.12, 0.92, 50);
 
     // Spring forward on release and return to standard bow
     this.scene.time.delayedCall(70, () => {
@@ -736,14 +733,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.sword.setPosition(this.x + 6 * dir + thrustX, this.y - 14 + thrustY);
 
     // Body squash/recoil
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: this.baseScale * 1.15,
-      scaleY: this.baseScale * 0.9,
-      duration: 60,
-      yoyo: true,
-      ease: 'Quad.easeOut',
-    });
+    this.triggerSquash(1.15, 0.9, 60);
 
     // Reset staff position
     this.scene.time.delayedCall(90, () => {
@@ -780,14 +770,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       onComplete: () => ring.destroy(),
     });
 
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: this.baseScale * 1.35,
-      scaleY: this.baseScale * 0.82,
-      duration: 120,
-      yoyo: true,
-      ease: 'Back.easeOut',
-    });
+    this.triggerSquash(1.35, 0.82, 120, 'Back.easeOut');
   }
 
   /** Triggers the sword swing, slash arc FX, body lunge, and audio. */
@@ -796,14 +779,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     SoundFX.playSwordSwing();
 
     // Body squash/lunge tween
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: this.baseScale * 1.25,
-      scaleY: this.baseScale * 0.88,
-      duration: 75,
-      yoyo: true,
-      ease: 'Quad.easeOut',
-    });
+    this.triggerSquash(1.25, 0.88, 75);
 
     // Slash Arc Visual Effect placed and rotated along aimAngle
     const slashDist = 24;
@@ -872,6 +848,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
     if (!this.animController || !this.animController.tryTransition(next as AnimStateName)) return;
     this.setOrigin(0.5, 1.0);
+    if (!this.isAttacking) {
+      this.setScale(this.baseScale);
+    }
 
     const isKnight = this.heroClass === 'knight';
     const isRanger = this.heroClass === 'ranger';

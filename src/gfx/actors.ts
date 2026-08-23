@@ -56,7 +56,13 @@ const MASKED_ORC: ActorClips = {
   death: { key: 'anim-orc-death', url: asset('pc-orc-death.png'), frameWidth: 64, frameHeight: 64, frameCount: 6, frameRate: 10, repeat: 0 },
 };
 
-export const ACTORS = { HERO, ORC, SKELETON, WOLF, ORC_WARRIOR, MASKED_ORC };
+const DIREWOLF: ActorClips = {
+  idle: { key: 'anim-direwolf-idle', url: asset('direwolf-idle.png'), frameWidth: 32, frameHeight: 32, frameCount: 4, frameRate: 6, repeat: -1 },
+  run: { key: 'anim-direwolf-run', url: asset('direwolf-run.png'), frameWidth: 64, frameHeight: 64, frameCount: 6, frameRate: 14, repeat: -1 },
+  death: { key: 'anim-wolf-death', url: asset('pc-wolf-death.png'), frameWidth: 48, frameHeight: 48, frameCount: 6, frameRate: 10, repeat: 0 },
+};
+
+export const ACTORS = { HERO, ORC, SKELETON, WOLF, DIREWOLF, ORC_WARRIOR, MASKED_ORC };
 
 export function preloadActor(scene: Phaser.Scene, clips: ActorClips): void {
   for (const clip of Object.values(clips)) {

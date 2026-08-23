@@ -150,7 +150,7 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     canCircleStrafe: true,
   },
   direwolf: {
-    clips: ACTORS.WOLF,
+    clips: ACTORS.DIREWOLF,
     originY: { idle: 0.95, run: 0.90, death: 0.85 },
     bodySize: { idle: [28, 20], run: [32, 22] },
     bodyOffset: { idle: [2, 11], run: [16, 38] },

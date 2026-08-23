@@ -87,6 +87,7 @@ export class BootScene extends Phaser.Scene {
     preloadActor(this, ACTORS.ORC);
     preloadActor(this, ACTORS.SKELETON);
     preloadActor(this, ACTORS.WOLF);
+    preloadActor(this, ACTORS.DIREWOLF);
     preloadActor(this, ACTORS.ORC_WARRIOR);
     preloadActor(this, ACTORS.MASKED_ORC);
   }

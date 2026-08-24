@@ -194,6 +194,48 @@
   color: #a1a1aa;
 }
 
+/* Brush Size Selector Bar */
+.me-brush-size-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: var(--bg-app, #0c0c0e);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+.me-brush-size-pills {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.me-size-btn {
+  padding: 2px 6px;
+  background: transparent;
+  color: var(--text-tertiary, #71717a);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.12s ease;
+}
+
+.me-size-btn:hover {
+  color: var(--text-primary, #f4f4f5);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+}
+
+.me-size-btn.active {
+  background: #27272a;
+  color: #fafafa;
+  border-color: #3f3f46;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
 /* Category Tabs */
 .me-category-tabs {
   display: flex;

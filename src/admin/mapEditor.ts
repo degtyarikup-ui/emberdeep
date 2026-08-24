@@ -41,6 +41,7 @@ export class MapEditor {
   private activeTool: 'brush' | 'rect' | 'eraser' | 'picker' | 'inspect' | 'hand' = 'brush';
   private activeCategory: 'tiles' | 'poi' | 'npc' | 'enemy' | 'pickup' | 'prop' | 'tree' = 'tiles';
   private activeItemId: string | number = EDITOR_TILE.FLOOR;
+  private brushSize = 1;
   private searchQuery = '';
 
   private isMouseDown = false;
@@ -203,6 +204,19 @@ export class MapEditor {
               </button>
             </div>
 
+            <div class="me-brush-size-bar">
+              <span style="font-size:10px; color:var(--text-tertiary); display:flex; align-items:center; gap:4px;">
+                Кисть: <kbd style="font-family:monospace; font-size:9px; background:rgba(255,255,255,0.06); padding:1px 3px; border-radius:2px;">[ / ]</kbd>
+              </span>
+              <div class="me-brush-size-pills">
+                <button class="me-size-btn active" data-size="1" title="1x1 клетка">1</button>
+                <button class="me-size-btn" data-size="2" title="2x2 клетки">2</button>
+                <button class="me-size-btn" data-size="3" title="3x3 клетки">3</button>
+                <button class="me-size-btn" data-size="4" title="4x4 клетки">4</button>
+                <button class="me-size-btn" data-size="5" title="5x5 клеток">5</button>
+              </div>
+            </div>
+
             <div class="me-category-tabs">
               <button class="me-tab-btn active" data-cat="tiles">Тайлы <kbd>1</kbd></button>
               <button class="me-tab-btn" data-cat="poi">Точки <kbd>2</kbd></button>
@@ -349,6 +363,14 @@ export class MapEditor {
       }
     });
 
+    // Brush size selector
+    document.querySelectorAll('.me-size-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const size = Number(btn.getAttribute('data-size')) || 1;
+        this.setBrushSize(size);
+      });
+    });
+
     // Palette Search
     document.getElementById('me-palette-search')?.addEventListener('input', (e) => {
       this.searchQuery = (e.target as HTMLInputElement).value.trim().toLowerCase();
@@ -420,6 +442,10 @@ export class MapEditor {
         this.setTool('picker');
       } else if (e.key === 'h' || e.key === 'H') {
         this.setTool('hand');
+      } else if (e.key === '[' || e.code === 'BracketLeft') {
+        this.setBrushSize(Math.max(1, this.brushSize - 1));
+      } else if (e.key === ']' || e.code === 'BracketRight') {
+        this.setBrushSize(Math.min(5, this.brushSize + 1));
       } else if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) {
         const catMap: Record<string, typeof this.activeCategory> = {
           '1': 'tiles',
@@ -545,6 +571,14 @@ export class MapEditor {
         listEl.appendChild(item);
       });
     }
+  }
+
+  private setBrushSize(size: number): void {
+    this.brushSize = Math.max(1, Math.min(5, size));
+    document.querySelectorAll('.me-size-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-size') === String(this.brushSize));
+    });
+    this.draw();
   }
 
   private setZoom(newZoom: number, originX?: number, originY?: number): void {
@@ -713,6 +747,51 @@ export class MapEditor {
     this.setZoom(this.zoom * factor, sx, sy);
   }
 
+  private eraseCellAt(col: number, row: number): boolean {
+    if (col < 0 || col >= this.level.cols || row < 0 || row >= this.level.rows) return false;
+    let removed = false;
+    if (this.level.trees) {
+      const before = this.level.trees.length;
+      this.level.trees = this.level.trees.filter((t) => t.col !== col || t.row !== row);
+      if (this.level.trees.length !== before) removed = true;
+    }
+    if (this.level.decorations) {
+      const before = this.level.decorations.length;
+      this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
+      if (this.level.decorations.length !== before) removed = true;
+    }
+    const beforeEnemies = this.level.enemies.length;
+    this.level.enemies = this.level.enemies.filter((e) => e.col !== col || e.row !== row);
+    if (this.level.enemies.length !== beforeEnemies) removed = true;
+
+    const beforeChests = this.level.chests.length;
+    this.level.chests = this.level.chests.filter((c) => c.col !== col || c.row !== row);
+    if (this.level.chests.length !== beforeChests) removed = true;
+
+    const beforeShrines = this.level.shrines.length;
+    this.level.shrines = this.level.shrines.filter((s) => s.col !== col || s.row !== row);
+    if (this.level.shrines.length !== beforeShrines) removed = true;
+
+    const beforeFlasks = this.level.flasks.length;
+    this.level.flasks = this.level.flasks.filter((f) => f.col !== col || f.row !== row);
+    if (this.level.flasks.length !== beforeFlasks) removed = true;
+
+    const beforeTorches = this.level.torches.length;
+    this.level.torches = this.level.torches.filter((t) => t.col !== col || t.row !== row);
+    if (this.level.torches.length !== beforeTorches) removed = true;
+
+    if (this.level.bonfires) {
+      const beforeBonfires = this.level.bonfires.length;
+      this.level.bonfires = this.level.bonfires.filter((b) => b.col !== col || b.row !== row);
+      if (this.level.bonfires.length !== beforeBonfires) removed = true;
+    }
+
+    if (!removed) {
+      this.level.data[row][col] = EDITOR_TILE.FLOOR;
+    }
+    return removed;
+  }
+
   private applyToolAt(col: number, row: number): void {
     if (col < 0 || col >= this.level.cols || row < 0 || row >= this.level.rows) return;
 
@@ -726,39 +805,16 @@ export class MapEditor {
     }
 
     if (this.activeTool === 'eraser') {
-      let removed = false;
-      if (this.level.trees) {
-        const before = this.level.trees.length;
-        this.level.trees = this.level.trees.filter((t) => t.col !== col || t.row !== row);
-        if (this.level.trees.length !== before) removed = true;
-      }
-      if (this.level.decorations) {
-        const before = this.level.decorations.length;
-        this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
-        if (this.level.decorations.length !== before) removed = true;
-      }
-      const beforeEnemies = this.level.enemies.length;
-      this.level.enemies = this.level.enemies.filter((e) => e.col !== col || e.row !== row);
-      if (this.level.enemies.length !== beforeEnemies) removed = true;
+      const half = Math.floor((this.brushSize - 1) / 2);
+      const minC = Math.max(0, col - half);
+      const maxC = Math.min(this.level.cols - 1, col - half + this.brushSize - 1);
+      const minR = Math.max(0, row - half);
+      const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
 
-      const beforeChests = this.level.chests.length;
-      this.level.chests = this.level.chests.filter((c) => c.col !== col || c.row !== row);
-      if (this.level.chests.length !== beforeChests) removed = true;
-
-      const beforeShrines = this.level.shrines.length;
-      this.level.shrines = this.level.shrines.filter((s) => s.col !== col || s.row !== row);
-      if (this.level.shrines.length !== beforeShrines) removed = true;
-
-      const beforeFlasks = this.level.flasks.length;
-      this.level.flasks = this.level.flasks.filter((f) => f.col !== col || f.row !== row);
-      if (this.level.flasks.length !== beforeFlasks) removed = true;
-
-      const beforeTorches = this.level.torches.length;
-      this.level.torches = this.level.torches.filter((t) => t.col !== col || t.row !== row);
-      if (this.level.torches.length !== beforeTorches) removed = true;
-
-      if (!removed) {
-        this.level.data[row][col] = EDITOR_TILE.FLOOR;
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+          this.eraseCellAt(c, r);
+        }
       }
       this.draw();
       return;
@@ -766,7 +822,17 @@ export class MapEditor {
 
     if (this.activeTool === 'brush') {
       if (this.activeCategory === 'tiles') {
-        this.level.data[row][col] = Number(this.activeItemId);
+        const half = Math.floor((this.brushSize - 1) / 2);
+        const minC = Math.max(0, col - half);
+        const maxC = Math.min(this.level.cols - 1, col - half + this.brushSize - 1);
+        const minR = Math.max(0, row - half);
+        const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
+
+        for (let r = minR; r <= maxR; r++) {
+          for (let c = minC; c <= maxC; c++) {
+            this.level.data[r][c] = Number(this.activeItemId);
+          }
+        }
       } else if (this.activeCategory === 'poi') {
         if (this.activeItemId === 'spawn') this.level.spawn = { col, row };
         else if (this.activeItemId === 'altar') this.level.altar = { col, row };
@@ -1022,12 +1088,29 @@ export class MapEditor {
       this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(rx, ry, rw, rh);
     } else if (this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows && !this.isSpaceHeld && this.activeTool !== 'hand') {
-      // Hover cell cursor
-      const hx = this.panX + this.hoverCol * step;
-      const hy = this.panY + this.hoverRow * step;
-      this.ctx.strokeStyle = '#facc15';
+      const size = (this.activeTool === 'brush' && this.activeCategory === 'tiles') || this.activeTool === 'eraser' ? this.brushSize : 1;
+      const half = Math.floor((size - 1) / 2);
+      const minC = Math.max(0, this.hoverCol - half);
+      const maxC = Math.min(cols - 1, this.hoverCol - half + size - 1);
+      const minR = Math.max(0, this.hoverRow - half);
+      const maxR = Math.min(rows - 1, this.hoverRow - half + size - 1);
+
+      const hx = this.panX + minC * step;
+      const hy = this.panY + minR * step;
+      const hw = (maxC - minC + 1) * step;
+      const hh = (maxR - minR + 1) * step;
+
+      if (this.activeTool === 'eraser') {
+        this.ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+        this.ctx.fillRect(hx, hy, hw, hh);
+        this.ctx.strokeStyle = '#f87171';
+      } else {
+        this.ctx.fillStyle = 'rgba(250, 204, 21, 0.10)';
+        this.ctx.fillRect(hx, hy, hw, hh);
+        this.ctx.strokeStyle = '#facc15';
+      }
       this.ctx.lineWidth = 1.5;
-      this.ctx.strokeRect(hx, hy, step, step);
+      this.ctx.strokeRect(hx, hy, hw, hh);
     }
   }
 

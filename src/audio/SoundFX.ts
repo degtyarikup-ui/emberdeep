@@ -91,6 +91,9 @@ class SoundFXManager {
   private masterGain?: GainNode;
   private ambientGain?: GainNode;
   private sfxGain?: GainNode;
+  private sfxCompressor?: DynamicsCompressorNode;
+  private reverbConvolver?: ConvolverNode;
+  private reverbGain?: GainNode;
   private spatialGain?: GainNode;
   private initialized = false;
 
@@ -196,13 +199,30 @@ class SoundFXManager {
       if (!AudioCtx) return;
       this.ctx = new AudioCtx();
 
-      this.masterGain = this.ctx.createGain();
+            this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
 
+      this.sfxCompressor = this.ctx.createDynamicsCompressor();
+      this.sfxCompressor.threshold.setValueAtTime(-18, this.ctx.currentTime);
+      this.sfxCompressor.knee.setValueAtTime(12, this.ctx.currentTime);
+      this.sfxCompressor.ratio.setValueAtTime(2.5, this.ctx.currentTime);
+      this.sfxCompressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+      this.sfxCompressor.release.setValueAtTime(0.08, this.ctx.currentTime);
+      this.sfxCompressor.connect(this.masterGain);
+
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
-      this.sfxGain.connect(this.masterGain);
+      this.sfxGain.connect(this.sfxCompressor);
+
+      if (this.ctx.createConvolver) {
+        this.reverbConvolver = this.ctx.createConvolver();
+        this.reverbConvolver.buffer = this.createDungeonImpulseResponse(this.ctx);
+        this.reverbGain = this.ctx.createGain();
+        this.reverbGain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        this.reverbConvolver.connect(this.reverbGain);
+        this.reverbGain.connect(this.sfxGain);
+      }
 
       this.spatialGain = this.ctx.createGain();
       this.spatialGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
@@ -239,6 +259,23 @@ class SoundFXManager {
       void this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  private createDungeonImpulseResponse(ctx: AudioContext, duration = 0.9, decay = 2.4): AudioBuffer {
+    const rate = ctx.sampleRate;
+    const length = Math.floor(rate * duration);
+    const impulse = ctx.createBuffer(2, length, rate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+
+    for (let i = 0; i < length; i++) {
+      const t = i / length;
+      const env = Math.pow(1 - t, decay);
+      const damping = Math.exp(-t * 4.0);
+      left[i] = (Math.random() * 2 - 1) * env * damping;
+      right[i] = (Math.random() * 2 - 1) * env * damping;
+    }
+    return impulse;
   }
 
   // ==========================================
@@ -293,6 +330,7 @@ class SoundFXManager {
       pitchVariance?: number;
       spatial?: { x: number; y: number; listenerX?: number; listenerY?: number; maxDist?: number };
       fallbackFn?: () => void;
+      isUi?: boolean;
     }
   ): void {
     const ctx = this.ensureContext();
@@ -342,6 +380,9 @@ class SoundFXManager {
 
         source.connect(gain);
         gain.connect(this.sfxGain!);
+        if (this.reverbConvolver && !opts?.isUi) {
+          gain.connect(this.reverbConvolver);
+        }
         source.start(0);
       } catch {
         opts?.fallbackFn?.();
@@ -1091,11 +1132,11 @@ class SoundFXManager {
   // --- UI & Menu ---
 
   public playButtonHover(): void {
-    this.playClip(SFX_CLIP.BUTTON_HOVER, { volume: 0.45, fallbackFn: () => this.synthButtonHover() });
+    this.playClip(SFX_CLIP.BUTTON_HOVER, { volume: 0.45, isUi: true, fallbackFn: () => this.synthButtonHover() });
   }
 
   public playMenuClick(): void {
-    this.playClip(SFX_CLIP.MENU_CLICK, { volume: 0.7, fallbackFn: () => this.synthMenuClick() });
+    this.playClip(SFX_CLIP.MENU_CLICK, { volume: 0.7, isUi: true, fallbackFn: () => this.synthMenuClick() });
   }
 
   public playSliderTick(): void {
@@ -1103,7 +1144,7 @@ class SoundFXManager {
   }
 
   public playModalOpen(): void {
-    this.playClip(SFX_CLIP.MODAL_OPEN, { volume: 0.8, fallbackFn: () => this.synthModalOpen() });
+    this.playClip(SFX_CLIP.MODAL_OPEN, { volume: 0.8, isUi: true, fallbackFn: () => this.synthModalOpen() });
   }
 
   public playModalClose(): void {

@@ -7,6 +7,7 @@ import {
   deserializeLevelFromJson,
   EDITOR_TILE,
   rotateBrushMatrixClockwise,
+  applyBrushShapeMask,
 } from '../src/admin/mapEditorHelper';
 import { buildLevel1 } from '../src/world/level1';
 
@@ -136,6 +137,61 @@ describe('mapEditorHelper: CustomBrush transformations', () => {
     expect(b.width).toBe(3);
     expect(b.height).toBe(2);
     expect(b.grid[0][0]?.tileId).toBe(10);
+  });
+
+  it('applies circle shape mask leaving corners transparent (null)', () => {
+    const brush = {
+      id: 'circ_test',
+      name: 'Circle',
+      width: 5,
+      height: 5,
+      grid: Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => null)),
+    };
+    const circleBrush = applyBrushShapeMask(brush, 'circle', 42);
+    // Center must be filled
+    expect(circleBrush.grid[2][2]?.tileId).toBe(42);
+    // Top-left and bottom-right outer corners must be transparent (null)
+    expect(circleBrush.grid[0][0]).toBeNull();
+    expect(circleBrush.grid[0][4]).toBeNull();
+    expect(circleBrush.grid[4][0]).toBeNull();
+    expect(circleBrush.grid[4][4]).toBeNull();
+  });
+
+  it('applies cross shape mask', () => {
+    const brush = {
+      id: 'cross_test',
+      name: 'Cross',
+      width: 5,
+      height: 5,
+      grid: Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => null)),
+    };
+    const crossBrush = applyBrushShapeMask(brush, 'cross', 99);
+    // Middle row and middle column must be filled
+    expect(crossBrush.grid[2][0]?.tileId).toBe(99);
+    expect(crossBrush.grid[2][4]?.tileId).toBe(99);
+    expect(crossBrush.grid[0][2]?.tileId).toBe(99);
+    expect(crossBrush.grid[4][2]?.tileId).toBe(99);
+    // Corners must be null
+    expect(crossBrush.grid[0][0]).toBeNull();
+    expect(crossBrush.grid[1][1]).toBeNull();
+  });
+
+  it('applies ring / border shape mask with empty center', () => {
+    const brush = {
+      id: 'ring_test',
+      name: 'Ring',
+      width: 5,
+      height: 5,
+      grid: Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => null)),
+    };
+    const ringBrush = applyBrushShapeMask(brush, 'ring', 77);
+    // Border filled
+    expect(ringBrush.grid[0][0]?.tileId).toBe(77);
+    expect(ringBrush.grid[0][4]?.tileId).toBe(77);
+    expect(ringBrush.grid[4][4]?.tileId).toBe(77);
+    // Inner center must be null
+    expect(ringBrush.grid[2][2]).toBeNull();
+    expect(ringBrush.grid[1][1]).toBeNull();
   });
 });
 

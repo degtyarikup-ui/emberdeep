@@ -1,6 +1,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../net/supabase';
 import type { LevelData } from '../world/level1';
+import type { CustomBrush } from './mapEditorHelper';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const PEER_COLORS = [
@@ -51,6 +52,7 @@ export class MapCollabClient {
   private onCellErasedCb?: (col: number, row: number) => void;
   private onLevelSyncCb?: (level: LevelData) => void;
   private onRequestSyncCb?: (fromPeerId: string) => void;
+  private onBrushesSyncCb?: (brushes: CustomBrush[]) => void;
 
   private lastCursorSend = 0;
 
@@ -199,6 +201,12 @@ export class MapCollabClient {
       .on('broadcast', { event: 'request_sync' }, ({ payload }) => {
         if (!payload || payload.peerId === this.peerId) return;
         this.onRequestSyncCb?.(payload.peerId);
+      })
+      .on('broadcast', { event: 'brushes_sync' }, ({ payload }) => {
+        if (!payload || payload.peerId === this.peerId) return;
+        if (Array.isArray(payload.brushes)) {
+          this.onBrushesSyncCb?.(payload.brushes);
+        }
       });
 
     this.channel.subscribe(async (status, err) => {
@@ -270,6 +278,19 @@ export class MapCollabClient {
 
   public onRequestSync(cb: (fromPeerId: string) => void): void {
     this.onRequestSyncCb = cb;
+  }
+
+  public onBrushesSync(cb: (brushes: CustomBrush[]) => void): void {
+    this.onBrushesSyncCb = cb;
+  }
+
+  public sendCustomBrushes(brushes: CustomBrush[]): void {
+    if (!brushes || brushes.length === 0) return;
+    void this.channel.send({
+      type: 'broadcast',
+      event: 'brushes_sync',
+      payload: { peerId: this.peerId, brushes },
+    });
   }
 
   public sendCursor(col: number, row: number, worldX: number, worldY: number, tool: string, brushSize = 1): void {

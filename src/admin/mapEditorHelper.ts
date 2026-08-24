@@ -190,7 +190,125 @@ export const DEFAULT_CUSTOM_BRUSHES: CustomBrush[] = [
       [{ tileId: TILE_INDEX.WOOD_BRIDGE_BOT, rotation: 0 }, { tileId: TILE_INDEX.WOOD_BRIDGE_BOT, rotation: 0 }],
     ],
   },
+  {
+    id: 'circle_pond_5x5',
+    name: 'Круглое озеро 5x5',
+    width: 5,
+    height: 5,
+    grid: [
+      [null, { tileId: TILE_INDEX.WATER_SHORE_T, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_T, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_T, rotation: 0 }, null],
+      [{ tileId: TILE_INDEX.WATER_SHORE_L, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WATER_SHORE_L, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WATER_SHORE_L, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_R, rotation: 0 }],
+      [null, { tileId: TILE_INDEX.WATER_SHORE_B, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_B, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_B, rotation: 0 }, null],
+    ],
+  },
+  {
+    id: 'cross_road_5x5',
+    name: 'Перекресток (Крест) 5x5',
+    width: 5,
+    height: 5,
+    grid: [
+      [null, null, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, null, null],
+      [null, null, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, null, null],
+      [{ tileId: TILE_INDEX.DIRT_1, rotation: 0 }, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, { tileId: TILE_INDEX.DIRT_2, rotation: 0 }, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }],
+      [null, null, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, null, null],
+      [null, null, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, null, null],
+    ],
+  },
+  {
+    id: 'diamond_island_5x5',
+    name: 'Остров-ромб 5x5',
+    width: 5,
+    height: 5,
+    grid: [
+      [null, null, { tileId: TILE_INDEX.GRASS_1, rotation: 0 }, null, null],
+      [null, { tileId: TILE_INDEX.GRASS_1, rotation: 0 }, { tileId: TILE_INDEX.GRASS_2, rotation: 0 }, { tileId: TILE_INDEX.GRASS_1, rotation: 0 }, null],
+      [{ tileId: TILE_INDEX.GRASS_1, rotation: 0 }, { tileId: TILE_INDEX.GRASS_2, rotation: 0 }, { tileId: TILE_INDEX.GRASS_3, rotation: 0 }, { tileId: TILE_INDEX.GRASS_2, rotation: 0 }, { tileId: TILE_INDEX.GRASS_1, rotation: 0 }],
+      [null, { tileId: TILE_INDEX.GRASS_1, rotation: 0 }, { tileId: TILE_INDEX.GRASS_2, rotation: 0 }, { tileId: TILE_INDEX.GRASS_1, rotation: 0 }, null],
+      [null, null, { tileId: TILE_INDEX.GRASS_1, rotation: 0 }, null, null],
+    ],
+  },
+  {
+    id: 'ruin_ring_5x5',
+    name: 'Каменное кольцо 5x5',
+    width: 5,
+    height: 5,
+    grid: [
+      [{ tileId: TILE_INDEX.COBBLE_T, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_T, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_T, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_T, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_T, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_L, rotation: 0 }, null, null, null, { tileId: TILE_INDEX.COBBLE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_L, rotation: 0 }, null, null, null, { tileId: TILE_INDEX.COBBLE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_L, rotation: 0 }, null, null, null, { tileId: TILE_INDEX.COBBLE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_B, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_B, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_B, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_B, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_B, rotation: 0 }],
+    ],
+  },
 ];
+
+export type BrushShapeType = 'fill' | 'circle' | 'cross' | 'diamond' | 'ring' | 'corner_l';
+
+export function applyBrushShapeMask(
+  brush: CustomBrush,
+  shape: BrushShapeType,
+  tileId: number,
+  rotation = 0
+): CustomBrush {
+  const { width, height } = brush;
+  const cx = (width - 1) / 2;
+  const cy = (height - 1) / 2;
+  const rx = width / 2;
+  const ry = height / 2;
+
+  const newGrid: (CustomBrushTile | null)[][] = Array.from({ length: height }, (_, r) =>
+    Array.from({ length: width }, (__, c) => {
+      let isInside = false;
+
+      switch (shape) {
+        case 'fill':
+          isInside = true;
+          break;
+        case 'circle': {
+          const dx = (c - cx) / (rx || 1);
+          const dy = (r - cy) / (ry || 1);
+          isInside = dx * dx + dy * dy <= 1.08;
+          break;
+        }
+        case 'cross': {
+          const midC = Math.floor(cx);
+          const midR = Math.floor(cy);
+          const isMidCol = c === midC || (width % 2 === 0 && c === midC + 1);
+          const isMidRow = r === midR || (height % 2 === 0 && r === midR + 1);
+          isInside = isMidCol || isMidRow;
+          break;
+        }
+        case 'diamond': {
+          const dx = Math.abs(c - cx) / (rx || 1);
+          const dy = Math.abs(r - cy) / (ry || 1);
+          isInside = dx + dy <= 1.1;
+          break;
+        }
+        case 'ring': {
+          const isBorder = r === 0 || r === height - 1 || c === 0 || c === width - 1;
+          isInside = isBorder;
+          break;
+        }
+        case 'corner_l': {
+          isInside = r === 0 || c === 0;
+          break;
+        }
+      }
+
+      if (isInside) {
+        return { tileId, rotation };
+      }
+      return null;
+    })
+  );
+
+  return {
+    ...brush,
+    grid: newGrid,
+  };
+}
 
 export function rotateBrushMatrixClockwise(brush: CustomBrush): CustomBrush {
   const newW = brush.height;

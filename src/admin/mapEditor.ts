@@ -7,6 +7,7 @@ import {
   DEFAULT_CUSTOM_BRUSHES,
   type CustomBrush,
   type TileSubCategory,
+  applyBrushShapeMask,
   rotateBrushMatrixClockwise,
   rotateBrushMatrixCounterClockwise,
   flipBrushHorizontal,
@@ -1457,19 +1458,22 @@ export class MapEditor {
         }
         this.ctx.restore();
 
-        const minC = Math.max(0, this.hoverCol - halfW);
-        const minR = Math.max(0, this.hoverRow - halfH);
-        const maxC = Math.min(cols - 1, this.hoverCol - halfW + brush.width - 1);
-        const maxR = Math.min(rows - 1, this.hoverRow - halfH + brush.height - 1);
-
-        const hx = this.panX + minC * step;
-        const hy = this.panY + minR * step;
-        const hw = (maxC - minC + 1) * step;
-        const hh = (maxR - minR + 1) * step;
-
         this.ctx.strokeStyle = '#22c55e';
         this.ctx.lineWidth = 1.5;
-        this.ctx.strokeRect(hx, hy, hw, hh);
+        for (let r = 0; r < brush.height; r++) {
+          for (let c = 0; c < brush.width; c++) {
+            const cell = brush.grid[r][c];
+            if (cell && cell.tileId >= 0) {
+              const targetR = this.hoverRow - halfH + r;
+              const targetC = this.hoverCol - halfW + c;
+              if (targetR >= 0 && targetR < rows && targetC >= 0 && targetC < cols) {
+                const tx = this.panX + targetC * step;
+                const ty = this.panY + targetR * step;
+                this.ctx.strokeRect(tx, ty, step, step);
+              }
+            }
+          }
+        }
       }
     } else if (this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows && !this.isSpaceHeld && this.activeTool !== 'hand') {
       const size = (this.activeTool === 'brush' && this.activeCategory === 'tiles') || this.activeTool === 'eraser' ? this.brushSize : 1;
@@ -1602,16 +1606,40 @@ export class MapEditor {
       this.draw();
     });
 
+    client.onBrushesSync((remoteBrushes) => {
+      if (!Array.isArray(remoteBrushes) || remoteBrushes.length === 0) return;
+      let changed = false;
+      remoteBrushes.forEach((rb) => {
+        const idx = this.customBrushes.findIndex((b) => b.id === rb.id);
+        if (idx === -1) {
+          this.customBrushes.push(rb);
+          changed = true;
+        } else {
+          if (JSON.stringify(this.customBrushes[idx]) !== JSON.stringify(rb)) {
+            this.customBrushes[idx] = rb;
+            changed = true;
+          }
+        }
+      });
+      if (changed) {
+        this.saveCustomBrushes(false);
+        this.renderPalette();
+        this.draw();
+      }
+    });
+
     client.onStatusChange((status) => {
       this.updateCollabUI(status);
     });
 
     client.onRequestSync((fromPeerId) => {
       client.sendLevelSync(this.level, fromPeerId);
+      client.sendCustomBrushes(this.customBrushes);
     });
 
     try {
       await client.connect();
+      client.sendCustomBrushes(this.customBrushes);
       this.updateCollabUI();
     } catch {
       this.updateCollabUI('offline');
@@ -1851,9 +1879,12 @@ export class MapEditor {
     }
   }
 
-  private saveCustomBrushes(): void {
+  private saveCustomBrushes(broadcast = true): void {
     try {
       localStorage.setItem('emberdeep_custom_brushes', JSON.stringify(this.customBrushes));
+      if (broadcast && this.collabClient) {
+        this.collabClient.sendCustomBrushes(this.customBrushes);
+      }
     } catch {
       // ignore
     }
@@ -1896,10 +1927,10 @@ export class MapEditor {
       : {
           id: `brush_${Date.now()}`,
           name: 'Новая кисть',
-          width: 3,
-          height: 3,
-          grid: Array.from({ length: 3 }, () =>
-            Array.from({ length: 3 }, () => ({ tileId: TILE_METAS[0] ? TILE_METAS[0].id : 0, rotation: 0 }))
+          width: 5,
+          height: 5,
+          grid: Array.from({ length: 5 }, () =>
+            Array.from({ length: 5 }, () => ({ tileId: TILE_METAS[0] ? TILE_METAS[0].id : 0, rotation: 0 }))
           ),
         };
 
@@ -1907,6 +1938,7 @@ export class MapEditor {
     let selectedRotation = 0;
     let selectedCell: { r: number; c: number } | null = null;
     let designerSubCat: TileSubCategory = 'all';
+    let cellMode: 'draw' | 'erase' | 'rotate' = 'draw';
 
     const backdrop = document.createElement('div');
     backdrop.className = 'me-modal-backdrop';
@@ -1914,10 +1946,10 @@ export class MapEditor {
 
     const renderDesigner = () => {
       backdrop.innerHTML = `
-        <div class="me-modal-window" style="width:720px; max-width:95vw; max-height:92vh; display:flex; flex-direction:column;">
+        <div class="me-modal-window" style="width:780px; max-width:96vw; max-height:94vh; display:flex; flex-direction:column;">
           <div class="me-modal-header">
             <span style="display:flex; align-items:center; gap:6px;">
-              ${ICONS.sparkles} Конструктор пользовательской кисти
+              ${ICONS.sparkles} Конструктор пользовательской кисти и произвольных форм
             </span>
             <button id="me-designer-close" class="me-btn me-btn-danger">&times;</button>
           </div>
@@ -1944,31 +1976,66 @@ export class MapEditor {
               </div>
             </div>
 
-            <!-- Global Matrix Transform Toolbar -->
-            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
+            <!-- Global Matrix Transform Toolbar & Shape Masks -->
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:#101013; padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+              <span style="font-size:10px; color:var(--text-tertiary); text-transform:uppercase; margin-right:4px;">Шаблоны форм:</span>
+              <button id="me-shape-circle" class="me-shape-btn" title="Сделать круглую кисть">
+                ${ICONS.circle} Круг
+              </button>
+              <button id="me-shape-cross" class="me-shape-btn" title="Сделать крестообразную кисть">
+                ${ICONS.cross} Крест
+              </button>
+              <button id="me-shape-diamond" class="me-shape-btn" title="Сделать ромбовидную кисть">
+                ${ICONS.diamond} Ромб
+              </button>
+              <button id="me-shape-ring" class="me-shape-btn" title="Сделать контурное кольцо">
+                ${ICONS.ring} Кольцо
+              </button>
+              <button id="me-shape-corner" class="me-shape-btn" title="Сделать угловую L-форму">
+                ${ICONS.corner} Угол L
+              </button>
+              <button id="me-shape-fill" class="me-shape-btn" title="Заполнить прямоугольник полностью">
+                ${ICONS.square} Заливка
+              </button>
+
+              <span style="color:var(--text-tertiary); margin:0 4px;">|</span>
+
               <button id="me-designer-rot-cw" class="me-btn" title="Повернуть всю матрицу на 90° по часовой">
-                ${ICONS.rotateCw} 90° По часовой
+                ${ICONS.rotateCw} 90°
               </button>
               <button id="me-designer-rot-ccw" class="me-btn" title="Повернуть всю матрицу на 90° против часовой">
-                ${ICONS.rotateCcw} -90° Против часовой
+                ${ICONS.rotateCcw} -90°
               </button>
               <button id="me-designer-flip-h" class="me-btn" title="Отразить горизонтально">
-                ${ICONS.flipH} Отразить по горизонтали
+                ${ICONS.flipH} ↔
               </button>
               <button id="me-designer-flip-v" class="me-btn" title="Отразить вертикально">
-                ${ICONS.flipV} Отразить по вертикали
+                ${ICONS.flipV} ↕
               </button>
-              <button id="me-designer-clear" class="me-btn" title="Очистить все ячейки">
+              <button id="me-designer-clear" class="me-btn" title="Очистить все ячейки в прозрачные">
                 ${ICONS.trash} Очистить
               </button>
             </div>
 
             <!-- Main Interactive Editor Area -->
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; min-height:300px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; min-height:320px;">
               <!-- Left: Matrix Canvas / Grid -->
               <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0c0c0e; border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:16px;">
-                <span style="font-size:10px; color:var(--text-tertiary); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">
-                  Сетка кисти (клик — применить тайл, ПКМ — стереть)
+                <!-- Mode selection: Draw / Erase / Rotate -->
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px; background:#18181b; padding:3px; border-radius:6px;">
+                  <button id="me-mode-draw" class="me-btn ${cellMode === 'draw' ? 'me-btn-primary' : ''}" style="padding:3px 10px; font-size:11px;">
+                    ${ICONS.brush} Нанесение тайла
+                  </button>
+                  <button id="me-mode-erase" class="me-btn ${cellMode === 'erase' ? 'me-btn-primary' : ''}" style="padding:3px 10px; font-size:11px; ${cellMode === 'erase' ? 'background:#ef4444; border-color:#f87171;' : ''}">
+                    ${ICONS.eraser} Ластик (Прозрачно)
+                  </button>
+                  <button id="me-mode-rotate" class="me-btn ${cellMode === 'rotate' ? 'me-btn-primary' : ''}" style="padding:3px 10px; font-size:11px;">
+                    ${ICONS.rotateCw} Поворот +90°
+                  </button>
+                </div>
+
+                <span style="font-size:10px; color:var(--text-tertiary); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em; text-align:center;">
+                  Клик — действие режима · ПКМ — стереть в прозрачную
                 </span>
 
                 <div class="me-designer-matrix" style="grid-template-columns: repeat(${currentBrush.width}, 44px);">
@@ -1982,7 +2049,7 @@ export class MapEditor {
                           const previewUrl = !isEmpty ? editorAssets.getTilePreviewUrl(cell!.tileId, this.level.biome.id) : '';
 
                           return `
-                            <div class="me-matrix-cell ${isEmpty ? 'empty' : ''} ${isSelected ? 'selected' : ''}" data-r="${r}" data-c="${c}">
+                            <div class="me-matrix-cell ${isEmpty ? 'empty' : ''} ${isSelected ? 'selected' : ''}" data-r="${r}" data-c="${c}" title="${isEmpty ? 'Прозрачная ячейка (пропускается)' : `Тайл #${cell!.tileId}, ${rot}°`}">
                               ${
                                 !isEmpty && previewUrl
                                   ? `<img src="${previewUrl}" style="width:32px; height:32px; image-rendering:pixelated; transform:rotate(${rot}deg) ${cell?.flipX ? 'scaleX(-1)' : ''} ${cell?.flipY ? 'scaleY(-1)' : ''};">`
@@ -2091,6 +2158,46 @@ export class MapEditor {
       backdrop.querySelector('#me-designer-close')?.addEventListener('click', () => backdrop.remove());
       backdrop.querySelector('#me-designer-cancel')?.addEventListener('click', () => backdrop.remove());
 
+      // Mode toggles
+      backdrop.querySelector('#me-mode-draw')?.addEventListener('click', () => {
+        cellMode = 'draw';
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-mode-erase')?.addEventListener('click', () => {
+        cellMode = 'erase';
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-mode-rotate')?.addEventListener('click', () => {
+        cellMode = 'rotate';
+        renderDesigner();
+      });
+
+      // Shape preset buttons
+      backdrop.querySelector('#me-shape-circle')?.addEventListener('click', () => {
+        currentBrush = applyBrushShapeMask(currentBrush, 'circle', selectedTileId, selectedRotation);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-shape-cross')?.addEventListener('click', () => {
+        currentBrush = applyBrushShapeMask(currentBrush, 'cross', selectedTileId, selectedRotation);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-shape-diamond')?.addEventListener('click', () => {
+        currentBrush = applyBrushShapeMask(currentBrush, 'diamond', selectedTileId, selectedRotation);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-shape-ring')?.addEventListener('click', () => {
+        currentBrush = applyBrushShapeMask(currentBrush, 'ring', selectedTileId, selectedRotation);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-shape-corner')?.addEventListener('click', () => {
+        currentBrush = applyBrushShapeMask(currentBrush, 'corner_l', selectedTileId, selectedRotation);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-shape-fill')?.addEventListener('click', () => {
+        currentBrush = applyBrushShapeMask(currentBrush, 'fill', selectedTileId, selectedRotation);
+        renderDesigner();
+      });
+
       // Resize W / H
       backdrop.querySelector('#me-dec-w')?.addEventListener('click', () => {
         if (currentBrush.width > 1) {
@@ -2171,6 +2278,7 @@ export class MapEditor {
       backdrop.querySelectorAll('[data-tile-id]').forEach((icon) => {
         icon.addEventListener('click', () => {
           selectedTileId = Number(icon.getAttribute('data-tile-id'));
+          cellMode = 'draw';
           renderDesigner();
         });
       });
@@ -2182,17 +2290,25 @@ export class MapEditor {
 
         cellEl.addEventListener('click', () => {
           selectedCell = { r, c };
-          currentBrush.grid[r][c] = {
-            tileId: selectedTileId,
-            rotation: selectedRotation,
-          };
+          if (cellMode === 'erase') {
+            currentBrush.grid[r][c] = null;
+          } else if (cellMode === 'rotate') {
+            if (currentBrush.grid[r][c]) {
+              currentBrush.grid[r][c]!.rotation = (currentBrush.grid[r][c]!.rotation + 90) % 360;
+            }
+          } else {
+            currentBrush.grid[r][c] = {
+              tileId: selectedTileId,
+              rotation: selectedRotation,
+            };
+          }
           renderDesigner();
         });
 
         cellEl.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           selectedCell = { r, c };
-          currentBrush.grid[r][c] = null; // clear cell
+          currentBrush.grid[r][c] = null; // clear cell to transparent
           renderDesigner();
         });
       });
@@ -2227,7 +2343,7 @@ export class MapEditor {
         }
 
         this.activeCustomBrushId = currentBrush.id;
-        this.saveCustomBrushes();
+        this.saveCustomBrushes(true);
         this.setTool('custom_brush');
         this.activeCategory = 'custom_brush';
         document.querySelectorAll('.me-tab-btn').forEach((t) => {

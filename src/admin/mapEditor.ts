@@ -12,10 +12,19 @@ import {
   type EditorTileType,
   type ValidationResult,
 } from './mapEditorHelper';
+import { editorAssets } from './editorAssets';
 import { buildLevel1, type LevelData } from '../world/level1';
 import { getBiomeForDepth, type BiomeId } from '../world/biomes';
 import type { EnemyKind } from '../entities/Enemy';
 import type { PropKey } from '../gfx/propKeys';
+
+interface DrawableEntity {
+  col: number;
+  row: number;
+  spriteId: string;
+  type: 'poi' | 'enemy' | 'pickup' | 'prop' | 'tree';
+  metaColor?: string;
+}
 
 export class MapEditor {
   private container: HTMLElement;
@@ -27,7 +36,7 @@ export class MapEditor {
   private zoom = 1.0;
   private panX = 40;
   private panY = 40;
-  private tileSize = 24;
+  private tileSize = 28;
 
   private activeTool: 'brush' | 'rect' | 'eraser' | 'picker' | 'inspect' = 'brush';
   private activeCategory: 'tiles' | 'poi' | 'enemy' | 'pickup' | 'prop' | 'tree' = 'tiles';
@@ -59,6 +68,12 @@ export class MapEditor {
     this.renderPalette();
     this.updateStatus();
     this.draw();
+
+    // Preload actual in-game textures
+    editorAssets.preloadAll(() => {
+      this.renderPalette();
+      this.draw();
+    });
   }
 
   private pushHistory(): void {
@@ -95,7 +110,7 @@ export class MapEditor {
         <!-- Top Toolbar -->
         <div class="me-toolbar">
           <div class="me-toolbar-group">
-            <label style="font-size:11px; font-weight:700; color:#818cf8;">ПРЕСЕТ:</label>
+            <label style="font-size:11px; font-weight:600; color:var(--text-secondary);">Пресет:</label>
             <select id="me-preset-select" class="me-select">
               <option value="1">Уровень 1: Темный Лес (200x80)</option>
               <option value="2">Уровень 2: Руины (60x38)</option>
@@ -110,7 +125,8 @@ export class MapEditor {
           </div>
 
           <div class="me-toolbar-group">
-            <label style="font-size:11px; color:#94a3b8;">Биом:</label>
+            <span class="me-divider"></span>
+            <label style="font-size:11px; color:var(--text-tertiary);">Биом:</label>
             <select id="me-biome-select" class="me-select">
               <option value="forest">Темный Лес</option>
               <option value="ruins">Руины</option>
@@ -119,26 +135,28 @@ export class MapEditor {
               <option value="void">Бездна</option>
             </select>
 
-            <label style="font-size:11px; color:#94a3b8;">Размер:</label>
+            <label style="font-size:11px; color:var(--text-tertiary);">Сетка:</label>
             <input id="me-cols-input" type="number" class="me-input me-input-number" min="10" max="300" value="${this.level.cols}">
-            <span style="color:#64748b;">x</span>
+            <span style="color:var(--text-tertiary);">x</span>
             <input id="me-rows-input" type="number" class="me-input me-input-number" min="10" max="200" value="${this.level.rows}">
-            <button id="me-resize-btn" class="me-btn">Изменить</button>
+            <button id="me-resize-btn" class="me-btn">Применить</button>
           </div>
 
           <div class="me-toolbar-group">
-            <button id="me-undo-btn" class="me-btn" title="Ctrl+Z">&larr; Отмена</button>
-            <button id="me-redo-btn" class="me-btn" title="Ctrl+Y">&rarr; Повтор</button>
+            <span class="me-divider"></span>
+            <button id="me-undo-btn" class="me-btn" title="Ctrl+Z">Отмена</button>
+            <button id="me-redo-btn" class="me-btn" title="Ctrl+Y">Повтор</button>
             <button id="me-grid-toggle-btn" class="me-btn ${this.showGrid ? 'me-btn-primary' : ''}">Сетка</button>
             <button id="me-zoom-out-btn" class="me-btn">-</button>
-            <span id="me-zoom-label" style="font-size:11px; color:#e2e8f0; min-width:40px; text-align:center;">100%</span>
+            <span id="me-zoom-label" style="font-size:11px; color:var(--text-primary); min-width:36px; text-align:center;">100%</span>
             <button id="me-zoom-in-btn" class="me-btn">+</button>
             <button id="me-reset-view-btn" class="me-btn">Центр</button>
           </div>
 
           <div class="me-toolbar-group">
+            <span class="me-divider"></span>
             <button id="me-export-code-btn" class="me-btn me-btn-primary">
-              ${ICONS.copy} Экспорт в код (TS)
+              ${ICONS.copy} Экспорт кода (TS)
             </button>
             <button id="me-save-json-btn" class="me-btn">
               ${ICONS.save} Сохранить JSON
@@ -156,28 +174,33 @@ export class MapEditor {
           <div class="me-sidebar">
             <div class="me-tools-bar">
               <button class="me-tool-btn active" data-tool="brush" title="Рисование по 1 клетке">
-                <span>${ICONS.brush}</span><span>Кисть</span>
+                ${ICONS.brush}
+                <span>Кисть</span>
               </button>
               <button class="me-tool-btn" data-tool="rect" title="Заливка прямоугольника">
-                <span>${ICONS.rect}</span><span>Область</span>
+                ${ICONS.rect}
+                <span>Область</span>
               </button>
               <button class="me-tool-btn" data-tool="eraser" title="Стереть объект / клетку">
-                <span>${ICONS.eraser}</span><span>Ластик</span>
+                ${ICONS.eraser}
+                <span>Ластик</span>
               </button>
               <button class="me-tool-btn" data-tool="picker" title="Пипетка с карты">
-                <span>${ICONS.picker}</span><span>Пипетка</span>
+                ${ICONS.picker}
+                <span>Пипетка</span>
               </button>
               <button class="me-tool-btn" data-tool="inspect" title="Информация о клетке">
-                <span>${ICONS.target}</span><span>Инфо</span>
+                ${ICONS.target}
+                <span>Инфо</span>
               </button>
             </div>
 
             <div class="me-category-tabs">
-              <button class="me-tab-btn active" data-cat="tiles">Ландшафт</button>
-              <button class="me-tab-btn" data-cat="poi">Точки (POI)</button>
+              <button class="me-tab-btn active" data-cat="tiles">Тайлы</button>
+              <button class="me-tab-btn" data-cat="poi">Точки</button>
               <button class="me-tab-btn" data-cat="enemy">Враги</button>
-              <button class="me-tab-btn" data-cat="pickup">Лут & Святилища</button>
-              <button class="me-tab-btn" data-cat="prop">Декор & Пропсы</button>
+              <button class="me-tab-btn" data-cat="pickup">Лут</button>
+              <button class="me-tab-btn" data-cat="prop">Пропсы</button>
               <button class="me-tab-btn" data-cat="tree">Деревья</button>
             </div>
 
@@ -205,7 +228,6 @@ export class MapEditor {
       </div>
     `;
 
-    // Set initial select values
     const biomeSelect = document.getElementById('me-biome-select') as HTMLSelectElement;
     if (biomeSelect) biomeSelect.value = this.level.biome.id;
   }
@@ -372,7 +394,7 @@ export class MapEditor {
         const isActive = this.activeItemId === t.id;
         item.className = `me-palette-item ${isActive ? 'active' : ''}`;
         item.innerHTML = `
-          <div class="me-palette-icon" style="background: ${t.color}; border: 1px solid rgba(255,255,255,0.2);"></div>
+          <div class="me-palette-icon" style="background: ${t.color}; border: 1px solid rgba(255,255,255,0.15);"></div>
           <div class="me-palette-label">${t.name}</div>
         `;
         item.addEventListener('click', () => {
@@ -388,9 +410,15 @@ export class MapEditor {
         const item = document.createElement('div');
         const isActive = this.activeItemId === ent.id;
         item.className = `me-palette-item ${isActive ? 'active' : ''}`;
+
+        const previewImg = editorAssets.getPreviewUrl(ent.id);
+        const iconContent = previewImg
+          ? `<img src="${previewImg}" alt="${ent.name}">`
+          : `<span style="color:${ent.color}; font-size:10px; font-weight:600;">${ent.icon}</span>`;
+
         item.innerHTML = `
-          <div class="me-palette-icon" style="background: rgba(0,0,0,0.4); border: 1px solid ${ent.color}; color:${ent.color}; font-weight:700; font-size:10px;">
-            ${ent.icon}
+          <div class="me-palette-icon" style="border: 1px solid ${isActive ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.08)'};">
+            ${iconContent}
           </div>
           <div class="me-palette-label">${ent.name}</div>
         `;
@@ -567,7 +595,6 @@ export class MapEditor {
     }
 
     if (this.activeTool === 'eraser') {
-      // Clear entities on this cell first
       let removed = false;
       if (this.level.trees) {
         const before = this.level.trees.length;
@@ -614,7 +641,6 @@ export class MapEditor {
         else if (this.activeItemId === 'altar') this.level.altar = { col, row };
         else if (this.activeItemId === 'exit') this.level.exit = { col, row };
       } else if (this.activeCategory === 'enemy') {
-        // Remove existing enemy on cell if any
         this.level.enemies = this.level.enemies.filter((e) => e.col !== col || e.row !== row);
         this.level.enemies.push({ col, row, kind: this.activeItemId as EnemyKind });
       } else if (this.activeCategory === 'pickup') {
@@ -710,8 +736,9 @@ export class MapEditor {
     const step = this.tileSize * this.zoom;
     const cols = this.level.cols;
     const rows = this.level.rows;
+    const biomeId = this.level.biome.id;
 
-    // 1. Draw Tiles
+    // 1. Draw Tiles (using actual tilesheet sprites)
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const x = this.panX + c * step;
@@ -720,16 +747,13 @@ export class MapEditor {
         if (x + step < 0 || x > this.canvas.width || y + step < 0 || y > this.canvas.height) continue;
 
         const tileType = (this.level.data[r]?.[c] ?? 0) as EditorTileType;
-        const meta = TILE_METAS[tileType] || TILE_METAS[EDITOR_TILE.FLOOR];
-
-        this.ctx.fillStyle = meta.color;
-        this.ctx.fillRect(x, y, step, step);
+        editorAssets.drawTile(this.ctx, tileType, x, y, step, biomeId);
       }
     }
 
     // 2. Draw Grid Lines
     if (this.showGrid && step >= 8) {
-      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
       this.ctx.lineWidth = 1;
       this.ctx.beginPath();
       for (let c = 0; c <= cols; c++) {
@@ -746,109 +770,94 @@ export class MapEditor {
     }
 
     // Outer Map Border
-    this.ctx.strokeStyle = '#818cf8';
-    this.ctx.lineWidth = 2;
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    this.ctx.lineWidth = 1;
     this.ctx.strokeRect(this.panX, this.panY, cols * step, rows * step);
 
-    // 3. Draw Trees
+    // 3. Collect All Drawable Entities for Y-Sorted Rendering
+    const drawables: DrawableEntity[] = [];
+
+    // Trees
     if (this.level.trees) {
       this.level.trees.forEach((tr) => {
-        const x = this.panX + tr.col * step + step / 2;
-        const y = this.panY + tr.row * step + step / 2;
-        this.drawIcon(x, y, tr.kind === 'pine' ? 'PN' : 'OK', '#22c55e', step);
+        drawables.push({ col: tr.col, row: tr.row, spriteId: tr.kind === 'pine' ? 'tree_pine' : 'tree_oak', type: 'tree' });
       });
     }
 
-    // 4. Draw Props & Torches
+    // Torches & Bonfires
     this.level.torches.forEach((t) => {
-      const x = this.panX + t.col * step + step / 2;
-      const y = this.panY + t.row * step + step / 2;
-      this.drawIcon(x, y, 'TC', '#f97316', step);
+      drawables.push({ col: t.col, row: t.row, spriteId: 'torch', type: 'prop' });
     });
-
     if (this.level.bonfires) {
       this.level.bonfires.forEach((b) => {
-        const x = this.panX + b.col * step + step / 2;
-        const y = this.panY + b.row * step + step / 2;
-        this.drawIcon(x, y, 'BF', '#fb923c', step);
+        drawables.push({ col: b.col, row: b.row, spriteId: 'bonfire', type: 'prop' });
       });
     }
 
+    // Decorations
     this.level.decorations.forEach((d) => {
-      const x = this.panX + d.col * step + step / 2;
-      const y = this.panY + d.row * step + step / 2;
-      const iconMap: Record<string, string> = {
-        spikes: 'SK',
-        barrel: 'BR',
-        crate: 'CR',
-        fence: 'FN',
-        rock: 'RK',
-        tombstone: 'TB',
-        obelisk: 'OB',
-        minecart: 'MC',
-        mushroom: 'MS',
-      };
-      this.drawIcon(x, y, iconMap[d.key] || 'DC', '#94a3b8', step);
+      drawables.push({ col: d.col, row: d.row, spriteId: d.key, type: 'prop' });
     });
 
-    // 5. Draw Pickups (Flasks, Chests, Shrines)
+    // Flasks, Chests, Shrines
     this.level.flasks.forEach((f) => {
-      const x = this.panX + f.col * step + step / 2;
-      const y = this.panY + f.row * step + step / 2;
-      const icon = f.key === 'flask_yellow' ? 'LT' : f.key === 'flask_blue' ? 'MP' : 'HP';
-      const color = f.key === 'flask_yellow' ? '#facc15' : f.key === 'flask_blue' ? '#38bdf8' : '#f43f5e';
-      this.drawIcon(x, y, icon, color, step);
+      drawables.push({ col: f.col, row: f.row, spriteId: f.key, type: 'pickup' });
     });
-
     this.level.chests.forEach((c) => {
-      const x = this.panX + c.col * step + step / 2;
-      const y = this.panY + c.row * step + step / 2;
-      this.drawIcon(x, y, 'CH', '#f59e0b', step);
+      drawables.push({ col: c.col, row: c.row, spriteId: 'chest', type: 'pickup' });
     });
-
     this.level.shrines.forEach((s) => {
-      const x = this.panX + s.col * step + step / 2;
-      const y = this.panY + s.row * step + step / 2;
-      this.drawIcon(x, y, s.kind === 'blood' ? 'SB' : 'SC', s.kind === 'blood' ? '#ef4444' : '#38bdf8', step);
+      drawables.push({ col: s.col, row: s.row, spriteId: s.kind === 'blood' ? 'shrine_blood' : 'shrine_chance', type: 'pickup' });
     });
 
-    // 6. Draw Key POIs
+    // POIs
     if (this.level.spawn) {
-      const x = this.panX + this.level.spawn.col * step + step / 2;
-      const y = this.panY + this.level.spawn.row * step + step / 2;
-      this.drawIcon(x, y, 'SP', '#22c55e', step, true);
+      drawables.push({ col: this.level.spawn.col, row: this.level.spawn.row, spriteId: 'spawn', type: 'poi', metaColor: '#22c55e' });
     }
-
     if (this.level.altar) {
-      const x = this.panX + this.level.altar.col * step + step / 2;
-      const y = this.panY + this.level.altar.row * step + step / 2;
-      this.drawIcon(x, y, 'AL', '#eab308', step, true);
+      drawables.push({ col: this.level.altar.col, row: this.level.altar.row, spriteId: 'altar', type: 'poi', metaColor: '#eab308' });
     }
-
     if (this.level.exit) {
-      const x = this.panX + this.level.exit.col * step + step / 2;
-      const y = this.panY + this.level.exit.row * step + step / 2;
-      this.drawIcon(x, y, 'EX', '#38bdf8', step, true);
+      drawables.push({ col: this.level.exit.col, row: this.level.exit.row, spriteId: 'exit', type: 'poi', metaColor: '#38bdf8' });
     }
 
-    // 7. Draw Enemies
+    // Enemies
     this.level.enemies.forEach((e) => {
-      const x = this.panX + e.col * step + step / 2;
-      const y = this.panY + e.row * step + step / 2;
-      const enemyIcons: Record<string, string> = {
-        wolf: 'WF',
-        direwolf: 'DW',
-        skeleton: 'SK',
-        imp: 'IM',
-        orc_grunt: 'OG',
-        orc_shield: 'OS',
-        orc_archer: 'OA',
-        bandit_assassin: 'BA',
-      };
-      this.drawIcon(x, y, enemyIcons[e.kind] || 'EN', '#ef4444', step);
+      drawables.push({ col: e.col, row: e.row, spriteId: e.kind, type: 'enemy', metaColor: '#ef4444' });
     });
 
-    // 8. Rect Drag Preview
+    // Sort by row (Y-Sort)
+    drawables.sort((a, b) => a.row - b.row);
+
+    // Draw all entities with real textures
+    drawables.forEach((item) => {
+      const cx = this.panX + item.col * step + step / 2;
+      const cy = this.panY + item.row * step + step / 2;
+
+      // Draw subtle ground halo for POIs and enemies
+      if (item.type === 'poi' || item.type === 'enemy') {
+        const radius = Math.max(6, step * 0.45);
+        this.ctx.fillStyle = item.metaColor ? `${item.metaColor}33` : 'rgba(255,255,255,0.15)';
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy + step * 0.25, radius, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.strokeStyle = item.metaColor || '#ffffff';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.stroke();
+      }
+
+      // Draw the actual sprite image
+      const drawn = editorAssets.drawSprite(this.ctx, item.spriteId, cx, cy, step);
+      if (!drawn) {
+        // Fallback marker if sprite image is loading
+        this.ctx.fillStyle = item.metaColor || '#ffffff';
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, Math.max(4, step * 0.3), 0, Math.PI * 2);
+        this.ctx.fill();
+      }
+    });
+
+    // 4. Rect Drag Preview
     if (this.isMouseDown && this.activeTool === 'rect' && this.rectStartCol >= 0 && this.hoverCol >= 0) {
       const minC = Math.max(0, Math.min(this.rectStartCol, this.hoverCol));
       const maxC = Math.min(cols - 1, Math.max(this.rectStartCol, this.hoverCol));
@@ -860,38 +869,19 @@ export class MapEditor {
       const rw = (maxC - minC + 1) * step;
       const rh = (maxR - minR + 1) * step;
 
-      this.ctx.fillStyle = 'rgba(129, 140, 248, 0.35)';
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.fillRect(rx, ry, rw, rh);
-      this.ctx.strokeStyle = '#a5b4fc';
-      this.ctx.lineWidth = 2;
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(rx, ry, rw, rh);
     } else if (this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows) {
       // Hover cell cursor
       const hx = this.panX + this.hoverCol * step;
       const hy = this.panY + this.hoverRow * step;
       this.ctx.strokeStyle = '#facc15';
-      this.ctx.lineWidth = 2;
+      this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(hx, hy, step, step);
     }
-  }
-
-  private drawIcon(x: number, y: number, icon: string, color: string, step: number, highlight = false): void {
-    if (step < 6) return;
-    const fontSize = Math.max(8, Math.min(13, step * 0.5));
-
-    this.ctx.fillStyle = 'rgba(10, 6, 20, 0.85)';
-    this.ctx.beginPath();
-    this.ctx.arc(x, y, Math.max(5, step * 0.4), 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.strokeStyle = color;
-    this.ctx.lineWidth = highlight ? 2 : 1;
-    this.ctx.stroke();
-
-    this.ctx.fillStyle = color;
-    this.ctx.font = `bold ${fontSize}px sans-serif`;
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillText(icon, x, y);
   }
 
   private showExportModal(): void {
@@ -906,7 +896,7 @@ export class MapEditor {
           <button id="me-modal-close" class="me-btn me-btn-danger">&times;</button>
         </div>
         <div class="me-modal-body">
-          <p style="margin:0 0 10px 0; font-size:11px; color:#94a3b8;">
+          <p style="margin:0 0 8px 0; font-size:11px; color:var(--text-tertiary);">
             Скопируйте этот код и вставьте в <code>src/world/level1.ts</code>:
           </p>
           <textarea id="me-code-output" class="me-code-block" readonly>${code}</textarea>

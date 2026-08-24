@@ -32,6 +32,7 @@ import {
   getBaseTileForFamily,
   calculateAutotileCell,
 } from './autotileHelper';
+import { bakeLevelViaGitHubApi, TOKEN_KEY } from './githubBake';
 
 interface DrawableEntity {
   col: number;
@@ -2130,6 +2131,7 @@ export class MapEditor {
     const originalText = btn ? btn.innerHTML : '';
     if (btn) btn.innerHTML = `${ICONS.sparkles} Отправка в прод...`;
 
+    // 1. Try local dev server endpoint first (localhost)
     try {
       const res = await fetch('/api/bake-level', {
         method: 'POST',
@@ -2140,29 +2142,96 @@ export class MapEditor {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          if (btn) {
-            btn.style.background = '#15803d';
-            btn.innerHTML = data.pushed ? '✓ Выкатывается на прод!' : '✓ Вшито в игру!';
-          }
-          this.showToast(
-            data.pushed
-              ? '✓ Уровень успешно вшит и отправлен в GitHub! Сборка на проде уже собирается.'
-              : '✓ Уровень успешно вшит в игру!'
-          );
-          setTimeout(() => {
-            if (btn) {
-              btn.style.background = '#4f46e5';
-              btn.innerHTML = originalText;
-            }
-          }, 4000);
+          this.handleBakeSuccess(btn, originalText);
           return;
         }
       }
-      throw new Error(`Статус ответа: ${res.status}`);
-    } catch (err) {
-      this.showToast(`Ошибка вшивания: ${err instanceof Error ? err.message : String(err)}`, false);
-      if (btn) btn.innerHTML = originalText;
+    } catch {
+      // Local dev endpoint not available
     }
+
+    // 2. Fallback to GitHub REST API for live site (GitHub Pages)
+    const token = localStorage.getItem(TOKEN_KEY)?.trim();
+    if (!token) {
+      if (btn) btn.innerHTML = originalText;
+      this.promptForGitHubToken();
+      return;
+    }
+
+    const result = await bakeLevelViaGitHubApi(this.level, token);
+    if (result.success) {
+      this.handleBakeSuccess(btn, originalText);
+    } else {
+      if (btn) btn.innerHTML = originalText;
+      if (result.error?.includes('Bad credentials') || result.error?.includes('401') || result.error?.includes('403')) {
+        this.showToast('Неверный или устаревший GitHub Token. Укажите новый токен.', false);
+        this.promptForGitHubToken();
+      } else {
+        this.showToast(`Ошибка GitHub: ${result.error}`, false);
+      }
+    }
+  }
+
+  private handleBakeSuccess(btn: HTMLElement | null, originalText: string): void {
+    if (btn) {
+      btn.style.background = '#15803d';
+      btn.innerHTML = '✓ Выкатывается на прод!';
+    }
+    this.showToast('✓ Уровень успешно вшит и отправлен в GitHub! Сборка на проде уже запущена.');
+    setTimeout(() => {
+      if (btn) {
+        btn.style.background = '#4f46e5';
+        btn.innerHTML = originalText;
+      }
+    }, 4000);
+  }
+
+  private promptForGitHubToken(): void {
+    const existing = document.getElementById('me-token-modal');
+    if (existing) existing.remove();
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'me-token-modal';
+    backdrop.className = 'me-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="me-modal-window" style="max-width: 440px;">
+        <div class="me-modal-header">
+          <span style="font-weight: 600; color: var(--text-primary);">GitHub Token для вшивания</span>
+          <button id="me-token-close" class="me-btn me-btn-danger">&times;</button>
+        </div>
+        <div class="me-modal-body" style="display:flex; flex-direction:column; gap:10px;">
+          <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
+            Вы открыли сайт на GitHub Pages. Чтобы вшивать уровни в прод прямо из браузера в 1 клик, введите один раз ваш <b>GitHub Personal Access Token</b> (с правами <code>repo</code>). Он сохранится в браузере.
+          </div>
+          <input
+            id="me-token-input"
+            type="password"
+            class="me-input"
+            style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-family: var(--font-mono, monospace);"
+            placeholder="ghp_..."
+            value="${localStorage.getItem(TOKEN_KEY) || ''}"
+          />
+          <button id="me-token-submit" class="me-btn me-btn-primary" style="padding: 8px; justify-content: center; font-weight: 600;">
+            ${ICONS.sparkles} Сохранить и вшить в игру
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    backdrop.querySelector('#me-token-close')?.addEventListener('click', close);
+    backdrop.querySelector('#me-token-submit')?.addEventListener('click', () => {
+      const input = backdrop.querySelector('#me-token-input') as HTMLInputElement | null;
+      const val = input?.value.trim() || '';
+      if (!val) {
+        alert('Пожалуйста, введите токен');
+        return;
+      }
+      localStorage.setItem(TOKEN_KEY, val);
+      close();
+      void this.bakeToGame();
+    });
   }
 
   private showToast(message: string, isSuccess = true): void {

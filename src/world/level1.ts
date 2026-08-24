@@ -2343,11 +2343,13 @@ function buildAstralAbyssLevel(biome: BiomeConfig, depth: number): LevelData {
   };
 }
 
-export function buildLevel1(depth = 1): LevelData {
+export function buildLevel1(depth = 1, ignoreBaked = false): LevelData {
   const biome = getBiomeForDepth(depth);
   if (biome.id === 'forest') {
-    const baked = getBakedLevel1();
-    if (baked) return baked;
+    if (!ignoreBaked) {
+      const baked = getBakedLevel1();
+      if (baked) return baked;
+    }
     return buildDarkForestLevel(biome, depth);
   } else if (biome.id === 'ruins') {
     return buildAncientRuinsLevel(biome, depth);

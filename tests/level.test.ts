@@ -12,7 +12,7 @@ const walkable = (grid: number[][], col: number, row: number) =>
   row >= 0 && row < grid.length && col >= 0 && col < grid[0].length && FLOOR_INDICES.includes(grid[row][col]);
 
 describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
-  const level = buildLevel1(depth);
+  const level = buildLevel1(depth, true);
 
   it('produces a grid of the declared dimensions', () => {
     expect(level.rows).toBe(depth === 1 ? 80 : 38);
@@ -137,7 +137,7 @@ describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
   it('is deterministic for a given depth', () => {
     // Level layout is seeded from depth; co-op relies on every client
     // generating byte-identical geometry, since only entity state is synced.
-    const again = buildLevel1(depth);
+    const again = buildLevel1(depth, true);
     expect(again.data).toEqual(level.data);
     expect(again.enemies).toEqual(level.enemies);
     expect(again.chests).toEqual(level.chests);

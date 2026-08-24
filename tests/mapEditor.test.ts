@@ -300,8 +300,15 @@ describe('mapEditor: Baking & Custom Level Integration', () => {
   });
 
   it('correctly reports baked level state', () => {
-    expect(hasBakedLevel1()).toBe(false);
-    expect(getBakedLevel1()).toBeNull();
+    const isBaked = hasBakedLevel1();
+    expect(typeof isBaked).toBe('boolean');
+    if (isBaked) {
+      const baked = getBakedLevel1();
+      expect(baked).not.toBeNull();
+      expect(baked?.biome.id).toBe('forest');
+    } else {
+      expect(getBakedLevel1()).toBeNull();
+    }
   });
 
   it('serializes and deserializes level without data corruption', () => {

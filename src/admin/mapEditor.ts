@@ -2143,7 +2143,7 @@ export class MapEditor {
   private async bakeToGame(): Promise<void> {
     const btn = document.getElementById('me-bake-prod-btn') as HTMLElement | null;
     const originalText = btn ? btn.innerHTML : '';
-    if (btn) btn.innerHTML = `${ICONS.sparkles} Вшивание...`;
+    if (btn) btn.innerHTML = `${ICONS.sparkles} Отправка в прод...`;
 
     try {
       const res = await fetch('/api/bake-level', {
@@ -2157,15 +2157,19 @@ export class MapEditor {
         if (data.success) {
           if (btn) {
             btn.style.background = '#15803d';
-            btn.innerHTML = `✓ Вшито в игру!`;
+            btn.innerHTML = data.pushed ? '✓ Выкатывается на прод!' : '✓ Вшито в игру!';
           }
-          this.showToast('✓ Уровень моментально вшит в src/world/customLevelPreset.ts! Теперь он официальный 1-й этаж игры.');
+          this.showToast(
+            data.pushed
+              ? '✓ Уровень успешно вшит и отправлен в GitHub! Сборка на проде уже собирается.'
+              : '✓ Уровень успешно вшит в src/world/customLevelPreset.ts!'
+          );
           setTimeout(() => {
             if (btn) {
               btn.style.background = '#4f46e5';
               btn.innerHTML = originalText;
             }
-          }, 3500);
+          }, 4000);
           return;
         }
       }

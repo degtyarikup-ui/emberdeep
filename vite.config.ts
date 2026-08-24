@@ -84,9 +84,39 @@ export function getBakedLevel1(): LevelData | null {
             const targetPath = resolve(__dirname, 'src/world/customLevelPreset.ts');
             writeFileSync(targetPath, tsCode, 'utf8');
 
+            let pushed = false;
+            let gitMessage = '';
+            try {
+              execSync('git add src/world/customLevelPreset.ts', { cwd: __dirname, stdio: 'pipe' });
+              const status = execSync('git status --porcelain src/world/customLevelPreset.ts', {
+                cwd: __dirname,
+                encoding: 'utf8',
+              }).trim();
+
+              if (status) {
+                execSync('git commit -m "feat(level): update official Level 1 preset from map editor" --no-verify', {
+                  cwd: __dirname,
+                  stdio: 'pipe',
+                });
+              }
+              execSync('git push origin main', { cwd: __dirname, stdio: 'pipe' });
+              pushed = true;
+              gitMessage = 'Изменения отправлены в GitHub! Сборка на GitHub Pages запущена.';
+            } catch (gitErr) {
+              gitMessage = `Локально сохранено, но git push не выполнен: ${gitErr instanceof Error ? gitErr.message : String(gitErr)}`;
+            }
+
             res.setHeader('Content-Type', 'application/json');
             res.statusCode = 200;
-            res.end(JSON.stringify({ success: true, message: 'Уровень успешно вшит в src/world/customLevelPreset.ts' }));
+            res.end(
+              JSON.stringify({
+                success: true,
+                pushed,
+                message: pushed
+                  ? 'Уровень успешно вшит и отправлен в прод! Сборка на GitHub Pages уже собирается.'
+                  : gitMessage,
+              })
+            );
           } catch (err) {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');

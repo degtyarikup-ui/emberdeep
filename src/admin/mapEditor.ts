@@ -393,8 +393,16 @@ export class MapEditor {
         const item = document.createElement('div');
         const isActive = this.activeItemId === t.id;
         item.className = `me-palette-item ${isActive ? 'active' : ''}`;
+
+        const previewImg = editorAssets.getTilePreviewUrl(t.id, this.level.biome.id);
+        const iconContent = previewImg
+          ? `<img src="${previewImg}" alt="${t.name}">`
+          : `<div style="width:100%; height:100%; background:${t.color};"></div>`;
+
         item.innerHTML = `
-          <div class="me-palette-icon" style="background: ${t.color}; border: 1px solid rgba(255,255,255,0.15);"></div>
+          <div class="me-palette-icon" style="border: 1px solid ${isActive ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'};">
+            ${iconContent}
+          </div>
           <div class="me-palette-label">${t.name}</div>
         `;
         item.addEventListener('click', () => {
@@ -829,30 +837,30 @@ export class MapEditor {
     // Sort by row (Y-Sort)
     drawables.sort((a, b) => a.row - b.row);
 
-    // Draw all entities with real textures
+    // Draw all entities with real textures (bottom-aligned to tile)
     drawables.forEach((item) => {
       const cx = this.panX + item.col * step + step / 2;
-      const cy = this.panY + item.row * step + step / 2;
+      const bottomY = this.panY + item.row * step + step;
 
       // Draw subtle ground halo for POIs and enemies
       if (item.type === 'poi' || item.type === 'enemy') {
-        const radius = Math.max(6, step * 0.45);
+        const radius = Math.max(5, step * 0.35);
         this.ctx.fillStyle = item.metaColor ? `${item.metaColor}33` : 'rgba(255,255,255,0.15)';
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy + step * 0.25, radius, 0, Math.PI * 2);
+        this.ctx.arc(cx, bottomY - step * 0.2, radius, 0, Math.PI * 2);
         this.ctx.fill();
         this.ctx.strokeStyle = item.metaColor || '#ffffff';
-        this.ctx.lineWidth = 1.5;
+        this.ctx.lineWidth = 1.2;
         this.ctx.stroke();
       }
 
       // Draw the actual sprite image
-      const drawn = editorAssets.drawSprite(this.ctx, item.spriteId, cx, cy, step);
+      const drawn = editorAssets.drawSprite(this.ctx, item.spriteId, cx, bottomY, step);
       if (!drawn) {
-        // Fallback marker if sprite image is loading
-        this.ctx.fillStyle = item.metaColor || '#ffffff';
+        // Subtle fallback dot if sprite image is still loading
+        this.ctx.fillStyle = item.metaColor || '#a1a1aa';
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, Math.max(4, step * 0.3), 0, Math.PI * 2);
+        this.ctx.arc(cx, bottomY - step * 0.3, Math.max(3, step * 0.2), 0, Math.PI * 2);
         this.ctx.fill();
       }
     });

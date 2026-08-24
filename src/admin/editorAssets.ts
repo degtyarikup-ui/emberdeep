@@ -119,25 +119,103 @@ export const SPRITE_DEFS: Record<string, SpriteDefinition> = {
   lupine: { url: asset('prop_lupine.png'), widthTiles: 0.8, heightTiles: 0.9 },
   ice_crystal: { url: asset('prop_ice_crystal.png'), widthTiles: 1.0, heightTiles: 1.2 },
 
-  // Trees (Origin bottom-center)
-  tree_pine: { url: asset('tree_pine.png'), widthTiles: 1.5, heightTiles: 2.5 },
-  tree_oak: { url: asset('tree_oak.png'), widthTiles: 1.5, heightTiles: 2.2 },
-  tree_pine_sm: { url: asset('trees/tree_pine_sm.png'), widthTiles: 1.2, heightTiles: 1.8 },
-  tree_pine_md: { url: asset('trees/tree_pine_md.png'), widthTiles: 1.5, heightTiles: 2.3 },
-  tree_pine_lg: { url: asset('trees/tree_pine_lg.png'), widthTiles: 1.8, heightTiles: 2.8 },
-  tree_pine_xl: { url: asset('trees/tree_pine_xl.png'), widthTiles: 2.2, heightTiles: 3.5 },
-  tree_oak_sm: { url: asset('trees/tree_oak_sm.png'), widthTiles: 1.2, heightTiles: 1.6 },
-  tree_oak_md: { url: asset('trees/tree_oak_md.png'), widthTiles: 1.5, heightTiles: 2.0 },
-  tree_oak_lg: { url: asset('trees/tree_oak_lg.png'), widthTiles: 1.8, heightTiles: 2.5 },
-  tree_oak_xl: { url: asset('trees/tree_oak_xl.png'), widthTiles: 2.2, heightTiles: 3.2 },
-  tree_birch_sm: { url: asset('trees/tree_birch_sm.png'), widthTiles: 1.2, heightTiles: 1.7 },
-  tree_birch_md: { url: asset('trees/tree_birch_md.png'), widthTiles: 1.5, heightTiles: 2.2 },
-  tree_birch_lg: { url: asset('trees/tree_birch_lg.png'), widthTiles: 1.8, heightTiles: 2.7 },
-  tree_birch_xl: { url: asset('trees/tree_birch_xl.png'), widthTiles: 2.2, heightTiles: 3.4 },
+  // Trees (Origin bottom-center) - Standalone Single Tree Sprites
+  tree_pine: { url: asset('tree_pine.png'), widthTiles: 2.0, heightTiles: 3.5 },
+  tree_oak: { url: asset('tree_oak.png'), widthTiles: 1.7, heightTiles: 3.0 },
+
+  // Pines
+  tree_pine_sm: { url: asset('trees/tree_pine_sm.png'), widthTiles: 1.5, heightTiles: 2.0 },
+  tree_pine_md: { url: asset('trees/tree_pine_md.png'), widthTiles: 1.5, heightTiles: 3.0 },
+  tree_pine_lg: { url: asset('trees/tree_pine_lg.png'), widthTiles: 2.2, heightTiles: 3.8 },
+  tree_pine_xl: { url: asset('trees/tree_pine_xl.png'), widthTiles: 3.0, heightTiles: 4.8 },
+
+  tree_pine_green_sm: { url: asset('trees/tree_pine_green_sm.png'), widthTiles: 1.5, heightTiles: 2.0 },
+  tree_pine_green_md: { url: asset('trees/tree_pine_green_md.png'), widthTiles: 1.5, heightTiles: 3.0 },
+  tree_pine_green_lg: { url: asset('trees/tree_pine_green_lg.png'), widthTiles: 2.2, heightTiles: 3.8 },
+  tree_pine_green_xl: { url: asset('trees/tree_pine_green_xl.png'), widthTiles: 3.0, heightTiles: 4.8 },
+
+  tree_pine_forest_sm: { url: asset('trees/tree_pine_forest_sm.png'), widthTiles: 1.5, heightTiles: 2.0 },
+  tree_pine_forest_md: { url: asset('trees/tree_pine_forest_md.png'), widthTiles: 1.5, heightTiles: 3.0 },
+  tree_pine_forest_lg: { url: asset('trees/tree_pine_forest_lg.png'), widthTiles: 2.2, heightTiles: 3.8 },
+  tree_pine_forest_xl: { url: asset('trees/tree_pine_forest_xl.png'), widthTiles: 3.0, heightTiles: 4.8 },
+
+  tree_pine_autumn_sm: { url: asset('trees/tree_pine_autumn_sm.png'), widthTiles: 0.9, heightTiles: 1.5 },
+  tree_pine_autumn_md: { url: asset('trees/tree_pine_autumn_md.png'), widthTiles: 1.5, heightTiles: 3.0 },
+  tree_pine_autumn_lg: { url: asset('trees/tree_pine_autumn_lg.png'), widthTiles: 2.1, heightTiles: 3.8 },
+  tree_pine_autumn_xl: { url: asset('trees/tree_pine_autumn_xl.png'), widthTiles: 3.0, heightTiles: 4.8 },
+
+  tree_pine_snow_sm: { url: asset('trees/tree_pine_snow_sm.png'), widthTiles: 0.9, heightTiles: 1.5 },
+  tree_pine_snow_md: { url: asset('trees/tree_pine_snow_md.png'), widthTiles: 1.5, heightTiles: 3.0 },
+  tree_pine_snow_lg: { url: asset('trees/tree_pine_snow_lg.png'), widthTiles: 2.1, heightTiles: 3.8 },
+  tree_pine_snow_xl: { url: asset('trees/tree_pine_snow_xl.png'), widthTiles: 3.0, heightTiles: 4.8 },
+
+  tree_pine_stump_sm: { url: asset('trees/tree_pine_stump_sm.png'), widthTiles: 0.6, heightTiles: 0.9 },
+  tree_pine_stump_lg: { url: asset('trees/tree_pine_stump_lg.png'), widthTiles: 0.9, heightTiles: 0.8 },
+  tree_pine_stump_xl: { url: asset('trees/tree_pine_stump_xl.png'), widthTiles: 1.8, heightTiles: 1.3 },
+
+  // Oaks
+  tree_oak_sm: { url: asset('trees/tree_oak_sm.png'), widthTiles: 1.4, heightTiles: 1.5 },
+  tree_oak_md: { url: asset('trees/tree_oak_md.png'), widthTiles: 1.2, heightTiles: 2.4 },
+  tree_oak_lg: { url: asset('trees/tree_oak_lg.png'), widthTiles: 1.7, heightTiles: 3.0 },
+  tree_oak_xl: { url: asset('trees/tree_oak_xl.png'), widthTiles: 2.8, heightTiles: 4.8 },
+
+  tree_oak_green_sm: { url: asset('trees/tree_oak_green_sm.png'), widthTiles: 1.4, heightTiles: 1.5 },
+  tree_oak_green_md: { url: asset('trees/tree_oak_green_md.png'), widthTiles: 1.2, heightTiles: 2.4 },
+  tree_oak_green_lg: { url: asset('trees/tree_oak_green_lg.png'), widthTiles: 1.7, heightTiles: 3.0 },
+  tree_oak_green_xl: { url: asset('trees/tree_oak_green_xl.png'), widthTiles: 2.8, heightTiles: 4.8 },
+
+  tree_oak_forest_md: { url: asset('trees/tree_oak_forest_md.png'), widthTiles: 1.2, heightTiles: 2.4 },
+  tree_oak_forest_lg: { url: asset('trees/tree_oak_forest_lg.png'), widthTiles: 1.7, heightTiles: 3.0 },
+  tree_oak_forest_xl: { url: asset('trees/tree_oak_forest_xl.png'), widthTiles: 2.8, heightTiles: 4.8 },
+
+  tree_oak_autumn_sm: { url: asset('trees/tree_oak_autumn_sm.png'), widthTiles: 1.4, heightTiles: 1.5 },
+  tree_oak_autumn_md: { url: asset('trees/tree_oak_autumn_md.png'), widthTiles: 1.2, heightTiles: 2.4 },
+  tree_oak_autumn_lg: { url: asset('trees/tree_oak_autumn_lg.png'), widthTiles: 1.7, heightTiles: 3.0 },
+  tree_oak_autumn_xl: { url: asset('trees/tree_oak_autumn_xl.png'), widthTiles: 2.8, heightTiles: 4.8 },
+
+  tree_oak_snow_sm: { url: asset('trees/tree_oak_snow_sm.png'), widthTiles: 1.4, heightTiles: 1.5 },
+  tree_oak_snow_md: { url: asset('trees/tree_oak_snow_md.png'), widthTiles: 1.2, heightTiles: 2.4 },
+  tree_oak_snow_lg: { url: asset('trees/tree_oak_snow_lg.png'), widthTiles: 1.7, heightTiles: 3.0 },
+  tree_oak_snow_xl: { url: asset('trees/tree_oak_snow_xl.png'), widthTiles: 2.8, heightTiles: 4.8 },
+
+  tree_oak_dead_sm: { url: asset('trees/tree_oak_dead_sm.png'), widthTiles: 1.4, heightTiles: 1.5 },
+  tree_oak_dead_md: { url: asset('trees/tree_oak_dead_md.png'), widthTiles: 1.3, heightTiles: 2.3 },
+  tree_oak_dead_lg: { url: asset('trees/tree_oak_dead_lg.png'), widthTiles: 1.4, heightTiles: 2.9 },
+  tree_oak_dead_xl: { url: asset('trees/tree_oak_dead_xl.png'), widthTiles: 2.7, heightTiles: 4.7 },
+
+  // Birches & Magic Trees
+  tree_birch_sm: { url: asset('trees/tree_birch_sm.png'), widthTiles: 1.0, heightTiles: 2.3 },
+  tree_birch_md: { url: asset('trees/tree_birch_md.png'), widthTiles: 1.9, heightTiles: 4.2 },
+  tree_birch_lg: { url: asset('trees/tree_birch_lg.png'), widthTiles: 2.8, heightTiles: 5.5 },
+  tree_birch_xl: { url: asset('trees/tree_birch_xl.png'), widthTiles: 2.9, heightTiles: 6.8 },
+
+  tree_birch_green_sm: { url: asset('trees/tree_birch_green_sm.png'), widthTiles: 1.0, heightTiles: 2.3 },
+  tree_birch_green_md: { url: asset('trees/tree_birch_green_md.png'), widthTiles: 1.9, heightTiles: 4.2 },
+  tree_birch_green_lg: { url: asset('trees/tree_birch_green_lg.png'), widthTiles: 2.8, heightTiles: 5.5 },
+  tree_birch_green_xl: { url: asset('trees/tree_birch_green_xl.png'), widthTiles: 2.9, heightTiles: 6.8 },
+
+  tree_birch_forest_md: { url: asset('trees/tree_birch_forest_md.png'), widthTiles: 1.9, heightTiles: 4.2 },
+  tree_birch_forest_lg: { url: asset('trees/tree_birch_forest_lg.png'), widthTiles: 2.8, heightTiles: 5.5 },
+  tree_birch_forest_xl: { url: asset('trees/tree_birch_forest_xl.png'), widthTiles: 2.9, heightTiles: 6.8 },
+
+  tree_birch_autumn_sm: { url: asset('trees/tree_birch_autumn_sm.png'), widthTiles: 1.0, heightTiles: 2.3 },
+  tree_birch_autumn_md: { url: asset('trees/tree_birch_autumn_md.png'), widthTiles: 1.9, heightTiles: 4.2 },
+  tree_birch_autumn_lg: { url: asset('trees/tree_birch_autumn_lg.png'), widthTiles: 2.8, heightTiles: 5.5 },
+  tree_birch_autumn_xl: { url: asset('trees/tree_birch_autumn_xl.png'), widthTiles: 2.9, heightTiles: 6.8 },
+
+  tree_birch_ice_sm: { url: asset('trees/tree_birch_ice_sm.png'), widthTiles: 1.0, heightTiles: 2.3 },
+  tree_birch_ice_md: { url: asset('trees/tree_birch_ice_md.png'), widthTiles: 1.9, heightTiles: 4.2 },
+  tree_birch_ice_lg: { url: asset('trees/tree_birch_ice_lg.png'), widthTiles: 2.8, heightTiles: 5.5 },
+  tree_birch_ice_xl: { url: asset('trees/tree_birch_ice_xl.png'), widthTiles: 2.9, heightTiles: 6.8 },
+
+  tree_birch_dead_sm: { url: asset('trees/tree_birch_dead_sm.png'), widthTiles: 1.0, heightTiles: 2.3 },
+  tree_birch_dead_md: { url: asset('trees/tree_birch_dead_md.png'), widthTiles: 1.5, heightTiles: 4.0 },
+  tree_birch_dead_lg: { url: asset('trees/tree_birch_dead_lg.png'), widthTiles: 2.0, heightTiles: 5.5 },
+  tree_birch_dead_xl: { url: asset('trees/tree_birch_dead_xl.png'), widthTiles: 3.0, heightTiles: 7.0 },
 
   // TEXTURE Key Aliases
-  [TEXTURE.TREE_PINE]: { url: asset('tree_pine.png'), widthTiles: 2.0, heightTiles: 3.0 },
-  [TEXTURE.TREE_OAK]: { url: asset('tree_oak.png'), widthTiles: 2.0, heightTiles: 2.5 },
+  [TEXTURE.TREE_PINE]: { url: asset('tree_pine.png'), widthTiles: 2.0, heightTiles: 3.5 },
+  [TEXTURE.TREE_OAK]: { url: asset('tree_oak.png'), widthTiles: 1.7, heightTiles: 3.0 },
   [TEXTURE.PROP_ROCK]: { url: asset('prop_rock.png'), widthTiles: 1.0, heightTiles: 0.9 },
   [TEXTURE.PROP_ROCK_LARGE]: { url: asset('prop_rock_large.png'), widthTiles: 1.5, heightTiles: 1.3 },
   [TEXTURE.PROP_BUSH]: { url: asset('prop_bush.png'), widthTiles: 1.0, heightTiles: 0.9 },

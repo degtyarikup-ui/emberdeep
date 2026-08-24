@@ -1499,6 +1499,16 @@ export class MapEditor {
       }
       this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(hx, hy, hw, hh);
+
+      // Single Tree / Prop / Entity Hover Ghost Preview
+      if (this.activeTool === 'brush' && this.activeCategory === 'tree') {
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.65;
+        const cx = this.panX + (this.hoverCol + 0.5) * step;
+        const by = this.panY + (this.hoverRow + 1) * step;
+        editorAssets.drawSprite(this.ctx, String(this.activeItemId), cx, by, step);
+        this.ctx.restore();
+      }
     }
 
     // 5. Real-Time Multiplayer Cursors (Figma-style)

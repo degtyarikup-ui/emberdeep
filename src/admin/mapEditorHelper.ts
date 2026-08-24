@@ -497,21 +497,85 @@ export const ENTITY_PALETTE: EditorEntityItem[] = [
   { category: 'prop', id: 'lupine', name: 'Цветы люпина', icon: 'LP', color: '#c084fc' },
   { category: 'prop', id: 'ice_crystal', name: 'Кристалл льда', icon: 'IC', color: '#38bdf8' },
 
-  // Trees & Foliage
+  // Trees & Foliage (Single Individual Trees)
+  // Pines & Firs
+  { category: 'tree', id: 'tree_pine_green_sm', name: 'Сосна зелёная малая', icon: 'PS', color: '#15803d' },
+  { category: 'tree', id: 'tree_pine_green_md', name: 'Сосна зелёная средняя', icon: 'PM', color: '#15803d' },
+  { category: 'tree', id: 'tree_pine_green_lg', name: 'Сосна зелёная большая', icon: 'PL', color: '#15803d' },
+  { category: 'tree', id: 'tree_pine_green_xl', name: 'Сосна зелёная (XL)', icon: 'PX', color: '#15803d' },
+
+  { category: 'tree', id: 'tree_pine_forest_sm', name: 'Ель тёмная малая', icon: 'FS', color: '#14532d' },
+  { category: 'tree', id: 'tree_pine_forest_md', name: 'Ель тёмная средняя', icon: 'FM', color: '#14532d' },
+  { category: 'tree', id: 'tree_pine_forest_lg', name: 'Ель тёмная большая', icon: 'FL', color: '#14532d' },
+  { category: 'tree', id: 'tree_pine_forest_xl', name: 'Ель тёмная (XL)', icon: 'FX', color: '#14532d' },
+
+  { category: 'tree', id: 'tree_pine_autumn_sm', name: 'Сосна золотая малая', icon: 'AS', color: '#d97706' },
+  { category: 'tree', id: 'tree_pine_autumn_md', name: 'Сосна золотая средняя', icon: 'AM', color: '#d97706' },
+  { category: 'tree', id: 'tree_pine_autumn_lg', name: 'Сосна золотая большая', icon: 'AL', color: '#d97706' },
+  { category: 'tree', id: 'tree_pine_autumn_xl', name: 'Сосна золотая (XL)', icon: 'AX', color: '#d97706' },
+
+  { category: 'tree', id: 'tree_pine_snow_sm', name: 'Ель снежная малая', icon: 'SS', color: '#38bdf8' },
+  { category: 'tree', id: 'tree_pine_snow_md', name: 'Ель снежная средняя', icon: 'SM', color: '#38bdf8' },
+  { category: 'tree', id: 'tree_pine_snow_lg', name: 'Ель снежная большая', icon: 'SL', color: '#38bdf8' },
+  { category: 'tree', id: 'tree_pine_snow_xl', name: 'Ель снежная (XL)', icon: 'SX', color: '#38bdf8' },
+
+  { category: 'tree', id: 'tree_pine_stump_sm', name: 'Пень сосновый малый', icon: 'P1', color: '#78350f' },
+  { category: 'tree', id: 'tree_pine_stump_lg', name: 'Пень сосновый большой', icon: 'P2', color: '#78350f' },
+  { category: 'tree', id: 'tree_pine_stump_xl', name: 'Пень сосновый (XL)', icon: 'P3', color: '#78350f' },
+
+  // Oaks & Broadleaf
+  { category: 'tree', id: 'tree_oak_green_sm', name: 'Дуб зелёный малый', icon: 'OS', color: '#16a34a' },
+  { category: 'tree', id: 'tree_oak_green_md', name: 'Дуб зелёный средний', icon: 'OM', color: '#16a34a' },
+  { category: 'tree', id: 'tree_oak_green_lg', name: 'Дуб зелёный большой', icon: 'OL', color: '#16a34a' },
+  { category: 'tree', id: 'tree_oak_green_xl', name: 'Дуб зелёный (XL)', icon: 'OX', color: '#16a34a' },
+
+  { category: 'tree', id: 'tree_oak_forest_md', name: 'Дуб лесной средний', icon: 'DM', color: '#15803d' },
+  { category: 'tree', id: 'tree_oak_forest_lg', name: 'Дуб лесной большой', icon: 'DL', color: '#15803d' },
+  { category: 'tree', id: 'tree_oak_forest_xl', name: 'Дуб лесной (XL)', icon: 'DX', color: '#15803d' },
+
+  { category: 'tree', id: 'tree_oak_autumn_sm', name: 'Дуб осенний малый', icon: 'OS', color: '#ea580c' },
+  { category: 'tree', id: 'tree_oak_autumn_md', name: 'Дуб осенний средний', icon: 'OM', color: '#ea580c' },
+  { category: 'tree', id: 'tree_oak_autumn_lg', name: 'Дуб осенний большой', icon: 'OL', color: '#ea580c' },
+  { category: 'tree', id: 'tree_oak_autumn_xl', name: 'Дуб осенний (XL)', icon: 'OX', color: '#ea580c' },
+
+  { category: 'tree', id: 'tree_oak_snow_sm', name: 'Дуб зимний малый', icon: 'WS', color: '#7dd3fc' },
+  { category: 'tree', id: 'tree_oak_snow_md', name: 'Дуб зимний средний', icon: 'WM', color: '#7dd3fc' },
+  { category: 'tree', id: 'tree_oak_snow_lg', name: 'Дуб зимний большой', icon: 'WL', color: '#7dd3fc' },
+  { category: 'tree', id: 'tree_oak_snow_xl', name: 'Дуб зимний (XL)', icon: 'WX', color: '#7dd3fc' },
+
+  { category: 'tree', id: 'tree_oak_dead_sm', name: 'Сухостой малый', icon: 'DS', color: '#a8a29e' },
+  { category: 'tree', id: 'tree_oak_dead_md', name: 'Сухостой средний', icon: 'DM', color: '#a8a29e' },
+  { category: 'tree', id: 'tree_oak_dead_lg', name: 'Сухостой большой', icon: 'DL', color: '#a8a29e' },
+  { category: 'tree', id: 'tree_oak_dead_xl', name: 'Сухостой вековой (XL)', icon: 'DX', color: '#a8a29e' },
+
+  // Birches & Magic Trees
+  { category: 'tree', id: 'tree_birch_green_sm', name: 'Берёза малая', icon: 'BS', color: '#4ade80' },
+  { category: 'tree', id: 'tree_birch_green_md', name: 'Берёза средняя', icon: 'BM', color: '#4ade80' },
+  { category: 'tree', id: 'tree_birch_green_lg', name: 'Берёза большая', icon: 'BL', color: '#4ade80' },
+  { category: 'tree', id: 'tree_birch_green_xl', name: 'Берёза (XL)', icon: 'BX', color: '#4ade80' },
+
+  { category: 'tree', id: 'tree_birch_forest_md', name: 'Изумрудное дерево (M)', icon: 'EM', color: '#22c55e' },
+  { category: 'tree', id: 'tree_birch_forest_lg', name: 'Изумрудное дерево (L)', icon: 'EL', color: '#22c55e' },
+  { category: 'tree', id: 'tree_birch_forest_xl', name: 'Изумрудное дерево (XL)', icon: 'EX', color: '#22c55e' },
+
+  { category: 'tree', id: 'tree_birch_autumn_sm', name: 'Золотая берёза малая', icon: 'ZS', color: '#f59e0b' },
+  { category: 'tree', id: 'tree_birch_autumn_md', name: 'Золотая берёза средняя', icon: 'ZM', color: '#f59e0b' },
+  { category: 'tree', id: 'tree_birch_autumn_lg', name: 'Золотая берёза большая', icon: 'ZL', color: '#f59e0b' },
+  { category: 'tree', id: 'tree_birch_autumn_xl', name: 'Золотая берёза (XL)', icon: 'ZX', color: '#f59e0b' },
+
+  { category: 'tree', id: 'tree_birch_ice_sm', name: 'Ледяное дерево малое', icon: 'IS', color: '#38bdf8' },
+  { category: 'tree', id: 'tree_birch_ice_md', name: 'Ледяное дерево среднее', icon: 'IM', color: '#38bdf8' },
+  { category: 'tree', id: 'tree_birch_ice_lg', name: 'Ледяное дерево большое', icon: 'IL', color: '#38bdf8' },
+  { category: 'tree', id: 'tree_birch_ice_xl', name: 'Ледяное дерево (XL)', icon: 'IX', color: '#38bdf8' },
+
+  { category: 'tree', id: 'tree_birch_dead_sm', name: 'Мёртвое дерево малое', icon: 'MS', color: '#71717a' },
+  { category: 'tree', id: 'tree_birch_dead_md', name: 'Мёртвое дерево среднее', icon: 'MM', color: '#71717a' },
+  { category: 'tree', id: 'tree_birch_dead_lg', name: 'Мёртвое дерево большое', icon: 'ML', color: '#71717a' },
+  { category: 'tree', id: 'tree_birch_dead_xl', name: 'Мёртвое дерево (XL)', icon: 'MX', color: '#71717a' },
+
+  // Backward-compatible defaults
   { category: 'tree', id: 'tree_pine', name: 'Сосна классическая', icon: 'PN', color: '#15803d' },
   { category: 'tree', id: 'tree_oak', name: 'Дуб классический', icon: 'OK', color: '#16a34a' },
-  { category: 'tree', id: 'tree_pine_sm', name: 'Малая сосна', icon: 'P1', color: '#15803d' },
-  { category: 'tree', id: 'tree_pine_md', name: 'Средняя сосна', icon: 'P2', color: '#15803d' },
-  { category: 'tree', id: 'tree_pine_lg', name: 'Большая сосна', icon: 'P3', color: '#15803d' },
-  { category: 'tree', id: 'tree_pine_xl', name: 'Вековая сосна (XL)', icon: 'P4', color: '#15803d' },
-  { category: 'tree', id: 'tree_oak_sm', name: 'Молодой дуб', icon: 'O1', color: '#16a34a' },
-  { category: 'tree', id: 'tree_oak_md', name: 'Средний дуб', icon: 'O2', color: '#16a34a' },
-  { category: 'tree', id: 'tree_oak_lg', name: 'Большой дуб', icon: 'O3', color: '#16a34a' },
-  { category: 'tree', id: 'tree_oak_xl', name: 'Древний дуб (XL)', icon: 'O4', color: '#16a34a' },
-  { category: 'tree', id: 'tree_birch_sm', name: 'Береза малая', icon: 'B1', color: '#4ade80' },
-  { category: 'tree', id: 'tree_birch_md', name: 'Береза средняя', icon: 'B2', color: '#4ade80' },
-  { category: 'tree', id: 'tree_birch_lg', name: 'Береза большая', icon: 'B3', color: '#4ade80' },
-  { category: 'tree', id: 'tree_birch_xl', name: 'Темное дерево (XL)', icon: 'B4', color: '#4ade80' },
 ];
 
 export interface ValidationResult {

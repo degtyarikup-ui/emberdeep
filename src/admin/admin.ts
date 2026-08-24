@@ -1,5 +1,6 @@
 import './admin.css';
 import { ICONS } from './icons';
+import { MapEditor } from './mapEditor';
 import {
   buildTimeline,
   calculateDeploySyncState,
@@ -88,6 +89,7 @@ class DashboardManager {
   private refreshTimer: number | null = null;
   private countdownInterval: number | null = null;
   private secondsUntilNextRefresh = 30;
+  private activeTab: 'cicd' | 'map' = 'cicd';
 
   constructor() {
     this.isAuthenticated = localStorage.getItem(AUTH_KEY) === REQUIRED_PIN;
@@ -99,6 +101,11 @@ class DashboardManager {
     } else {
       this.renderLockScreen();
     }
+  }
+
+  public switchTab(tab: 'cicd' | 'map'): void {
+    this.activeTab = tab;
+    this.renderDashboard();
   }
 
   public setFilter(filter: EventFilter): void {
@@ -303,122 +310,151 @@ class DashboardManager {
     else if (syncState.state === 'building') dotClass = 'dot-running';
 
     root.innerHTML = `
-      <div class="dashboard-container">
+      <div class="dashboard-container ${this.activeTab === 'map' ? 'map-mode' : ''}">
         <header class="dashboard-header">
           <div class="header-brand">
             <h1 class="header-title">Emberdeep</h1>
+            <div class="admin-tabs-nav">
+              <button class="admin-tab-nav-btn ${this.activeTab === 'cicd' ? 'active' : ''}" onclick="window.__adminSwitchTab('cicd')">
+                ${ICONS.terminal} CI/CD и Релизы
+              </button>
+              <button class="admin-tab-nav-btn ${this.activeTab === 'map' ? 'active' : ''}" onclick="window.__adminSwitchTab('map')">
+                ${ICONS.map} Конструктор карт
+              </button>
+            </div>
           </div>
           <div class="header-actions">
             <a href="./" class="btn">${ICONS.play} Игра</a>
-            <button id="refresh-btn" class="btn btn-primary" onclick="window.__adminRefresh()">
-              ${ICONS.refresh} Обновить
-            </button>
+            ${
+              this.activeTab === 'cicd'
+                ? `
+              <button id="refresh-btn" class="btn btn-primary" onclick="window.__adminRefresh()">
+                ${ICONS.refresh} Обновить
+              </button>
+            `
+                : ''
+            }
             <button class="btn" onclick="window.__adminLogout()" title="Выйти">
               ${ICONS.logout} Выйти
             </button>
           </div>
         </header>
 
-        <div class="status-summary-bar">
-          <div class="summary-item">
-            <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
-              ${ICONS.globe} Сайт:
-            </span>
-            <span class="badge-dot ${dotClass}"></span>
-            <span class="summary-value">${escapeHtml(syncState.label)}</span>
-            ${deployedSha ? `<a class="sha-tag" href="https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${deployedSha}" target="_blank">${deployedSha.slice(0, 7)}</a>` : ''}
-          </div>
-          <div class="summary-item">
-            <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
-              ${ICONS.commit} Последний:
-            </span>
-            <span class="summary-value">${escapeHtml(headAuthorInfo.displayName)}</span>
-            ${headSha ? `<a class="sha-tag" href="${headCommit?.html_url}" target="_blank">${headSha.slice(0, 7)}</a>` : ''}
-          </div>
-          <div class="summary-item">
-            <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
-              ${ICONS.activity} CI:
-            </span>
-            <span class="summary-value">${latestRun ? (latestRun.conclusion === 'success' ? 'Успешно' : latestRun.conclusion === 'failure' ? 'Ошибка' : latestRun.status) : '—'}</span>
-          </div>
-        </div>
-
         ${
-          this.state.errorMessage
+          this.activeTab === 'map'
             ? `
-          <div class="timeline-error-box" style="margin-bottom: 8px;">
-            ${escapeHtml(this.state.errorMessage)}
-          </div>
+          <div id="map-editor-mount" style="width: 100%;"></div>
         `
-            : ''
-        }
+            : `
+          <div class="status-summary-bar">
+            <div class="summary-item">
+              <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
+                ${ICONS.globe} Сайт:
+              </span>
+              <span class="badge-dot ${dotClass}"></span>
+              <span class="summary-value">${escapeHtml(syncState.label)}</span>
+              ${deployedSha ? `<a class="sha-tag" href="https://github.com/${REPO_OWNER}/${REPO_NAME}/commit/${deployedSha}" target="_blank">${deployedSha.slice(0, 7)}</a>` : ''}
+            </div>
+            <div class="summary-item">
+              <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
+                ${ICONS.commit} Последний:
+              </span>
+              <span class="summary-value">${escapeHtml(headAuthorInfo.displayName)}</span>
+              ${headSha ? `<a class="sha-tag" href="${headCommit?.html_url}" target="_blank">${headSha.slice(0, 7)}</a>` : ''}
+            </div>
+            <div class="summary-item">
+              <span style="display: flex; align-items: center; gap: 4px; color: var(--text-tertiary);">
+                ${ICONS.activity} CI:
+              </span>
+              <span class="summary-value">${latestRun ? (latestRun.conclusion === 'success' ? 'Успешно' : latestRun.conclusion === 'failure' ? 'Ошибка' : latestRun.status) : '—'}</span>
+            </div>
+          </div>
 
-        <div class="filter-bar">
-          <button class="filter-btn ${this.state.activeFilter === 'all' ? 'active' : ''}" onclick="window.__adminSetFilter('all')">
-            ${ICONS.layers} Все (${allEvents.length})
-          </button>
-          <button class="filter-btn ${this.state.activeFilter === 'commits' ? 'active' : ''}" onclick="window.__adminSetFilter('commits')">
-            ${ICONS.commit} Коммиты (${this.state.commits.length})
-          </button>
-          <button class="filter-btn ${this.state.activeFilter === 'runs' ? 'active' : ''}" onclick="window.__adminSetFilter('runs')">
-            ${ICONS.terminal} Сборки (${this.state.runs.length})
-          </button>
           ${
-            errorRunsCount > 0
+            this.state.errorMessage
               ? `
-            <button class="filter-btn ${this.state.activeFilter === 'errors' ? 'active' : ''}" onclick="window.__adminSetFilter('errors')" style="color: #ef4444;">
-              ${ICONS.alert} Ошибки (${errorRunsCount})
-            </button>
+            <div class="timeline-error-box" style="margin-bottom: 8px;">
+              ${escapeHtml(this.state.errorMessage)}
+            </div>
           `
               : ''
           }
-          <span style="color: var(--text-tertiary); font-size: 11px; margin: 0 4px;">|</span>
-          <button class="filter-btn ${this.state.activeFilter === 'degtyarikup-ui' ? 'active' : ''}" onclick="window.__adminSetFilter('degtyarikup-ui')">
-            ${ICONS.user} degtyarikup-ui
-          </button>
-          <button class="filter-btn ${this.state.activeFilter === 'MrKadoku' ? 'active' : ''}" onclick="window.__adminSetFilter('MrKadoku')">
-            ${ICONS.user} MrKadoku
-          </button>
-        </div>
 
-        <div class="timeline-feed">
-          ${
-            filteredEvents.length === 0
-              ? '<div style="padding: 24px; text-align: center; color: var(--text-tertiary); font-size: 13px;">Нет событий по выбранному фильтру.</div>'
-              : filteredEvents.map((ev) => renderTimelineRow(ev)).join('')
-          }
-        </div>
+          <div class="filter-bar">
+            <button class="filter-btn ${this.state.activeFilter === 'all' ? 'active' : ''}" onclick="window.__adminSetFilter('all')">
+              ${ICONS.layers} Все (${allEvents.length})
+            </button>
+            <button class="filter-btn ${this.state.activeFilter === 'commits' ? 'active' : ''}" onclick="window.__adminSetFilter('commits')">
+              ${ICONS.commit} Коммиты (${this.state.commits.length})
+            </button>
+            <button class="filter-btn ${this.state.activeFilter === 'runs' ? 'active' : ''}" onclick="window.__adminSetFilter('runs')">
+              ${ICONS.terminal} Сборки (${this.state.runs.length})
+            </button>
+            ${
+              errorRunsCount > 0
+                ? `
+              <button class="filter-btn ${this.state.activeFilter === 'errors' ? 'active' : ''}" onclick="window.__adminSetFilter('errors')" style="color: #ef4444;">
+                ${ICONS.alert} Ошибки (${errorRunsCount})
+              </button>
+            `
+                : ''
+            }
+            <span style="color: var(--text-tertiary); font-size: 11px; margin: 0 4px;">|</span>
+            <button class="filter-btn ${this.state.activeFilter === 'degtyarikup-ui' ? 'active' : ''}" onclick="window.__adminSetFilter('degtyarikup-ui')">
+              ${ICONS.user} degtyarikup-ui
+            </button>
+            <button class="filter-btn ${this.state.activeFilter === 'MrKadoku' ? 'active' : ''}" onclick="window.__adminSetFilter('MrKadoku')">
+              ${ICONS.user} MrKadoku
+            </button>
+          </div>
 
-        <details class="settings-box">
-          <summary style="cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
-            ${ICONS.key} GitHub API Token (опционально)
-          </summary>
-          <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px;">
-            Укажите персональный токен, если исчерпан лимит 60 запросов/час.
+          <div class="timeline-feed">
+            ${
+              filteredEvents.length === 0
+                ? '<div style="padding: 24px; text-align: center; color: var(--text-tertiary); font-size: 13px;">Нет событий по выбранному фильтру.</div>'
+                : filteredEvents.map((ev) => renderTimelineRow(ev)).join('')
+            }
           </div>
-          <div class="settings-row">
-            <input
-              id="gh-token-input"
-              type="password"
-              class="token-input"
-              placeholder="ghp_..."
-              value="${escapeHtml(savedToken)}"
-            />
-            <button class="btn" onclick="window.__adminSaveToken()">Сохранить</button>
-            <button class="btn" onclick="window.__adminClearToken()">Сбросить</button>
-          </div>
-        </details>
 
-        <footer class="footer-info">
-          <div>
-            <a href="https://github.com/${REPO_OWNER}/${REPO_NAME}" target="_blank">${REPO_OWNER}/${REPO_NAME}</a>
-            <span> · </span>
-            Лимит API: <strong>${escapeHtml(this.state.rateLimitRemaining)}</strong>
-          </div>
-          <div id="auto-refresh-counter">Обновление через ${this.secondsUntilNextRefresh}с</div>
-        </footer>
+          <details class="settings-box">
+            <summary style="cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+              ${ICONS.key} GitHub API Token (опционально)
+            </summary>
+            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px;">
+              Укажите персональный токен, если исчерпан лимит 60 запросов/час.
+            </div>
+            <div class="settings-row">
+              <input
+                id="gh-token-input"
+                type="password"
+                class="token-input"
+                placeholder="ghp_..."
+                value="${escapeHtml(savedToken)}"
+              />
+              <button class="btn" onclick="window.__adminSaveToken()">Сохранить</button>
+              <button class="btn" onclick="window.__adminClearToken()">Сбросить</button>
+            </div>
+          </details>
+
+          <footer class="footer-info">
+            <div>
+              <a href="https://github.com/${REPO_OWNER}/${REPO_NAME}" target="_blank">${REPO_OWNER}/${REPO_NAME}</a>
+              <span> · </span>
+              Лимит API: <strong>${escapeHtml(this.state.rateLimitRemaining)}</strong>
+            </div>
+            <div id="auto-refresh-counter">Обновление через ${this.secondsUntilNextRefresh}с</div>
+          </footer>
+        `
+        }
       </div>
     `;
+
+    if (this.activeTab === 'map') {
+      const mountEl = document.getElementById('map-editor-mount');
+      if (mountEl) {
+        new MapEditor(mountEl).init();
+      }
+    }
   }
 }
 
@@ -522,6 +558,7 @@ declare global {
     __adminRefresh: () => void;
     __adminLogout: () => void;
     __adminSetFilter: (filter: EventFilter) => void;
+    __adminSwitchTab: (tab: 'cicd' | 'map') => void;
     __adminSubmitPin: (event: Event) => void;
     __adminSaveToken: () => void;
     __adminClearToken: () => void;
@@ -538,6 +575,10 @@ window.__adminLogout = () => {
 
 window.__adminSetFilter = (filter: EventFilter) => {
   dashboard.setFilter(filter);
+};
+
+window.__adminSwitchTab = (tab: 'cicd' | 'map') => {
+  dashboard.switchTab(tab);
 };
 
 window.__adminSubmitPin = (event: Event) => {

@@ -560,3 +560,45 @@ body {
     border-top: 1px solid var(--border);
   }
 }
+
+/* Navigation Tabs (CI/CD vs Map Editor) */
+.admin-tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #140e24;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(129, 140, 248, 0.2);
+}
+
+.admin-tab-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-tab-nav-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-tab-nav-btn.active {
+  background: #3730a3;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(129, 140, 248, 0.4);
+}
+
+.dashboard-container.map-mode {
+  max-width: 1500px;
+}

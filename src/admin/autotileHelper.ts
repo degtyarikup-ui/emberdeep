@@ -180,11 +180,6 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
   const L = isMatch(r, c - 1);
   const R = isMatch(r, c + 1);
 
-  const TL = isMatch(r - 1, c - 1);
-  const TR = isMatch(r - 1, c + 1);
-  const BL = isMatch(r + 1, c - 1);
-  const BR = isMatch(r + 1, c + 1);
-
   switch (family) {
     case 'path': {
       // Outer 4 Corners
@@ -198,12 +193,6 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
       if (!B) return TILE_INDEX.PATH_B;
       if (!L) return TILE_INDEX.PATH_L;
       if (!R) return TILE_INDEX.PATH_R;
-
-      // Inner Corners
-      if (!TL) return TILE_INDEX.PATH_INNER_TL;
-      if (!TR) return TILE_INDEX.PATH_INNER_TR;
-      if (!BL) return TILE_INDEX.PATH_INNER_BL;
-      if (!BR) return TILE_INDEX.PATH_INNER_BR;
 
       return TILE_INDEX.DIRT_1;
     }
@@ -219,11 +208,6 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
       if (!L) return TILE_INDEX.WATER_SHORE_L;
       if (!R) return TILE_INDEX.WATER_SHORE_R;
 
-      if (!TL) return TILE_INDEX.WATER_SHORE_TL;
-      if (!TR) return TILE_INDEX.WATER_SHORE_TR;
-      if (!BL) return TILE_INDEX.WATER_SHORE_BL;
-      if (!BR) return TILE_INDEX.WATER_SHORE_BR;
-
       return TILE_INDEX.WATER_DEEP;
     }
 
@@ -237,11 +221,6 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
       if (!B) return TILE_INDEX.COBBLE_B;
       if (!L) return TILE_INDEX.COBBLE_L;
       if (!R) return TILE_INDEX.COBBLE_R;
-
-      if (!TL) return TILE_INDEX.COBBLE_INNER_TL;
-      if (!TR) return TILE_INDEX.COBBLE_INNER_TR;
-      if (!BL) return TILE_INDEX.COBBLE_INNER_BL;
-      if (!BR) return TILE_INDEX.COBBLE_INNER_BR;
 
       return TILE_INDEX.RUIN_STONE;
     }
@@ -257,9 +236,6 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
 
       if (!L) return TILE_INDEX.CLIFF_MID_L;
       if (!R) return TILE_INDEX.CLIFF_MID_R;
-
-      if (!TL) return TILE_INDEX.CLIFF_INNER_TL;
-      if (!TR) return TILE_INDEX.CLIFF_INNER_TR;
 
       return TILE_INDEX.CLIFF_MID_M;
     }

@@ -61,7 +61,6 @@ export class MapEditor {
   private brushSize = 1;
   private searchQuery = '';
   private tileSubCategory: TileSubCategory = 'all';
-  private autoTileEnabled = true;
 
   private customBrushes: CustomBrush[] = [];
   private activeCustomBrushId?: string;
@@ -283,9 +282,6 @@ export class MapEditor {
             <button id="me-undo-btn" class="me-btn" title="Отмена (Ctrl+Z)">Отмена</button>
             <button id="me-redo-btn" class="me-btn" title="Повтор (Ctrl+Y)">Повтор</button>
             <button id="me-grid-toggle-btn" class="me-btn ${this.showGrid ? 'me-btn-primary' : ''}" title="Вкл/Выкл сетку">Сетка</button>
-            <button id="me-autotile-toggle-btn" class="me-btn ${this.autoTileEnabled ? 'me-btn-primary' : ''}" title="Вкл/Выкл автоматическую стыковку углов и берегов">
-              ${ICONS.sparkles} Авто-стыковка: ${this.autoTileEnabled ? 'ВКЛ' : 'ВЫКЛ'}
-            </button>
           </div>
 
           <div class="me-toolbar-group">
@@ -459,15 +455,6 @@ export class MapEditor {
       this.showGrid = !this.showGrid;
       (e.target as HTMLElement).classList.toggle('me-btn-primary', this.showGrid);
       this.draw();
-    });
-
-    document.getElementById('me-autotile-toggle-btn')?.addEventListener('click', () => {
-      this.autoTileEnabled = !this.autoTileEnabled;
-      const btn = document.getElementById('me-autotile-toggle-btn');
-      if (btn) {
-        btn.classList.toggle('me-btn-primary', this.autoTileEnabled);
-        btn.innerHTML = `${ICONS.sparkles} Авто-стыковка: ${this.autoTileEnabled ? 'ВКЛ' : 'ВЫКЛ'}`;
-      }
     });
 
     document.getElementById('me-hud-fit')?.addEventListener('click', () => this.fitToView());
@@ -1265,23 +1252,12 @@ export class MapEditor {
 
         const updates: TileUpdate[] = [];
         const rawVal = Number(this.activeItemId);
-        const family = this.autoTileEnabled ? getFamilyForTile(rawVal) : null;
-        const placeVal = family ? getBaseTileForFamily(family) : rawVal;
 
         for (let r = minR; r <= maxR; r++) {
           for (let c = minC; c <= maxC; c++) {
-            this.level.data[r][c] = placeVal;
-            updates.push({ col: c, row: r, val: placeVal });
+            this.level.data[r][c] = rawVal;
+            updates.push({ col: c, row: r, val: rawVal });
           }
-        }
-
-        if (family && this.autoTileEnabled) {
-          const autoUpdates = autotileNeighborhood(this.level.data, row, col, Math.max(2, this.brushSize + 1));
-          autoUpdates.forEach((u) => {
-            const idx = updates.findIndex((up) => up.col === u.col && up.row === u.row);
-            if (idx >= 0) updates[idx].val = u.val;
-            else updates.push({ col: u.col, row: u.row, val: u.val });
-          });
         }
 
         if (this.collabClient && updates.length > 0) {
@@ -1445,17 +1421,6 @@ export class MapEditor {
       for (let r = minR; r <= maxR; r++) {
         for (let c = minC; c <= maxC; c++) {
           this.level.data[r][c] = tileVal;
-        }
-      }
-      if (this.autoTileEnabled) {
-        for (let r = Math.max(0, minR - 1); r <= Math.min(this.level.rows - 1, maxR + 1); r++) {
-          for (let c = Math.max(0, minC - 1); c <= Math.min(this.level.cols - 1, maxC + 1); c++) {
-            const cur = this.level.data[r][c];
-            const fam = getFamilyForTile(cur);
-            if (fam) {
-              this.level.data[r][c] = calculateAutotileCell(this.level.data, r, c, fam);
-            }
-          }
         }
       }
     }

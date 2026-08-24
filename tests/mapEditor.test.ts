@@ -240,14 +240,20 @@ describe('autotileHelper: Smart Autotiling Rules', () => {
     expect(calculateAutotileCell(grid, 2, 2, 'path')).toBe(TILE_INDEX.DIRT_1);
   });
 
-  it('calculates path inner corners correctly', () => {
-    // L-shaped path
-    const grid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => TILE_INDEX.DIRT_1));
-    // Set top-left (0,0) to grass
-    grid[0][0] = TILE_INDEX.GRASS_1;
+  it('calculates water shores and deep water', () => {
+    // 3x3 water block on 5x5 map (row 1..3, col 1..3)
+    const grid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => TILE_INDEX.GRASS_1));
+    for (let r = 1; r <= 3; r++) {
+      for (let c = 1; c <= 3; c++) {
+        grid[r][c] = TILE_INDEX.WATER_DEEP;
+      }
+    }
 
-    // Cell (1,1) has all 4 orthogonal neighbors as path, but top-left is grass -> PATH_INNER_TL
-    expect(calculateAutotileCell(grid, 1, 1, 'path')).toBe(TILE_INDEX.PATH_INNER_TL);
+    expect(calculateAutotileCell(grid, 1, 1, 'water')).toBe(TILE_INDEX.WATER_SHORE_TL);
+    expect(calculateAutotileCell(grid, 1, 3, 'water')).toBe(TILE_INDEX.WATER_SHORE_TR);
+    expect(calculateAutotileCell(grid, 3, 1, 'water')).toBe(TILE_INDEX.WATER_SHORE_BL);
+    expect(calculateAutotileCell(grid, 3, 3, 'water')).toBe(TILE_INDEX.WATER_SHORE_BR);
+    expect(calculateAutotileCell(grid, 2, 2, 'water')).toBe(TILE_INDEX.WATER_DEEP);
   });
 
   it('autotileNeighborhood automatically shapes borders in real-time', () => {

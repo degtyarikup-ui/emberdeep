@@ -377,67 +377,92 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   }
 
   // 8. Rich Forest Trees (Dense forest canopy clusters framing zones, creating natural mazes and shortcuts)
+  // 8. Rich Forest Trees (Dense forest canopy clusters framing zones, creating natural mazes and shortcuts)
   const trees: TreeObject[] = [
-    // Zone 1: Campsite rim & western trail
-    { col: 6, row: 12, kind: 'oak' }, { col: 12, row: 10, kind: 'pine' }, { col: 18, row: 10, kind: 'oak' },
-    { col: 22, row: 10, kind: 'pine' }, { col: 6, row: 28, kind: 'pine' }, { col: 12, row: 30, kind: 'oak' },
-    { col: 18, row: 30, kind: 'pine' }, { col: 24, row: 28, kind: 'oak' }, { col: 22, row: 14, kind: 'pine' },
-    { col: 22, row: 28, kind: 'oak' }, { col: 16, row: 14, kind: 'pine' }, { col: 20, row: 12, kind: 'oak' },
+    // 1. Zone 1 & West Trail Thickets (Cols 4..28, Rows 6..32)
+    { col: 6, row: 8, kind: 'pine' }, { col: 10, row: 8, kind: 'oak' }, { col: 14, row: 6, kind: 'pine' },
+    { col: 18, row: 6, kind: 'oak' }, { col: 24, row: 6, kind: 'pine' }, { col: 6, row: 12, kind: 'oak' },
+    { col: 12, row: 10, kind: 'pine' }, { col: 18, row: 10, kind: 'oak' }, { col: 22, row: 10, kind: 'pine' },
+    { col: 6, row: 16, kind: 'pine' }, { col: 6, row: 22, kind: 'oak' }, { col: 6, row: 28, kind: 'pine' },
+    { col: 12, row: 30, kind: 'oak' }, { col: 18, row: 30, kind: 'pine' }, { col: 24, row: 28, kind: 'oak' },
+    { col: 22, row: 14, kind: 'pine' }, { col: 22, row: 28, kind: 'oak' }, { col: 16, row: 14, kind: 'pine' },
+    { col: 20, row: 12, kind: 'oak' }, { col: 24, row: 14, kind: 'pine' }, { col: 24, row: 18, kind: 'oak' },
+    { col: 26, row: 24, kind: 'pine' }, { col: 8, row: 32, kind: 'pine' }, { col: 16, row: 32, kind: 'oak' },
 
-    // Zone 2: Sawmill rim & timber woods
-    { col: 36, row: 10, kind: 'pine' }, { col: 42, row: 8, kind: 'oak' }, { col: 50, row: 8, kind: 'pine' },
-    { col: 48, row: 12, kind: 'oak' }, { col: 48, row: 24, kind: 'pine' }, { col: 34, row: 30, kind: 'oak' },
-    { col: 42, row: 32, kind: 'pine' }, { col: 50, row: 32, kind: 'oak' }, { col: 38, row: 9, kind: 'pine' },
-    { col: 46, row: 9, kind: 'oak' }, { col: 34, row: 20, kind: 'pine' }, { col: 50, row: 28, kind: 'oak' },
+    // 2. Zone 2: Sawmill Rim & Timber Woods (Cols 30..54, Rows 6..34)
+    { col: 34, row: 8, kind: 'pine' }, { col: 38, row: 6, kind: 'oak' }, { col: 44, row: 6, kind: 'pine' },
+    { col: 50, row: 6, kind: 'oak' }, { col: 36, row: 10, kind: 'pine' }, { col: 42, row: 8, kind: 'oak' },
+    { col: 50, row: 8, kind: 'pine' }, { col: 48, row: 12, kind: 'oak' }, { col: 34, row: 12, kind: 'pine' },
+    { col: 50, row: 12, kind: 'oak' }, { col: 32, row: 18, kind: 'pine' }, { col: 32, row: 26, kind: 'oak' },
+    { col: 34, row: 30, kind: 'oak' }, { col: 42, row: 32, kind: 'pine' }, { col: 50, row: 32, kind: 'oak' },
+    { col: 38, row: 9, kind: 'pine' }, { col: 46, row: 9, kind: 'oak' }, { col: 34, row: 20, kind: 'pine' },
+    { col: 46, row: 18, kind: 'oak' }, { col: 50, row: 28, kind: 'oak' },
+    { col: 38, row: 34, kind: 'pine' }, { col: 46, row: 34, kind: 'oak' },
 
-    // Zone 3: Riverbank groves & Docks
-    { col: 50, row: 14, kind: 'pine' }, { col: 44, row: 40, kind: 'oak' }, { col: 44, row: 46, kind: 'pine' },
+    // 3. Zone 3 & North Riverbank Forest (Cols 54..94, Rows 6..36)
+    { col: 52, row: 8, kind: 'pine' }, { col: 62, row: 8, kind: 'oak' }, { col: 64, row: 12, kind: 'pine' },
+    { col: 62, row: 12, kind: 'oak' }, { col: 50, row: 14, kind: 'pine' }, { col: 48, row: 14, kind: 'oak' },
+    { col: 60, row: 18, kind: 'pine' }, { col: 44, row: 40, kind: 'oak' }, { col: 44, row: 46, kind: 'pine' },
     { col: 44, row: 52, kind: 'oak' }, { col: 46, row: 34, kind: 'pine' }, { col: 64, row: 62, kind: 'oak' },
-    { col: 94, row: 16, kind: 'oak' }, { col: 86, row: 34, kind: 'pine' }, { col: 90, row: 52, kind: 'oak' },
-    { col: 90, row: 62, kind: 'pine' }, { col: 64, row: 12, kind: 'pine' }, { col: 62, row: 12, kind: 'oak' },
+    { col: 94, row: 12, kind: 'pine' }, { col: 94, row: 10, kind: 'oak' }, { col: 94, row: 16, kind: 'oak' },
+    { col: 86, row: 18, kind: 'pine' }, { col: 92, row: 26, kind: 'oak' }, { col: 86, row: 34, kind: 'pine' },
     { col: 88, row: 20, kind: 'pine' }, { col: 88, row: 30, kind: 'oak' }, { col: 90, row: 40, kind: 'pine' },
+    { col: 90, row: 52, kind: 'oak' }, { col: 90, row: 62, kind: 'pine' }, { col: 88, row: 36, kind: 'oak' },
+    { col: 92, row: 44, kind: 'pine' }, { col: 92, row: 48, kind: 'oak' },
 
-    // Zone 4: Secret Island trees
-    { col: 68, row: 43, kind: 'oak' }, { col: 74, row: 43, kind: 'pine' },
-    { col: 68, row: 53, kind: 'pine' }, { col: 74, row: 53, kind: 'oak' },
-    { col: 66, row: 46, kind: 'oak' }, { col: 76, row: 46, kind: 'pine' },
+    // 4. Zone 4: Secret Island & Mist Groves (Cols 64..78, Rows 40..58)
+    { col: 66, row: 42, kind: 'pine' }, { col: 68, row: 43, kind: 'oak' }, { col: 74, row: 43, kind: 'pine' },
+    { col: 76, row: 42, kind: 'oak' }, { col: 66, row: 46, kind: 'oak' }, { col: 76, row: 46, kind: 'pine' },
+    { col: 66, row: 50, kind: 'pine' }, { col: 76, row: 50, kind: 'oak' }, { col: 68, row: 53, kind: 'pine' },
+    { col: 74, row: 53, kind: 'oak' }, { col: 70, row: 54, kind: 'pine' },
 
-    // Zone 5: Witch Glade cluster & southern thickets
-    { col: 12, row: 34, kind: 'pine' }, { col: 12, row: 44, kind: 'oak' }, { col: 28, row: 34, kind: 'oak' },
-    { col: 28, row: 44, kind: 'pine' }, { col: 18, row: 48, kind: 'oak' }, { col: 14, row: 40, kind: 'pine' },
-    { col: 26, row: 46, kind: 'oak' }, { col: 20, row: 50, kind: 'pine' }, { col: 14, row: 46, kind: 'oak' },
+    // 5. Zone 5: Witch Glade Thickets (Cols 8..32, Rows 32..54)
+    { col: 8, row: 36, kind: 'oak' }, { col: 8, row: 42, kind: 'pine' }, { col: 10, row: 46, kind: 'oak' },
+    { col: 12, row: 34, kind: 'pine' }, { col: 12, row: 44, kind: 'oak' }, { col: 14, row: 48, kind: 'pine' },
+    { col: 14, row: 40, kind: 'pine' }, { col: 14, row: 46, kind: 'oak' }, { col: 18, row: 48, kind: 'oak' },
+    { col: 20, row: 50, kind: 'pine' }, { col: 26, row: 46, kind: 'oak' }, { col: 28, row: 34, kind: 'oak' },
+    { col: 28, row: 44, kind: 'pine' }, { col: 28, row: 50, kind: 'oak' }, { col: 30, row: 38, kind: 'pine' },
+    { col: 30, row: 46, kind: 'oak' },
 
-    // Zone 6: Bandit Outpost buffer & eastern woods
-    { col: 92, row: 14, kind: 'pine' }, { col: 92, row: 20, kind: 'oak' }, { col: 92, row: 36, kind: 'pine' },
-    { col: 92, row: 44, kind: 'oak' }, { col: 124, row: 14, kind: 'pine' }, { col: 124, row: 38, kind: 'oak' },
-    { col: 124, row: 46, kind: 'pine' }, { col: 104, row: 12, kind: 'oak' }, { col: 116, row: 12, kind: 'pine' },
-    { col: 98, row: 10, kind: 'pine' }, { col: 120, row: 10, kind: 'oak' }, { col: 126, row: 26, kind: 'pine' },
+    // 6. Zone 6: Bandit Outpost & East Ridge (Cols 92..134, Rows 8..48)
+    { col: 98, row: 10, kind: 'pine' }, { col: 104, row: 10, kind: 'oak' }, { col: 110, row: 8, kind: 'pine' },
+    { col: 116, row: 8, kind: 'oak' }, { col: 120, row: 10, kind: 'oak' }, { col: 126, row: 8, kind: 'pine' },
+    { col: 130, row: 12, kind: 'oak' }, { col: 132, row: 18, kind: 'pine' }, { col: 132, row: 26, kind: 'oak' },
+    { col: 130, row: 34, kind: 'pine' }, { col: 128, row: 40, kind: 'oak' }, { col: 92, row: 14, kind: 'pine' },
+    { col: 92, row: 20, kind: 'oak' }, { col: 92, row: 36, kind: 'pine' }, { col: 92, row: 44, kind: 'oak' },
+    { col: 104, row: 12, kind: 'oak' }, { col: 116, row: 12, kind: 'pine' }, { col: 124, row: 14, kind: 'pine' },
+    { col: 126, row: 26, kind: 'pine' }, { col: 124, row: 38, kind: 'oak' }, { col: 124, row: 46, kind: 'pine' },
+    { col: 98, row: 42, kind: 'oak' }, { col: 106, row: 42, kind: 'pine' }, { col: 114, row: 42, kind: 'oak' },
 
-    // Zone 7: Necropolis haunted grove
-    { col: 16, row: 50, kind: 'oak' }, { col: 24, row: 50, kind: 'pine' }, { col: 32, row: 50, kind: 'oak' },
-    { col: 40, row: 50, kind: 'pine' }, { col: 46, row: 54, kind: 'oak' }, { col: 46, row: 64, kind: 'pine' },
-    { col: 46, row: 74, kind: 'oak' }, { col: 16, row: 76, kind: 'pine' }, { col: 24, row: 76, kind: 'oak' },
-    { col: 32, row: 76, kind: 'pine' }, { col: 40, row: 76, kind: 'oak' }, { col: 18, row: 60, kind: 'pine' },
-    { col: 44, row: 60, kind: 'oak' }, { col: 18, row: 70, kind: 'pine' }, { col: 44, row: 74, kind: 'oak' },
+    // 7. Zone 7: Necropolis Haunted Grove (Cols 10..48, Rows 50..84)
+    { col: 14, row: 54, kind: 'pine' }, { col: 14, row: 62, kind: 'oak' }, { col: 14, row: 70, kind: 'pine' },
+    { col: 14, row: 78, kind: 'oak' }, { col: 16, row: 50, kind: 'oak' }, { col: 24, row: 50, kind: 'pine' },
+    { col: 32, row: 50, kind: 'oak' }, { col: 40, row: 50, kind: 'pine' }, { col: 46, row: 54, kind: 'oak' },
+    { col: 18, row: 60, kind: 'pine' }, { col: 44, row: 60, kind: 'oak' }, { col: 46, row: 64, kind: 'pine' },
+    { col: 18, row: 70, kind: 'pine' }, { col: 44, row: 74, kind: 'oak' }, { col: 46, row: 74, kind: 'oak' },
+    { col: 16, row: 76, kind: 'pine' }, { col: 24, row: 76, kind: 'oak' }, { col: 32, row: 76, kind: 'pine' },
+    { col: 40, row: 76, kind: 'oak' }, { col: 18, row: 78, kind: 'pine' }, { col: 22, row: 78, kind: 'oak' },
+    { col: 30, row: 78, kind: 'pine' }, { col: 38, row: 78, kind: 'oak' }, { col: 42, row: 78, kind: 'pine' },
 
-    // Zone 8 & 9: Sunken Ruin & Smuggler Grotto buffer
-    { col: 48, row: 64, kind: 'pine' }, { col: 48, row: 78, kind: 'oak' }, { col: 68, row: 66, kind: 'pine' },
-    { col: 68, row: 78, kind: 'oak' }, { col: 74, row: 70, kind: 'pine' }, { col: 92, row: 82, kind: 'oak' },
-    { col: 50, row: 60, kind: 'pine' }, { col: 64, row: 60, kind: 'oak' }, { col: 88, row: 76, kind: 'pine' },
-    { col: 104, row: 82, kind: 'oak' }, { col: 90, row: 80, kind: 'pine' },
+    // 8. Zone 8 & 9: Sunken Ruin & Lake Buffer (Cols 48..92, Rows 58..86)
+    { col: 48, row: 64, kind: 'pine' }, { col: 50, row: 60, kind: 'pine' }, { col: 64, row: 60, kind: 'oak' },
+    { col: 68, row: 66, kind: 'pine' }, { col: 48, row: 76, kind: 'oak' }, { col: 52, row: 78, kind: 'pine' },
+    { col: 64, row: 76, kind: 'oak' }, { col: 68, row: 76, kind: 'oak' }, { col: 74, row: 70, kind: 'pine' },
+    { col: 88, row: 76, kind: 'pine' }, { col: 92, row: 78, kind: 'oak' }, { col: 104, row: 78, kind: 'oak' },
 
-    // Zone 10: Orc Arena outer perimeter trees
-    { col: 96, row: 60, kind: 'pine' }, { col: 96, row: 74, kind: 'oak' },
-    { col: 98, row: 64, kind: 'pine' }, { col: 98, row: 82, kind: 'oak' },
-    { col: 106, row: 54, kind: 'pine' }, { col: 118, row: 54, kind: 'oak' },
-    { col: 106, row: 84, kind: 'pine' }, { col: 118, row: 84, kind: 'oak' },
-    { col: 126, row: 60, kind: 'pine' }, { col: 126, row: 68, kind: 'oak' },
-    { col: 126, row: 74, kind: 'pine' }, { col: 126, row: 80, kind: 'oak' },
+    // 9. Zone 10: Orc Arena Perimeter Trees (Cols 94..134, Rows 52..86)
+    { col: 96, row: 56, kind: 'oak' }, { col: 96, row: 60, kind: 'pine' }, { col: 96, row: 74, kind: 'oak' },
+    { col: 98, row: 64, kind: 'pine' }, { col: 98, row: 80, kind: 'oak' }, { col: 108, row: 54, kind: 'pine' },
+    { col: 106, row: 54, kind: 'pine' }, { col: 112, row: 54, kind: 'oak' }, { col: 118, row: 54, kind: 'oak' },
+    { col: 124, row: 54, kind: 'pine' }, { col: 126, row: 60, kind: 'pine' }, { col: 126, row: 68, kind: 'oak' },
+    { col: 126, row: 74, kind: 'pine' }, { col: 126, row: 80, kind: 'oak' }, { col: 130, row: 64, kind: 'oak' },
+    { col: 130, row: 72, kind: 'pine' }, { col: 130, row: 80, kind: 'oak' }, { col: 106, row: 82, kind: 'pine' },
+    { col: 112, row: 82, kind: 'oak' }, { col: 118, row: 82, kind: 'oak' }, { col: 124, row: 82, kind: 'pine' },
   ];
 
   // 9. Rich Decorations, Destructible Obstacles & Trap Props
   const decorations: DecorationObject[] = [
-    // Zone 1: Ashen Campsite (Spawn)
+    // Zone 1: Ashen Campsite (Spawn) & Western Road
     { col: 10, row: 24, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
     { col: 12, row: 16, key: TEXTURE.PROP_WORKBENCH, solid: true },
     { col: 11, row: 18, key: TEXTURE.PROP_BARREL, solid: true },
@@ -450,6 +475,12 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 20, row: 24, key: TEXTURE.PROP_CRATE, solid: true },
     { col: 14, row: 24, key: TEXTURE.PROP_BUSH, solid: false },
     { col: 22, row: 16, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 16, row: 10, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 24, row: 12, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 20, row: 28, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 10, row: 28, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 22, row: 22, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 24, row: 16, key: TEXTURE.PROP_BUSH, solid: false },
 
     // Zone 2: Lumberjack Sawmill (Timber barricades & storage yard)
     { col: 38, row: 14, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
@@ -468,6 +499,12 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 34, row: 24, key: TEXTURE.PROP_FENCE, solid: true },
     { col: 34, row: 26, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 50, row: 26, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 36, row: 8, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 44, row: 10, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 32, row: 14, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 34, row: 22, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 46, row: 30, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 38, row: 28, key: TEXTURE.PROP_ROCK, solid: true },
 
     // Zone 3: River Fisherman's Docks & Rapids
     { col: 48, row: 26, key: TEXTURE.PROP_WORKBENCH, solid: true },
@@ -479,6 +516,12 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 60, row: 22, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 52, row: 34, key: TEXTURE.PROP_REEDS, solid: false },
     { col: 50, row: 34, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 58, row: 16, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 60, row: 14, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 46, row: 30, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 62, row: 26, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 50, row: 30, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 54, row: 32, key: TEXTURE.PROP_ROCK, solid: true },
 
     // Zone 4: Secret Island of Mists
     { col: 68, row: 45, key: TEXTURE.PROP_STATUE, solid: true },
@@ -488,6 +531,9 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 70, row: 44, key: TEXTURE.PROP_BUSH, solid: false },
     { col: 72, row: 52, key: TEXTURE.PROP_REEDS, solid: false },
     { col: 69, row: 47, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 65, row: 48, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 77, row: 48, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 73, row: 47, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
 
     // Zone 5: Witch's Herbal Glade
     { col: 20, row: 36, key: TEXTURE.PROP_WORKBENCH, solid: true },
@@ -499,6 +545,11 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 20, row: 44, key: TEXTURE.PROP_BUSH, solid: false },
     { col: 16, row: 44, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 28, row: 46, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 14, row: 36, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 24, row: 48, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 18, row: 52, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 10, row: 44, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 26, row: 52, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
 
     // Zone 6: Forgotten Bandit Outpost & Palisade Fortress
     { col: 96, row: 18, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.3 },
@@ -519,6 +570,13 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 122, row: 22, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
     { col: 108, row: 36, key: TEXTURE.PROP_FENCE, solid: true },
     { col: 114, row: 36, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 98, row: 12, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 118, row: 12, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 126, row: 20, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 126, row: 32, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 94, row: 26, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 120, row: 36, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 104, row: 38, key: TEXTURE.PROP_ROCK, solid: true },
     // Bandit Outpost Floor Spike Traps (Tactical Bottlenecks)
     { col: 98, row: 20, key: TEXTURE.PROP_SPIKES, solid: false },
     { col: 98, row: 32, key: TEXTURE.PROP_SPIKES, solid: false },
@@ -542,6 +600,13 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 38, row: 76, key: PROP.TOMBSTONE, solid: false },
     { col: 26, row: 78, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
     { col: 34, row: 78, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 14, row: 58, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 14, row: 66, key: PROP.TOMBSTONE, solid: false },
+    { col: 14, row: 74, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 42, row: 58, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 42, row: 66, key: PROP.TOMBSTONE, solid: false },
+    { col: 44, row: 72, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 30, row: 78, key: TEXTURE.PROP_BUSH, solid: false },
     // Necropolis Floor Spike Traps (Crypt Threshold)
     { col: 30, row: 58, key: TEXTURE.PROP_SPIKES, solid: false },
     { col: 34, row: 58, key: TEXTURE.PROP_SPIKES, solid: false },
@@ -554,6 +619,9 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 98, row: 80, key: TEXTURE.PROP_BARREL, solid: true },
     { col: 100, row: 80, key: TEXTURE.PROP_CRATE, solid: true },
     { col: 92, row: 80, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 88, row: 78, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 102, row: 82, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 90, row: 82, key: TEXTURE.PROP_REEDS, solid: false },
 
     // Zone 9: Ancient Sunken Ruin & Angel Sanctuary
     { col: 58, row: 68, key: TEXTURE.PROP_STATUE, solid: true },
@@ -564,6 +632,10 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 58, row: 78, key: TEXTURE.PROP_BUSH, solid: false },
     { col: 50, row: 72, key: TEXTURE.PROP_ROCK, solid: true },
     { col: 66, row: 72, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 56, row: 64, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 60, row: 64, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 52, row: 78, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 64, row: 78, key: TEXTURE.PROP_LUPINE, solid: false },
 
     // Zone 10: Orc Warchief Arena («Бойцовский круг Орды»)
     // Palisade Ring enclosing the arena
@@ -610,6 +682,13 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 88, row: 68, key: TEXTURE.PROP_BUSH, solid: false },
     { col: 78, row: 72, key: TEXTURE.PROP_REEDS, solid: false },
     { col: 92, row: 72, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 88, row: 66, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 86, row: 58, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 94, row: 52, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 96, row: 50, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 116, row: 50, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 128, row: 52, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 128, row: 58, key: TEXTURE.PROP_BARREL, solid: true },
     // South Approach Spike Traps
     { col: 76, row: 72, key: TEXTURE.PROP_SPIKES, solid: false },
     { col: 90, row: 72, key: TEXTURE.PROP_SPIKES, solid: false },
@@ -619,22 +698,30 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   const torches = [
     // Campsite
     { col: 8, row: 14 }, { col: 24, row: 14 }, { col: 8, row: 28 }, { col: 24, row: 28 },
+    { col: 16, row: 18 }, { col: 20, row: 22 },
     // Sawmill
     { col: 34, row: 10 }, { col: 52, row: 10 }, { col: 34, row: 28 }, { col: 52, row: 28 },
+    { col: 40, row: 20 },
     // River Docks & North Bridge
     { col: 49, row: 18 }, { col: 58, row: 18 }, { col: 48, row: 24 },
+    { col: 54, row: 28 }, { col: 64, row: 28 },
     // Secret Island
     { col: 66, row: 44 }, { col: 76, row: 44 }, { col: 66, row: 52 }, { col: 76, row: 52 },
     // Witch Glade
-    { col: 16, row: 34 }, { col: 28, row: 34 },
+    { col: 16, row: 34 }, { col: 28, row: 34 }, { col: 22, row: 48 },
     // Bandit Outpost
     { col: 94, row: 14 }, { col: 122, row: 14 }, { col: 94, row: 42 }, { col: 122, row: 42 },
+    { col: 108, row: 24 }, { col: 108, row: 34 },
     // Necropolis
     { col: 18, row: 54 }, { col: 44, row: 54 }, { col: 18, row: 80 }, { col: 44, row: 80 },
+    { col: 32, row: 58 }, { col: 32, row: 74 },
     // Smuggler Grotto & Sunken Ruin
     { col: 92, row: 74 }, { col: 102, row: 74 }, { col: 52, row: 64 }, { col: 64, row: 64 },
+    { col: 58, row: 76 },
     // South Bridge
     { col: 79, row: 72 }, { col: 89, row: 72 },
+    // Crossroads & Trails
+    { col: 30, row: 20 }, { col: 44, row: 44 }, { col: 88, row: 50 }, { col: 96, row: 48 },
     // Orc Arena Gate & Perimeter Torches
     { col: 101, row: 68 }, { col: 101, row: 72 }, // West Gate
     { col: 123, row: 68 }, { col: 123, row: 72 }, // East Exit Gate

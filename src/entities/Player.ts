@@ -637,7 +637,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
       return { kind: 'supernova', x: this.x, y: this.y, projectiles, element: this.elementalSlots.skill };
     } else {
-      SoundFX.playSwordSwing();
+      SoundFX.playWhirlwind();
       this.playWhirlwindAnimation();
       return {
         kind: 'whirlwind',

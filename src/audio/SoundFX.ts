@@ -703,7 +703,11 @@ class SoundFXManager {
   // --- Hero Combat & Abilities ---
 
   public playSwordSwing(): void {
-    this.playClip(SFX_CLIP.SWORD_SWING, { volume: 0.9, pitchVariance: 0.06, fallbackFn: () => this.synthSwordSwing() });
+    this.playClip(SFX_CLIP.SWORD_SWING, { volume: 0.65, pitchVariance: 0.06, fallbackFn: () => this.synthSwordSwing() });
+  }
+
+  public playWhirlwind(): void {
+    this.playClip(SFX_CLIP.SWORD_SWING, { volume: 1.05, pitch: 0.95, pitchVariance: 0.03, fallbackFn: () => this.synthSwordSwing() });
   }
 
   public playShieldBlock(x?: number, y?: number, lx?: number, ly?: number): void {

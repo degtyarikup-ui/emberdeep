@@ -55,13 +55,22 @@ export interface PlayerInput {
 }
 
 export interface SpecialResult {
-  kind: 'whirlwind' | 'volley' | 'supernova' | 'shield_bastion';
+  kind: 'whirlwind' | 'volley' | 'supernova';
   x: number;
   y: number;
   radius?: number;
   damage?: number;
-  duration?: number;
   projectiles?: (ArrowProjectile | EnergyProjectile)[];
+  element?: ElementType;
+}
+
+export interface ClassSkillResult {
+  kind: 'shield_bastion' | 'shadow_dodge' | 'healing_repulse';
+  x: number;
+  y: number;
+  duration?: number;
+  radius?: number;
+  healAmount?: number;
   element?: ElementType;
 }
 
@@ -82,6 +91,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   isSprinting = false;
   specialCooldown = 0;
   specialMaxCooldown = 4000;
+  classSkillCooldown = 0;
+  classSkillMaxCooldown = 8000;
   readonly slot: number;
   readonly label: Phaser.GameObjects.Text;
   readonly sword: Phaser.GameObjects.Sprite;
@@ -125,6 +136,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.slot = slot;
     this.heroClass = heroClass;
     this.specialMaxCooldown = isKnight ? 3500 : isRanger ? 4200 : 4000;
+    this.classSkillMaxCooldown = isKnight ? 8000 : isRanger ? 4500 : 10000;
+    this.specialCooldown = 0;
+    this.classSkillCooldown = 0;
 
     const bonuses = MetaManager.get().getBonuses();
 
@@ -796,6 +810,55 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
       return { kind: 'supernova', x: this.x, y: this.y, projectiles, element: this.elementalSlots.skill };
     } else {
+      SoundFX.playWhirlwind();
+      this.playWhirlwindAnimation();
+      return {
+        kind: 'whirlwind',
+        x: this.x,
+        y: this.y,
+        radius: 65,
+        damage: Math.max(2, Math.round(this.attackDamage * 2.0)),
+        element: this.elementalSlots.skill,
+      };
+    }
+  }
+
+  private playWhirlwindAnimation(): void {
+    const ring = this.scene.add.sprite(this.x, this.y - 14, TEXTURE.SLASH_WHIRLWIND);
+    ring.setOrigin(0.5, 0.5);
+    ring.setScale(0.8);
+    ring.setDepth(DEPTH.YSORT_BASE + this.y + 10);
+    ring.setPipeline('Light2D');
+    if (this.elementalSlots.skill) {
+      const col = ELEMENT_COLORS[this.elementalSlots.skill];
+      ring.setTint(Phaser.Display.Color.HexStringToColor(col).color);
+    } else {
+      ring.setTint(0x67e8f9);
+    }
+
+    const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+    if (worldLayer) worldLayer.add(ring);
+
+    this.scene.tweens.add({
+      targets: ring,
+      scaleX: 2.2,
+      scaleY: 2.2,
+      angle: 720,
+      alpha: 0,
+      duration: 350,
+      ease: 'Cubic.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+
+    this.triggerSquash(1.3, 0.85, 100);
+  }
+
+  /** Triggers class utility skill on [Q] (Knight Shield Bastion, Ranger Shadow Dodge, Wizard Healing Repulse). */
+  tryClassSkill(targetX?: number, targetY?: number): ClassSkillResult | null {
+    if (this.classSkillCooldown > 0 || this.dying) return null;
+    this.classSkillCooldown = this.classSkillMaxCooldown * this.specialCooldownMultiplier;
+
+    if (this.heroClass === 'knight') {
       this.activateKnightShield();
       return {
         kind: 'shield_bastion',
@@ -804,6 +867,135 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         duration: 2500,
         element: this.elementalSlots.skill,
       };
+    } else if (this.heroClass === 'ranger') {
+      this.activateShadowDodge(targetX, targetY);
+      return {
+        kind: 'shadow_dodge',
+        x: this.x,
+        y: this.y,
+        duration: 400,
+        element: this.elementalSlots.dash,
+      };
+    } else {
+      this.activateHealingRepulse();
+      return {
+        kind: 'healing_repulse',
+        x: this.x,
+        y: this.y,
+        radius: 90,
+        healAmount: 1,
+        element: this.elementalSlots.skill,
+      };
+    }
+  }
+
+  public activateShadowDodge(targetX?: number, targetY?: number): void {
+    SoundFX.playDash();
+    this.invuln = 450; // 0.45s invulnerability frames!
+    this.isSprinting = true;
+
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    let angle = this.flipX ? Math.PI : 0;
+    if (targetX !== undefined && targetY !== undefined) {
+      angle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
+    } else if (body.velocity.lengthSq() > 10) {
+      angle = Math.atan2(body.velocity.y, body.velocity.x);
+    }
+
+    const dashSpeed = 340;
+    body.setVelocity(Math.cos(angle) * dashSpeed, Math.sin(angle) * dashSpeed);
+    this.knockbackLock = 250;
+
+    if (this.scene) {
+      for (let i = 0; i < 4; i++) {
+        this.scene.time.delayedCall(i * 60, () => {
+          if (!this.active || !this.scene) return;
+          const clone = this.scene.add.sprite(this.x, this.y, TEXTURE.RANGER_IDLE);
+          clone.setOrigin(this.originX, this.originY);
+          clone.setScale(this.baseScale);
+          clone.setFlipX(this.flipX);
+          clone.setDepth(DEPTH.YSORT_BASE + this.y + 10);
+          clone.setTint(0x4ade80);
+          clone.setAlpha(0.6);
+
+          const wl = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+          if (wl) wl.add(clone);
+
+          this.scene.tweens.add({
+            targets: clone,
+            alpha: 0,
+            scaleX: this.baseScale * 1.1,
+            scaleY: this.baseScale * 1.1,
+            duration: 250,
+            onComplete: () => clone.destroy(),
+          });
+        });
+      }
+    }
+  }
+
+  public activateHealingRepulse(): void {
+    SoundFX.playPowerUp();
+    SoundFX.playEnergyHit();
+
+    this.hp = Math.min(this.maxHp, this.hp + 1);
+
+    const gs = this.scene as unknown as { spawnDamageNumber?: (x: number, y: number, text: string, color: string) => void; enemies?: { isDead?: boolean; x: number; y: number; body?: Phaser.Physics.Arcade.Body }[]; buildHeartsUI?: () => void };
+    if (gs.spawnDamageNumber) {
+      gs.spawnDamageNumber(this.x, this.y - 28, '+1 HP', '#4ade80');
+    }
+    if (gs.buildHeartsUI) {
+      gs.buildHeartsUI();
+    }
+
+    if (this.scene) {
+      const ring = this.scene.add.circle(this.x, this.y - 14, 20, 0x4ade80, 0.4);
+      ring.setStrokeStyle(3, 0xa7f3d0, 0.95);
+      ring.setDepth(DEPTH.YSORT_BASE + this.y + 19);
+      const wl = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+      if (wl) wl.add(ring);
+
+      this.scene.tweens.add({
+        targets: ring,
+        scaleX: 4.5,
+        scaleY: 4.5,
+        alpha: 0,
+        duration: 350,
+        ease: 'Cubic.easeOut',
+        onComplete: () => ring.destroy(),
+      });
+
+      for (let i = 0; i < 10; i++) {
+        const spark = this.scene.add.rectangle(this.x, this.y - 14, 4, 4, 0x86efac);
+        spark.setDepth(DEPTH.YSORT_BASE + this.y + 20);
+        if (wl) wl.add(spark);
+        const ang = (Math.PI * 2 * i) / 10;
+        this.scene.tweens.add({
+          targets: spark,
+          x: this.x + Math.cos(ang) * 65,
+          y: this.y - 14 + Math.sin(ang) * 65,
+          alpha: 0,
+          scale: 0.1,
+          duration: 350,
+          onComplete: () => spark.destroy(),
+        });
+      }
+
+      if (gs.enemies) {
+        for (const enemy of gs.enemies) {
+          if (enemy.isDead) continue;
+          const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+          if (dist <= 95) {
+            const body = enemy.body as Phaser.Physics.Arcade.Body;
+            if (body) {
+              const edx = enemy.x - this.x;
+              const edy = enemy.y - this.y;
+              const elen = Math.hypot(edx, edy) || 1;
+              body.setVelocity((edx / elen) * 260, (edy / elen) * 260);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -1124,6 +1316,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.invuln > 0) this.invuln -= delta;
     if (this.attackCooldown > 0) this.attackCooldown -= delta;
     if (this.specialCooldown > 0) this.specialCooldown -= delta;
+    if (this.classSkillCooldown > 0) this.classSkillCooldown -= delta;
     if (this.attackLock > 0) this.attackLock -= delta;
     if (this.knockbackLock > 0) this.knockbackLock -= delta;
 

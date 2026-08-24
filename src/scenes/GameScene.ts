@@ -1339,9 +1339,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.attackPressed = Phaser.Input.Keyboard.JustDown(this.attackKey);
-    const specialJustPressed = Phaser.Input.Keyboard.JustDown(this.specialKey);
-    if (specialJustPressed) {
-      this.handlePlayerSpecial(this.myPlayer);
+    const classSkillJustPressed = Phaser.Input.Keyboard.JustDown(this.specialKey);
+    if (classSkillJustPressed && !this.frozen && !this.myPlayer.isDowned) {
+      const activePointer = this.input.activePointer;
+      const worldPoint = this.worldCam.getWorldPoint(activePointer.x, activePointer.y);
+      this.handlePlayerClassSkill(this.myPlayer, worldPoint.x, worldPoint.y);
     }
     this.interactPressed = Phaser.Input.Keyboard.JustDown(this.interactKey);
     if (this.attackPressed) this.mySeq.attack++;
@@ -1390,12 +1392,18 @@ export class GameScene extends Phaser.Scene {
       this.bossBarUI.update(this.boss);
     }
     if (this.actionBar && this.myPlayer) {
-      const maxCd = this.heroClass === 'knight' ? 3500 : this.heroClass === 'ranger' ? 4200 : 4000;
-      const cd = this.myPlayer.specialCooldown;
-      const ratio = cd > 0 ? cd / maxCd : 0;
-      const secs = cd > 0 ? cd / 1000 : 0;
+      const specMaxCd = this.myPlayer.specialMaxCooldown;
+      const specCd = this.myPlayer.specialCooldown;
+      const specRatio = specMaxCd > 0 && specCd > 0 ? specCd / specMaxCd : 0;
+      const specSecs = specCd > 0 ? specCd / 1000 : 0;
+
+      const skillMaxCd = this.myPlayer.classSkillMaxCooldown;
+      const skillCd = this.myPlayer.classSkillCooldown;
+      const skillRatio = skillMaxCd > 0 && skillCd > 0 ? skillCd / skillMaxCd : 0;
+      const skillSecs = skillCd > 0 ? skillCd / 1000 : 0;
+
       const inInteractRange = this.isAnyInteractableInRange();
-      this.actionBar.update(this.myPlayer, ratio, secs, inInteractRange);
+      this.actionBar.update(this.myPlayer, specRatio, specSecs, skillRatio, skillSecs, inInteractRange);
     }
     if (this.objectiveMarker && this.worldCam) {
       if (this.altarCharged) {
@@ -1768,16 +1776,24 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private handlePlayerClassSkill(player: Player, targetX?: number, targetY?: number): void {
+    const res = player.tryClassSkill(targetX, targetY);
+    if (!res) return;
+
+    if (player === this.myPlayer) {
+      if (res.kind === 'shield_bastion') {
+        this.worldCam.shake(50, 0.0015);
+      } else if (res.kind === 'shadow_dodge') {
+        this.worldCam.shake(40, 0.001);
+      } else if (res.kind === 'healing_repulse') {
+        this.worldCam.shake(70, 0.002);
+      }
+    }
+  }
+
   private handlePlayerSpecial(player: Player, targetX?: number, targetY?: number): void {
     const res = player.trySpecial(targetX, targetY);
     if (!res) return;
-
-    if (res.kind === 'shield_bastion') {
-      if (player === this.myPlayer) {
-        this.worldCam.shake(50, 0.0015);
-      }
-      return;
-    }
 
     if ((res.kind === 'volley' || res.kind === 'supernova') && res.projectiles) {
       for (const p of res.projectiles) {

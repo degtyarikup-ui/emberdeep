@@ -18,6 +18,13 @@ export class ActionBar {
   private specialSlotBg!: Phaser.GameObjects.NineSlice;
   private specialCooldownSweep!: Phaser.GameObjects.Graphics;
   private specialCooldownText!: Phaser.GameObjects.Text;
+  private wasSpecialOnCd = false;
+
+  private classSkillSlot!: Phaser.GameObjects.Container;
+  private classSkillSlotBg!: Phaser.GameObjects.NineSlice;
+  private classSkillCooldownSweep!: Phaser.GameObjects.Graphics;
+  private classSkillCooldownText!: Phaser.GameObjects.Text;
+  private wasClassSkillOnCd = false;
 
   private dashSlot!: Phaser.GameObjects.Container;
   private dashElementRune!: Phaser.GameObjects.Sprite;
@@ -26,7 +33,6 @@ export class ActionBar {
   private interactSlot!: Phaser.GameObjects.Container;
   private interactGlow!: Phaser.GameObjects.Rectangle;
   private interactPromptText!: Phaser.GameObjects.Text;
-  private wasSpecialOnCd = false;
 
   private heroClass: HeroClass;
 
@@ -47,9 +53,9 @@ export class ActionBar {
   }
 
   private createActionBar(): void {
-    const slotSize = 46;
-    const spacing = 12;
-    const totalSlots = 4;
+    const slotSize = 44;
+    const spacing = 10;
+    const totalSlots = 5;
     const barW = totalSlots * slotSize + (totalSlots - 1) * spacing + 28;
     const barH = 58;
 
@@ -82,7 +88,6 @@ export class ActionBar {
     this.attackElementRune.setVisible(false);
     this.attackSlot.add(this.attackElementRune);
 
-    // Hotkey Button Badge
     const btn1 = this.createButtonBadge('ЛКМ');
     this.attackSlot.add(btn1);
 
@@ -97,7 +102,7 @@ export class ActionBar {
     );
     this.container.add(this.attackSlot);
 
-    // 3. Slot 2: Special Ability (RMB / Q)
+    // 3. Slot 2: Special Attack (RMB)
     const specialX = startX + (slotSize + spacing);
     this.specialSlot = this.scene.add.container(specialX, 0);
     this.specialSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'uncommon');
@@ -108,19 +113,18 @@ export class ActionBar {
         ? ITEM_SPRITE_MAP.supernova_icon
         : this.heroClass === 'ranger'
         ? { col: 1, row: 9 }
-        : ITEM_SPRITE_MAP.shield;
+        : { col: 6, row: 1 };
     const specFrame = specIconCoord.row * 11 + specIconCoord.col;
     const specIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, specFrame);
     specIcon.setScale(1.0);
     this.specialSlot.add(specIcon);
 
-    // Cooldown Radial Sweep
     this.specialCooldownSweep = this.scene.add.graphics();
     this.specialSlot.add(this.specialCooldownSweep);
 
     this.specialCooldownText = this.scene.add.text(0, -2, '', {
       fontFamily: FONT.UI,
-      fontSize: '14px',
+      fontSize: '13px',
       fontStyle: '700',
       color: '#fde047',
     });
@@ -134,17 +138,62 @@ export class ActionBar {
 
     this.setupHoverTooltip(
       this.specialSlotBg,
-      '[ ПКМ / Q ] СПЕЦУМЕНИЕ',
+      '[ ПКМ ] СПЕЦАТАКА',
       this.heroClass === 'wizard'
-        ? 'Чародейская Сверхновая: выпускает кольцо из 8 сфер энергии вокруг мага.'
+        ? 'Чародейская Сверхновая: выпускает кольцо из 8 сфер энергии во все стороны.'
         : this.heroClass === 'ranger'
         ? 'Веерный залп: выпускает 5 пробивающих стрел веером.'
-        : 'Стойка со щитом: поднимает щитовой барьер на 2.5 сек, поглощая урон. При блоке отбрасывает врагов ударной волной.'
+        : 'Вихрь стали: круговой сокрушительный удар мечом по области вокруг рыцаря.'
     );
     this.container.add(this.specialSlot);
 
-    // 4. Slot 3: Dash / Sprint (Shift)
-    const dashX = startX + 2 * (slotSize + spacing);
+    // 4. Slot 3: Class Tactical Skill (Q)
+    const classSkillX = startX + 2 * (slotSize + spacing);
+    this.classSkillSlot = this.scene.add.container(classSkillX, 0);
+    this.classSkillSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'rare');
+    this.classSkillSlot.add(this.classSkillSlotBg);
+
+    const classSkillCoord =
+      this.heroClass === 'knight'
+        ? ITEM_SPRITE_MAP.shield
+        : this.heroClass === 'ranger'
+        ? ITEM_SPRITE_MAP.dash_icon
+        : ITEM_SPRITE_MAP.radiant_shield;
+    const classSkillFrame = classSkillCoord.row * 11 + classSkillCoord.col;
+    const classSkillIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, classSkillFrame);
+    classSkillIcon.setScale(1.0);
+    this.classSkillSlot.add(classSkillIcon);
+
+    this.classSkillCooldownSweep = this.scene.add.graphics();
+    this.classSkillSlot.add(this.classSkillCooldownSweep);
+
+    this.classSkillCooldownText = this.scene.add.text(0, -2, '', {
+      fontFamily: FONT.UI,
+      fontSize: '13px',
+      fontStyle: '700',
+      color: '#38bdf8',
+    });
+    this.classSkillCooldownText.setOrigin(0.5, 0.5);
+    this.classSkillCooldownText.setStroke('#000000', 4);
+    this.classSkillCooldownText.setShadow(0, 2, '#000000', 3, true, true);
+    this.classSkillSlot.add(this.classSkillCooldownText);
+
+    const btnQ = this.createButtonBadge('Q');
+    this.classSkillSlot.add(btnQ);
+
+    this.setupHoverTooltip(
+      this.classSkillSlotBg,
+      '[ Q ] КЛАССОВОЕ УМЕНИЕ',
+      this.heroClass === 'knight'
+        ? 'Стойка со щитом: поднимает щитовой барьер на 2.5 сек, поглощая урон. При блоке отбрасывает врагов ударной волной.'
+        : this.heroClass === 'ranger'
+        ? 'Теневой уворот: стремительный кувырок с полной неуязвимостью (i-frames) к любым атакам и снарядам.'
+        : 'Чародейский импульс: вспышка кинетической энергии, отбрасывающая всех врагов на 90px и восстанавливающая +1 HP.'
+    );
+    this.container.add(this.classSkillSlot);
+
+    // 5. Slot 4: Dash / Sprint (Shift)
+    const dashX = startX + 3 * (slotSize + spacing);
     this.dashSlot = this.scene.add.container(dashX, 0);
     this.dashSlotBg = PixelUI.createSlot(this.scene, 0, 0, slotSize, 'common');
     this.dashSlot.add(this.dashSlotBg);
@@ -164,13 +213,13 @@ export class ActionBar {
 
     this.setupHoverTooltip(
       this.dashSlotBg,
-      '[ SHIFT ] РЫВОК И СПРИНТ',
-      'Резкое ускорение героя. Позволяет уклоняться от ударов и снарядов.'
+      '[ SHIFT ] СПРИНТ И РЫВОК',
+      'Резкое ускорение героя. Позволяет быстро маневрировать по подземелью.'
     );
     this.container.add(this.dashSlot);
 
-    // 5. Slot 4: Context Interaction (E)
-    const interactX = startX + 3 * (slotSize + spacing);
+    // 6. Slot 5: Context Interaction (E)
+    const interactX = startX + 4 * (slotSize + spacing);
     this.interactSlot = this.scene.add.container(interactX, 0);
 
     this.interactGlow = this.scene.add.rectangle(0, 0, slotSize + 6, slotSize + 6, 0xb89830, 0);
@@ -208,13 +257,13 @@ export class ActionBar {
   }
 
   private createButtonBadge(label: string): Phaser.GameObjects.Container {
-    const cont = this.scene.add.container(0, 20);
-    const bg = this.scene.add.rectangle(0, 0, 34, 14, 0x050810, 0.95);
+    const cont = this.scene.add.container(0, 19);
+    const bg = this.scene.add.rectangle(0, 0, 32, 13, 0x050810, 0.95);
     bg.setStrokeStyle(1.5, 0x475569);
 
     const txt = this.scene.add.text(0, 0, label, {
       fontFamily: FONT.UI,
-      fontSize: '9px',
+      fontSize: '8px',
       fontStyle: '700',
       color: '#f8fafc',
     }).setOrigin(0.5, 0.5);
@@ -238,7 +287,14 @@ export class ActionBar {
       });
   }
 
-  public update(player?: Player, specialCooldownRatio = 0, specialCooldownSec = 0, inInteractRange = false): void {
+  public update(
+    player?: Player,
+    specialCooldownRatio = 0,
+    specialCooldownSec = 0,
+    classSkillCooldownRatio = 0,
+    classSkillCooldownSec = 0,
+    inInteractRange = false
+  ): void {
     // 1. Update Elemental Infusion Runes on Attack and Dash
     if (player) {
       const attackEl = player.elementalSlots.attack;
@@ -260,10 +316,10 @@ export class ActionBar {
       }
     }
 
-    // 2. Update Special Cooldown Overlay
+    // 2. Update Special Attack Cooldown (RMB)
     this.specialCooldownSweep.clear();
     if (specialCooldownRatio > 0) {
-      const size = 42;
+      const size = 40;
       this.specialCooldownSweep.fillStyle(0x020617, 0.88);
       this.specialCooldownSweep.slice(
         0,
@@ -281,7 +337,6 @@ export class ActionBar {
     } else {
       if (this.wasSpecialOnCd) {
         this.wasSpecialOnCd = false;
-        // Pop tween on ready!
         this.scene.tweens.add({
           targets: this.specialSlot,
           scaleX: 1.14,
@@ -294,7 +349,40 @@ export class ActionBar {
       this.specialCooldownText.setVisible(false);
     }
 
-    // 3. Update Interact Slot Glow & Prompt
+    // 3. Update Class Skill Cooldown (Q)
+    this.classSkillCooldownSweep.clear();
+    if (classSkillCooldownRatio > 0) {
+      const size = 40;
+      this.classSkillCooldownSweep.fillStyle(0x020617, 0.88);
+      this.classSkillCooldownSweep.slice(
+        0,
+        -2,
+        size / 2,
+        -Math.PI / 2,
+        -Math.PI / 2 + Math.PI * 2 * classSkillCooldownRatio,
+        false
+      );
+      this.classSkillCooldownSweep.fillPath();
+
+      this.classSkillCooldownText.setText(classSkillCooldownSec > 0 ? classSkillCooldownSec.toFixed(1) : '');
+      this.classSkillCooldownText.setVisible(true);
+      this.wasClassSkillOnCd = true;
+    } else {
+      if (this.wasClassSkillOnCd) {
+        this.wasClassSkillOnCd = false;
+        this.scene.tweens.add({
+          targets: this.classSkillSlot,
+          scaleX: 1.14,
+          scaleY: 1.14,
+          duration: 90,
+          yoyo: true,
+          ease: 'Back.easeOut',
+        });
+      }
+      this.classSkillCooldownText.setVisible(false);
+    }
+
+    // 4. Update Interact Slot Glow & Prompt
     if (inInteractRange) {
       const pulse = 0.5 + Math.sin(this.scene.time.now / 140) * 0.4;
       this.interactGlow.setAlpha(pulse);

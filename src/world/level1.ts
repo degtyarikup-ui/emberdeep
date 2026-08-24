@@ -687,9 +687,9 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 20, row: 18, kind: 'wolf' }, { col: 24, row: 22, kind: 'wolf' },
     { col: 22, row: 20, kind: 'wolf' }, { col: 28, row: 20, kind: 'wolf' },
 
-    // Zone 2: Sawmill (4 imps + 3 wolves + 2 skeletons)
-    { col: 38, row: 18, kind: 'imp' }, { col: 46, row: 18, kind: 'imp' },
-    { col: 36, row: 24, kind: 'imp' }, { col: 44, row: 22, kind: 'imp' },
+    // Zone 2: Sawmill (4 orc grunts + 3 wolves + 2 skeletons)
+    { col: 38, row: 18, kind: 'orc_grunt' }, { col: 46, row: 18, kind: 'orc_grunt' },
+    { col: 36, row: 24, kind: 'orc_grunt' }, { col: 44, row: 22, kind: 'orc_grunt' },
     { col: 40, row: 26, kind: 'wolf' }, { col: 42, row: 26, kind: 'wolf' }, { col: 44, row: 28, kind: 'wolf' },
     { col: 48, row: 24, kind: 'skeleton' }, { col: 50, row: 20, kind: 'skeleton' },
 
@@ -697,21 +697,21 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 46, row: 24, kind: 'skeleton' }, { col: 50, row: 32, kind: 'skeleton' }, { col: 52, row: 28, kind: 'skeleton' },
     { col: 48, row: 20, kind: 'wolf' }, { col: 54, row: 18, kind: 'wolf' }, { col: 62, row: 19, kind: 'wolf' },
 
-    // Zone 4: Secret Island (3 champions: 2 skeletons + 1 imp)
-    { col: 69, row: 49, kind: 'skeleton' }, { col: 73, row: 49, kind: 'imp' }, { col: 71, row: 51, kind: 'skeleton' },
+    // Zone 4: Secret Island (3 champions: 2 skeletons + 1 orc grunt)
+    { col: 69, row: 49, kind: 'skeleton' }, { col: 73, row: 49, kind: 'orc_grunt' }, { col: 71, row: 51, kind: 'skeleton' },
 
-    // Zone 5: Witch Glade (4 imps + 2 wolves)
-    { col: 18, row: 38, kind: 'imp' }, { col: 24, row: 38, kind: 'imp' },
-    { col: 22, row: 44, kind: 'imp' }, { col: 20, row: 46, kind: 'imp' },
+    // Zone 5: Witch Glade (4 orc grunts + 2 wolves)
+    { col: 18, row: 38, kind: 'orc_grunt' }, { col: 24, row: 38, kind: 'orc_grunt' },
+    { col: 22, row: 44, kind: 'orc_grunt' }, { col: 20, row: 46, kind: 'orc_grunt' },
     { col: 16, row: 42, kind: 'wolf' }, { col: 26, row: 44, kind: 'wolf' },
 
-    // Zone 6: Bandit Outpost (14 fortress defenders: 7 imps + 7 skeletons)
-    { col: 100, row: 22, kind: 'imp' }, { col: 112, row: 22, kind: 'skeleton' },
-    { col: 106, row: 26, kind: 'imp' }, { col: 114, row: 26, kind: 'skeleton' },
-    { col: 102, row: 30, kind: 'skeleton' }, { col: 110, row: 30, kind: 'imp' },
-    { col: 118, row: 30, kind: 'imp' }, { col: 104, row: 36, kind: 'skeleton' },
-    { col: 112, row: 36, kind: 'skeleton' }, { col: 118, row: 36, kind: 'imp' },
-    { col: 98, row: 26, kind: 'imp' }, { col: 108, row: 20, kind: 'imp' },
+    // Zone 6: Bandit Outpost (14 fortress defenders: 7 orc grunts + 7 skeletons)
+    { col: 100, row: 22, kind: 'orc_grunt' }, { col: 112, row: 22, kind: 'skeleton' },
+    { col: 106, row: 26, kind: 'orc_grunt' }, { col: 114, row: 26, kind: 'skeleton' },
+    { col: 102, row: 30, kind: 'skeleton' }, { col: 110, row: 30, kind: 'orc_grunt' },
+    { col: 118, row: 30, kind: 'orc_grunt' }, { col: 104, row: 36, kind: 'skeleton' },
+    { col: 112, row: 36, kind: 'skeleton' }, { col: 118, row: 36, kind: 'orc_grunt' },
+    { col: 98, row: 26, kind: 'orc_grunt' }, { col: 108, row: 20, kind: 'orc_grunt' },
     { col: 120, row: 24, kind: 'skeleton' }, { col: 116, row: 32, kind: 'skeleton' },
 
     // Zone 7: Necropolis (8 crypt skeletons + 3 wolves)
@@ -721,9 +721,9 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 32, row: 62, kind: 'skeleton' }, { col: 32, row: 72, kind: 'skeleton' },
     { col: 20, row: 66, kind: 'wolf' }, { col: 44, row: 68, kind: 'wolf' }, { col: 22, row: 72, kind: 'wolf' },
 
-    // Zone 8: Smuggler Grotto (4 imps)
-    { col: 94, row: 78, kind: 'imp' }, { col: 96, row: 76, kind: 'imp' },
-    { col: 100, row: 78, kind: 'imp' }, { col: 98, row: 78, kind: 'imp' },
+    // Zone 8: Smuggler Grotto (4 orc grunts)
+    { col: 94, row: 78, kind: 'orc_grunt' }, { col: 96, row: 76, kind: 'orc_grunt' },
+    { col: 100, row: 78, kind: 'orc_grunt' }, { col: 98, row: 78, kind: 'orc_grunt' },
 
     // Zone 9: Sunken Ruin (5 skeletons + 2 wolves)
     { col: 54, row: 68, kind: 'skeleton' }, { col: 62, row: 68, kind: 'skeleton' },
@@ -734,7 +734,7 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     // 1. West Gate Outpost / Entrance Guard (3)
     { col: 98, row: 68, kind: 'skeleton' },
     { col: 98, row: 72, kind: 'skeleton' },
-    { col: 96, row: 70, kind: 'imp' },
+    { col: 96, row: 70, kind: 'orc_grunt' },
 
     // 2. North Trail from Bandit Outpost (4)
     { col: 108, row: 44, kind: 'wolf' },
@@ -745,11 +745,11 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     // 3. South Approach from Bridge & Grotto (4)
     { col: 90, row: 74, kind: 'wolf' },
     { col: 94, row: 72, kind: 'wolf' },
-    { col: 92, row: 76, kind: 'imp' },
-    { col: 96, row: 78, kind: 'imp' },
+    { col: 92, row: 76, kind: 'orc_grunt' },
+    { col: 96, row: 78, kind: 'orc_grunt' },
 
     // 4. North-East Ridge Sentry (2)
-    { col: 122, row: 50, kind: 'imp' },
+    { col: 122, row: 50, kind: 'orc_grunt' },
     { col: 124, row: 54, kind: 'skeleton' },
   ];
 

@@ -9,7 +9,7 @@ import {
   ComboResult,
 } from '../combat/ElementalSystem';
 
-export type EnemyKind = 'imp' | 'skeleton' | 'wolf' | 'orc_shield' | 'orc_archer' | 'direwolf';
+export type EnemyKind = 'imp' | 'skeleton' | 'wolf' | 'orc_shield' | 'orc_archer' | 'direwolf' | 'orc_grunt';
 
 export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'special_windup' | 'recovery' | 'backstep' | 'dead';
 
@@ -167,6 +167,26 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     recoveryDuration: 180,
     lungeSpeed: 280,
     canBackstep: true,
+    canCircleStrafe: false,
+  },
+  orc_grunt: {
+    clips: ACTORS.ORC,
+    originY: { idle: 0.82, run: 0.74, death: 0.74 },
+    bodySize: { idle: [18, 16], run: [20, 16] },
+    bodyOffset: { idle: [7, 16], run: [22, 48] },
+    maxHp: 14,
+    patrolSpeed: 55,
+    chaseSpeed: 115,
+    detectRadius: 240,
+    loseRadius: 360,
+    attackRange: 46,
+    contactDamage: 1,
+    scale: 1.25,
+    windupDuration: 240,
+    lungeDuration: 160,
+    recoveryDuration: 200,
+    lungeSpeed: 260,
+    canBackstep: false,
     canCircleStrafe: false,
   },
 };
@@ -478,7 +498,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.scene.tweens.add({ targets: this, alpha: 0, duration: 200, onComplete: () => {
         // spawn blood/bone explosion
         for(let i=0; i<5; i++) {
-            const part = this.scene.add.rectangle(this.x, this.y - 10, 3, 3, this.kind === 'imp' ? 0xcc0000 : (this.kind === 'wolf' ? 0x992222 : 0xdddddd));
+            const part = this.scene.add.rectangle(this.x, this.y - 10, 3, 3, (this.kind === 'imp' || this.kind === 'orc_grunt' || this.kind === 'orc_shield' || this.kind === 'orc_archer') ? 0x854d0e : (this.kind === 'wolf' || this.kind === 'direwolf' ? 0x992222 : 0xdddddd));
             this.scene.tweens.add({
                 targets: part,
                 x: this.x + (Math.random()-0.5)*30,
@@ -658,6 +678,18 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
         // Check Special Attack triggers
         if (this.specialCooldown <= 0) {
+          // Orc Grunt Heavy Chop at close range (<= 48 px)
+          if (this.kind === 'orc_grunt' && distToPlayer <= 48) {
+            this.aiState = 'special_windup';
+            this.stateTimer = 240;
+            this.specialCooldown = 3200;
+            this.setTint(0xf87171);
+            this.setAngle(0);
+            this.setScale(this.stats.scale);
+            body.setVelocity(0, 0);
+            SoundFX.playCleaveWindup();
+            break;
+          }
           // Imp Fireball Spit at mid-range
           if (this.kind === 'imp' && distToPlayer >= 65 && distToPlayer <= 150) {
             this.aiState = 'special_windup';
@@ -761,12 +793,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           this.attackAngle = Math.atan2(dy, dx);
           body.setVelocity(0, 0);
 
-          // Visual Telegraph: Imp crouches & flashes red; Orc Shield raises axe; Skeleton gleams white
+          // Visual Telegraph: Imp crouches & flashes red; Orcs raise weapon; Skeleton gleams white
           if (this.kind === 'imp') {
             this.setTint(0xff3333);
             this.setScale(this.stats.scale * 1.15, this.stats.scale * 0.85);
-          } else if (this.kind === 'orc_shield') {
-            this.setTint(0xfca5a5); // Crimson battle glow on axe
+          } else if (this.kind === 'orc_shield' || this.kind === 'orc_grunt') {
+            this.setTint(0xfca5a5); // Crimson battle glow on weapon
             this.setAngle(0);
             this.setScale(this.stats.scale);
             SoundFX.playCleaveWindup();
@@ -827,7 +859,31 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           this.clearTint();
           this.setScale(this.stats.scale);
 
-          if (this.kind === 'imp') {
+          if (this.kind === 'orc_grunt') {
+            // Heavy Chop execution: deal 2 damage and play cleave slash
+            SoundFX.playBoneCleave();
+            if (this.scene) {
+              const slash = this.scene.add.sprite(this.x + (dx < 0 ? -14 : 14), this.y - 8, TEXTURE.SLASH_FX);
+              slash.setRotation(Math.atan2(dy, dx));
+              slash.setScale(1.3);
+              slash.setTint(0xf87171);
+              slash.setDepth(DEPTH.YSORT_BASE + this.y + 2);
+              this.scene.tweens.add({
+                targets: slash,
+                scaleX: 1.9,
+                scaleY: 1.9,
+                alpha: 0,
+                duration: 180,
+                onComplete: () => slash.destroy(),
+              });
+            }
+            if (distToPlayer <= 54) {
+              output.landedHit = true;
+              output.damage = 2; // Heavy Chop deals 2 damage!
+            }
+            this.aiState = 'recovery';
+            this.stateTimer = 260;
+          } else if (this.kind === 'imp') {
             output.projectile = { x: this.x, y: this.y - 8, targetX: playerX, targetY: playerY, damage: 1 };
             this.aiState = 'recovery';
             this.stateTimer = 350;

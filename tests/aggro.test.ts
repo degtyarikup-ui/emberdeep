@@ -23,11 +23,18 @@ function createMockScene(): Phaser.Scene {
   };
   const add = {
     existing: (obj: any) => obj,
-    sprite: () => ({
-      setAlpha: () => ({ setDepth: () => ({ setPosition: () => undefined, destroy: () => undefined }) }),
-      setPosition: () => undefined,
-      destroy: () => undefined,
-    }),
+    sprite: () => {
+      const mockObj: any = {
+        setAlpha: () => mockObj,
+        setPosition: () => mockObj,
+        setRotation: () => mockObj,
+        setScale: () => mockObj,
+        setTint: () => mockObj,
+        setDepth: () => mockObj,
+        destroy: () => undefined,
+      };
+      return mockObj;
+    },
     text: () => ({
       setOrigin: () => ({ setDepth: () => ({ destroy: () => undefined }) }),
       destroy: () => undefined,
@@ -224,5 +231,28 @@ describe('Enemy aggro and social alerting logic', () => {
     shieldOrc.takeDamage(5, 50, 100, [shieldOrc]);
     expect(shieldOrc.angle).toBe(0);
   });
+
+  it('orc_grunt initiates Heavy Chop special windup and deals 2 damage', () => {
+    const scene = createMockScene();
+    const grunt = new Enemy(scene, 100, 100, 'orc_grunt', 1);
+
+    // Provoke into alert and transition to chase
+    grunt.provoke(COMBAT_AGGRO_DURATION, false);
+    expect(grunt.currentAIState).toBe('alert');
+
+    grunt.updateAI(140, 100, 150, [grunt]); // Transition alert -> chase
+    grunt.updateAI(140, 100, 4500, [grunt]); // In chase at 40px with special ready -> triggers special_windup
+
+    expect(grunt.currentAIState).toBe('special_windup');
+    expect(grunt.angle).toBe(0);
+
+    // Resolve windup (240ms) -> executes Heavy Chop
+    const output = grunt.updateAI(140, 100, 300, [grunt]);
+
+    expect(grunt.currentAIState).toBe('recovery');
+    expect(output.landedHit).toBe(true);
+    expect(output.damage).toBe(2);
+  });
 });
+
 

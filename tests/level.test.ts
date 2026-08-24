@@ -203,4 +203,13 @@ describe('difficulty progression', () => {
     const counts = DEPTHS.map((d) => buildLevel1(d).enemies.length);
     for (const count of counts) expect(count).toBeGreaterThan(0);
   });
+
+  it('depth 1 (Dark Forest) has no imp enemies and spawns orc_grunt', () => {
+    const level1 = buildLevel1(1);
+    const hasImp = level1.enemies.some((e) => e.kind === 'imp');
+    const hasOrcGrunt = level1.enemies.some((e) => e.kind === 'orc_grunt');
+    expect(hasImp).toBe(false);
+    expect(hasOrcGrunt).toBe(true);
+  });
 });
+

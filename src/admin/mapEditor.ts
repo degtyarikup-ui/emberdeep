@@ -1332,29 +1332,49 @@ export class MapEditor {
         }
         if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       } else if (this.activeCategory === 'prop') {
-        if (this.activeItemId === 'torch') {
-          this.level.torches = this.level.torches.filter((t) => t.col !== col || t.row !== row);
-          this.level.torches.push({ col, row });
-        } else if (this.activeItemId === 'bonfire') {
-          if (!this.level.bonfires) this.level.bonfires = [];
-          this.level.bonfires = this.level.bonfires.filter((b) => b.col !== col || b.row !== row);
-          this.level.bonfires.push({ col, row });
-        } else {
-          this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
-          this.level.decorations.push({ col, row, key: this.activeItemId as PropKey, solid: true });
+        const half = Math.floor((this.brushSize - 1) / 2);
+        const minC = Math.max(0, col - half);
+        const maxC = Math.min(this.level.cols - 1, col - half + this.brushSize - 1);
+        const minR = Math.max(0, row - half);
+        const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
+
+        for (let r = minR; r <= maxR; r++) {
+          for (let c = minC; c <= maxC; c++) {
+            if (this.activeItemId === 'torch') {
+              this.level.torches = this.level.torches.filter((t) => t.col !== c || t.row !== r);
+              this.level.torches.push({ col: c, row: r });
+            } else if (this.activeItemId === 'bonfire') {
+              if (!this.level.bonfires) this.level.bonfires = [];
+              this.level.bonfires = this.level.bonfires.filter((b) => b.col !== c || b.row !== r);
+              this.level.bonfires.push({ col: c, row: r });
+            } else {
+              this.level.decorations = this.level.decorations.filter((d) => d.col !== c || d.row !== r);
+              this.level.decorations.push({ col: c, row: r, key: this.activeItemId as PropKey, solid: true });
+            }
+          }
         }
         if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       } else if (this.activeCategory === 'tree') {
         if (!this.level.trees) this.level.trees = [];
-        this.level.trees = this.level.trees.filter((t) => t.col !== col || t.row !== row);
-        this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
+        const half = Math.floor((this.brushSize - 1) / 2);
+        const minC = Math.max(0, col - half);
+        const maxC = Math.min(this.level.cols - 1, col - half + this.brushSize - 1);
+        const minR = Math.max(0, row - half);
+        const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
 
-        if (this.activeItemId === 'tree_oak') {
-          this.level.trees.push({ col, row, kind: 'oak' });
-        } else if (this.activeItemId === 'tree_pine') {
-          this.level.trees.push({ col, row, kind: 'pine' });
-        } else {
-          this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
+        for (let r = minR; r <= maxR; r++) {
+          for (let c = minC; c <= maxC; c++) {
+            this.level.trees = this.level.trees.filter((t) => t.col !== c || t.row !== r);
+            this.level.decorations = this.level.decorations.filter((d) => d.col !== c || d.row !== r);
+
+            if (this.activeItemId === 'tree_oak') {
+              this.level.trees.push({ col: c, row: r, kind: 'oak' });
+            } else if (this.activeItemId === 'tree_pine') {
+              this.level.trees.push({ col: c, row: r, kind: 'pine' });
+            } else {
+              this.level.decorations.push({ col: c, row: r, key: String(this.activeItemId), solid: true });
+            }
+          }
         }
         if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       }
@@ -1386,6 +1406,40 @@ export class MapEditor {
           }
         }
       }
+    } else if (this.activeCategory === 'tree') {
+      if (!this.level.trees) this.level.trees = [];
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+          this.level.trees = this.level.trees.filter((t) => t.col !== c || t.row !== r);
+          this.level.decorations = this.level.decorations.filter((d) => d.col !== c || d.row !== r);
+
+          if (this.activeItemId === 'tree_oak') {
+            this.level.trees.push({ col: c, row: r, kind: 'oak' });
+          } else if (this.activeItemId === 'tree_pine') {
+            this.level.trees.push({ col: c, row: r, kind: 'pine' });
+          } else {
+            this.level.decorations.push({ col: c, row: r, key: String(this.activeItemId), solid: true });
+          }
+        }
+      }
+      if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+    } else if (this.activeCategory === 'prop') {
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+          if (this.activeItemId === 'torch') {
+            this.level.torches = this.level.torches.filter((t) => t.col !== c || t.row !== r);
+            this.level.torches.push({ col: c, row: r });
+          } else if (this.activeItemId === 'bonfire') {
+            if (!this.level.bonfires) this.level.bonfires = [];
+            this.level.bonfires = this.level.bonfires.filter((b) => b.col !== c || b.row !== r);
+            this.level.bonfires.push({ col: c, row: r });
+          } else {
+            this.level.decorations = this.level.decorations.filter((d) => d.col !== c || d.row !== r);
+            this.level.decorations.push({ col: c, row: r, key: this.activeItemId as PropKey, solid: true });
+          }
+        }
+      }
+      if (this.collabClient) this.collabClient.sendLevelSync(this.level);
     } else {
       const tileVal = this.activeCategory === 'tiles' ? Number(this.activeItemId) : EDITOR_TILE.FLOOR;
       for (let r = minR; r <= maxR; r++) {
@@ -1643,7 +1697,7 @@ export class MapEditor {
         }
       }
     } else if (this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows && !this.isSpaceHeld && this.activeTool !== 'hand') {
-      const size = (this.activeTool === 'brush' && (this.activeCategory === 'tiles' || this.activeCategory === 'smart_brush')) || this.activeTool === 'eraser' ? this.brushSize : 1;
+      const size = (this.activeTool === 'brush' && (this.activeCategory === 'tiles' || this.activeCategory === 'smart_brush' || this.activeCategory === 'tree' || this.activeCategory === 'prop')) || this.activeTool === 'eraser' ? this.brushSize : 1;
       const half = Math.floor((size - 1) / 2);
       const minC = Math.max(0, this.hoverCol - half);
       const maxC = Math.min(cols - 1, this.hoverCol - half + size - 1);
@@ -1667,13 +1721,17 @@ export class MapEditor {
       this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(hx, hy, hw, hh);
 
-      // Single Tree / Prop / Entity Hover Ghost Preview
-      if (this.activeTool === 'brush' && this.activeCategory === 'tree') {
+      // Tree / Prop Hover Ghost Preview
+      if (this.activeTool === 'brush' && (this.activeCategory === 'tree' || this.activeCategory === 'prop')) {
         this.ctx.save();
         this.ctx.globalAlpha = 0.65;
-        const cx = this.panX + (this.hoverCol + 0.5) * step;
-        const by = this.panY + (this.hoverRow + 1) * step;
-        editorAssets.drawSprite(this.ctx, String(this.activeItemId), cx, by, step);
+        for (let r = minR; r <= maxR; r++) {
+          for (let c = minC; c <= maxC; c++) {
+            const cx = this.panX + (c + 0.5) * step;
+            const by = this.panY + (r + 1) * step;
+            editorAssets.drawSprite(this.ctx, String(this.activeItemId), cx, by, step);
+          }
+        }
         this.ctx.restore();
       }
     }

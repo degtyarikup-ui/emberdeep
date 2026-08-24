@@ -40,8 +40,8 @@ const SKELETON: ActorClips = {
 
 const WOLF: ActorClips = {
   idle: { key: 'anim-wolf-idle', url: asset('pc-wolf-idle.png'), frameWidth: 32, frameHeight: 32, frameCount: 4, frameRate: 6, repeat: -1 },
-  run: { key: 'anim-wolf-run', url: asset('pc-wolf-run.png'), frameWidth: 64, frameHeight: 64, frameCount: 6, frameRate: 14, repeat: -1 },
-  death: { key: 'anim-wolf-death', url: asset('pc-wolf-death.png'), frameWidth: 48, frameHeight: 48, frameCount: 6, frameRate: 10, repeat: 0 },
+  run: { key: 'anim-wolf-run', url: asset('pc-wolf-run.png'), frameWidth: 32, frameHeight: 32, frameCount: 6, frameRate: 8, repeat: -1 },
+  death: { key: 'anim-wolf-death', url: asset('pc-wolf-death.png'), frameWidth: 32, frameHeight: 32, frameCount: 6, frameRate: 9, repeat: 0 },
 };
 
 const ORC_WARRIOR: ActorClips = {
@@ -58,8 +58,8 @@ const MASKED_ORC: ActorClips = {
 
 const DIREWOLF: ActorClips = {
   idle: { key: 'anim-direwolf-idle', url: asset('direwolf-idle.png'), frameWidth: 32, frameHeight: 32, frameCount: 4, frameRate: 6, repeat: -1 },
-  run: { key: 'anim-direwolf-run', url: asset('direwolf-run.png'), frameWidth: 64, frameHeight: 64, frameCount: 6, frameRate: 14, repeat: -1 },
-  death: { key: 'anim-wolf-death', url: asset('pc-wolf-death.png'), frameWidth: 48, frameHeight: 48, frameCount: 6, frameRate: 10, repeat: 0 },
+  run: { key: 'anim-direwolf-run', url: asset('direwolf-run.png'), frameWidth: 32, frameHeight: 32, frameCount: 6, frameRate: 8, repeat: -1 },
+  death: { key: 'anim-wolf-death', url: asset('pc-wolf-death.png'), frameWidth: 32, frameHeight: 32, frameCount: 6, frameRate: 9, repeat: 0 },
 };
 
 const ORC_GRUNT: ActorClips = {

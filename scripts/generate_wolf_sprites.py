@@ -1,261 +1,261 @@
 import os
-from PIL import Image, ImageOps, ImageEnhance
+from PIL import Image, ImageOps
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = '/home/nikita/Project/Emberdeep'
 VENDOR_DIR = os.path.join(BASE_DIR, 'vendor/32rogues/source/32rogues')
 ASSETS_DIR = os.path.join(BASE_DIR, 'public/assets')
 
-def build_refined_wolf_sprites():
+def build_wolf_sprites():
     monsters_img = Image.open(os.path.join(VENDOR_DIR, 'monsters.png')).convert('RGBA')
-    # Warg sprite (32x32) at col 10, row 6 (in source, warg faces LEFT)
     warg_raw = monsters_img.crop((10 * 32, 6 * 32, 11 * 32, 7 * 32))
-    
-    # Mirror horizontally so the wolf faces RIGHT by default (matching Hero, Orc, Skeleton)
-    warg_base = ImageOps.mirror(warg_raw)
-    
-    # Palette colors extracted from warg:
-    DARK_FUR = (44, 38, 48, 255)
-    MID_FUR = (78, 68, 84, 255)
-    LIGHT_FUR = (120, 108, 128, 255)
-    HIGHLIGHT_FUR = (168, 154, 178, 255)
-    EYE_GLINT = (245, 180, 50, 255)
-    EYE_PUPIL = (255, 220, 100, 255)
+    warg_base = ImageOps.mirror(warg_raw) # 32x32 facing right
 
-    # -------------------------------------------------------------
-    # 1. IDLE SHEET: 4 frames, 32x32 (128x32)
-    # Natural breathing quadruped stance facing RIGHT
-    # -------------------------------------------------------------
-    idle_sheet = Image.new('RGBA', (32 * 4, 32), (0, 0, 0, 0))
-    for f in range(4):
-        frame = warg_base.copy()
+    # Palette for Regular Wolf (Ash Gray & Amber Eyes)
+    WOLF_OUTLINE = (18, 16, 22, 255)
+    WOLF_DARK = (44, 40, 50, 255)
+    WOLF_MID = (72, 66, 80, 255)
+    WOLF_LIGHT = (112, 104, 122, 255)
+    WOLF_HILIGHT = (156, 146, 168, 255)
+    WOLF_EYE_BASE = (217, 119, 6, 255)
+    WOLF_EYE_GLOW = (251, 191, 36, 255)
+
+    # Palette for Direwolf (Obsidian Charcoal & Crimson Blood Eyes)
+    DIRE_OUTLINE = (10, 8, 12, 255)
+    DIRE_DARK = (24, 20, 30, 255)
+    DIRE_MID = (46, 38, 56, 255)
+    DIRE_LIGHT = (78, 62, 92, 255)
+    DIRE_HILIGHT = (153, 27, 27, 255) # Crimson spine ridge
+    DIRE_EYE_BASE = (185, 28, 28, 255)
+    DIRE_EYE_GLOW = (248, 113, 113, 255)
+
+    def recolor_warg(base_frame, is_dire=False):
+        recolored = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+        out = DIRE_OUTLINE if is_dire else WOLF_OUTLINE
+        dark = DIRE_DARK if is_dire else WOLF_DARK
+        mid = DIRE_MID if is_dire else WOLF_MID
+        light = DIRE_LIGHT if is_dire else WOLF_LIGHT
+        hilight = DIRE_HILIGHT if is_dire else WOLF_HILIGHT
+        eye_base = DIRE_EYE_BASE if is_dire else WOLF_EYE_BASE
+        eye_glow = DIRE_EYE_GLOW if is_dire else WOLF_EYE_GLOW
+
+        for y in range(32):
+            for x in range(32):
+                p = base_frame.getpixel((x, y))
+                if p[3] < 30: continue
+                r, g, b = p[0], p[1], p[2]
+                brightness = (r + g + b) / 3.0
+                
+                # Eye pixel (near x=25..27, y=12..14)
+                if 24 <= x <= 27 and 12 <= y <= 14 and (r > 150 or (r > 100 and g < 80)):
+                    recolored.putpixel((x, y), eye_glow if brightness > 150 else eye_base)
+                elif brightness < 35:
+                    recolored.putpixel((x, y), out)
+                elif brightness < 65:
+                    recolored.putpixel((x, y), dark)
+                elif brightness < 105:
+                    recolored.putpixel((x, y), mid)
+                elif brightness < 155:
+                    recolored.putpixel((x, y), light)
+                else:
+                    recolored.putpixel((x, y), hilight)
+        return recolored
+
+    # 1. IDLE (4 frames, 32x32)
+    def generate_idle(is_dire=False):
+        sheet = Image.new('RGBA', (32 * 4, 32), (0, 0, 0, 0))
+        base = recolor_warg(warg_base, is_dire)
         
-        # Frame 0: Base stance
-        # Frame 1: Inhale / chest lifts 1px
-        # Frame 2: Apex breath + predatory glowing eye glint
-        # Frame 3: Exhale
-        if f == 1:
-            head_chest = frame.crop((14, 7, 32, 23))
-            for y in range(7, 23):
-                for x in range(14, 32):
-                    frame.putpixel((x, y), (0, 0, 0, 0))
-            frame.paste(head_chest, (14, 6), head_chest)
-            for y in range(16, 23):
-                for x in range(12, 16):
-                    if warg_base.getpixel((x, y))[3] > 50:
-                        frame.putpixel((x, y), warg_base.getpixel((x, y)))
-                        
-        elif f == 2:
-            head_chest = frame.crop((14, 7, 32, 23))
-            for y in range(7, 23):
-                for x in range(14, 32):
-                    frame.putpixel((x, y), (0, 0, 0, 0))
-            frame.paste(head_chest, (14, 6), head_chest)
-            for y in range(16, 23):
-                for x in range(12, 16):
-                    if warg_base.getpixel((x, y))[3] > 50:
-                        frame.putpixel((x, y), warg_base.getpixel((x, y)))
-            # Amber glowing eye glint at (25, 12) and (26, 12)
-            frame.putpixel((25, 12), EYE_GLINT)
-            frame.putpixel((26, 12), EYE_PUPIL)
-            # Ear twitch
-            frame.putpixel((21, 6), HIGHLIGHT_FUR)
-            frame.putpixel((22, 6), LIGHT_FUR)
+        for f in range(4):
+            frame = base.copy()
+            eye_glow = DIRE_EYE_GLOW if is_dire else WOLF_EYE_GLOW
+            eye_base = DIRE_EYE_BASE if is_dire else WOLF_EYE_BASE
+            hilight = DIRE_HILIGHT if is_dire else WOLF_HILIGHT
             
-        elif f == 3:
-            frame.putpixel((1, 14), DARK_FUR)
-            frame.putpixel((2, 13), MID_FUR)
+            if f == 0:
+                frame.putpixel((26, 12), eye_base)
+                frame.putpixel((27, 12), eye_glow)
+            elif f == 1:
+                head_chest = frame.crop((14, 7, 32, 23))
+                for y in range(7, 23):
+                    for x in range(14, 32): frame.putpixel((x, y), (0, 0, 0, 0))
+                frame.paste(head_chest, (14, 6), head_chest)
+                for y in range(15, 23):
+                    for x in range(12, 16):
+                        if base.getpixel((x, y))[3] > 50: frame.putpixel((x, y), base.getpixel((x, y)))
+                frame.putpixel((1, 14), hilight)
+                frame.putpixel((26, 11), eye_base)
+                frame.putpixel((27, 11), eye_glow)
+            elif f == 2:
+                head_chest = frame.crop((14, 7, 32, 23))
+                for y in range(7, 23):
+                    for x in range(14, 32): frame.putpixel((x, y), (0, 0, 0, 0))
+                frame.paste(head_chest, (14, 6), head_chest)
+                for y in range(15, 23):
+                    for x in range(12, 16):
+                        if base.getpixel((x, y))[3] > 50: frame.putpixel((x, y), base.getpixel((x, y)))
+                frame.putpixel((25, 11), eye_glow)
+                frame.putpixel((26, 11), (255, 255, 255, 255))
+                frame.putpixel((27, 11), eye_glow)
+                frame.putpixel((23, 6), hilight)
+                frame.putpixel((24, 6), hilight)
+            elif f == 3:
+                frame.putpixel((26, 12), eye_base)
+                frame.putpixel((27, 12), eye_glow)
+                frame.putpixel((0, 16), hilight)
+                
+            sheet.paste(frame, (f * 32, 0))
+        return sheet
 
-        idle_sheet.paste(frame, (f * 32, 0))
-    
-    idle_path = os.path.join(ASSETS_DIR, 'pc-wolf-idle.png')
-    idle_sheet.save(idle_path)
-    print(f'Saved {idle_path} ({idle_sheet.size})')
-
-    # -------------------------------------------------------------
-    # 2. RUN SHEET: 6 frames, 64x64 (384x64)
-    # High-quality 4-legged canine gallop facing RIGHT
-    # Ground plane is at y = 56, centered horizontally
-    # -------------------------------------------------------------
-    run_sheet = Image.new('RGBA', (64 * 6, 64), (0, 0, 0, 0))
-
-    # Anatomical sub-components from warg_base (facing RIGHT):
-    comp_head = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(7, 23):
-        for x in range(18, 32):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                comp_head.putpixel((x, y), p)
-
-    comp_torso = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(8, 25):
-        for x in range(6, 23):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                comp_torso.putpixel((x, y), p)
-
-    comp_tail = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(9, 21):
-        for x in range(0, 9):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                comp_tail.putpixel((x, y), p)
-
-    comp_forelegs = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(19, 32):
-        for x in range(15, 31):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                comp_forelegs.putpixel((x, y), p)
-
-    comp_hindlegs = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
-    for y in range(18, 32):
-        for x in range(0, 17):
-            p = warg_base.getpixel((x, y))
-            if p[3] > 50:
-                comp_hindlegs.putpixel((x, y), p)
-
-    run_configs = [
-        # Frame 0: Full Reach Stride (Front reach forward-right, Hind reach backward-left)
-        {
-            'torso_dy': 0, 'torso_rot': 0,
-            'head_dx': 2, 'head_dy': 0,
-            'fleg_dx': 5, 'fleg_dy': -1, 'fleg_rot': -18,
-            'rleg_dx': -4, 'rleg_dy': -1, 'rleg_rot': 22,
-            'tail_dy': -1, 'tail_rot': 10
-        },
-        # Frame 1: Airborne Suspension (High forward leap, paws outstretched in mid-air)
-        {
-            'torso_dy': -4, 'torso_rot': -3,
-            'head_dx': 4, 'head_dy': -4,
-            'fleg_dx': 7, 'fleg_dy': -5, 'fleg_rot': -28,
-            'rleg_dx': -6, 'rleg_dy': -4, 'rleg_rot': 32,
-            'tail_dy': -4, 'tail_rot': 15
-        },
-        # Frame 2: Forepaw Touchdown (Front paws hit ground and flex, hind legs swing forward under flank)
-        {
-            'torso_dy': 0, 'torso_rot': 4,
-            'head_dx': 1, 'head_dy': 1,
-            'fleg_dx': 2, 'fleg_dy': 0, 'fleg_rot': 10,
-            'rleg_dx': 2, 'rleg_dy': -2, 'rleg_rot': -12,
-            'tail_dy': 1, 'tail_rot': -10
-        },
-        # Frame 3: Coiled Compression / Gather (Spine flexed, hind paws tucked under body planted to push)
-        {
-            'torso_dy': 2, 'torso_rot': 2,
-            'head_dx': -1, 'head_dy': 1,
-            'fleg_dx': -2, 'fleg_dy': 0, 'fleg_rot': 20,
-            'rleg_dx': 4, 'rleg_dy': 0, 'rleg_rot': -24,
-            'tail_dy': 2, 'tail_rot': -15
-        },
-        # Frame 4: Hind Launch / Power Drive (Hind legs explode backward against ground, front elevates)
-        {
-            'torso_dy': -1, 'torso_rot': -4,
-            'head_dx': 2, 'head_dy': -2,
-            'fleg_dx': 3, 'fleg_dy': -3, 'fleg_rot': -12,
-            'rleg_dx': -2, 'rleg_dy': 0, 'rleg_rot': 16,
-            'tail_dy': -1, 'tail_rot': 5
-        },
-        # Frame 5: Ascension / Follow-Through (Body surges up-forward transitioning into full stride)
-        {
-            'torso_dy': -3, 'torso_rot': -2,
-            'head_dx': 3, 'head_dy': -3,
-            'fleg_dx': 4, 'fleg_dy': -3, 'fleg_rot': -20,
-            'rleg_dx': -4, 'rleg_dy': -2, 'rleg_rot': 24,
-            'tail_dy': -2, 'tail_rot': 10
-        },
-    ]
-
-    for f, cfg in enumerate(run_configs):
-        frame = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
-        bx = 16
-        by = 26 + cfg['torso_dy']
-
-        # Layer 1: Hindleg (Back Layer)
-        r_rot = comp_hindlegs.rotate(cfg['rleg_rot'], expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(r_rot, (bx + cfg['rleg_dx'], by + cfg['rleg_dy']), r_rot)
-
-        # Layer 2: Tail
-        t_rot = comp_tail.rotate(cfg['tail_rot'], expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(t_rot, (bx - 1, by + cfg['tail_dy']), t_rot)
-
-        # Layer 3: Torso & Spine (solid core)
-        t_rot = comp_torso.rotate(cfg['torso_rot'], expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(t_rot, (bx, by), t_rot)
-
-        # Layer 4: Head & Jaws
-        h_rot = comp_head.rotate(cfg['torso_rot'], expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(h_rot, (bx + cfg['head_dx'], by + cfg['head_dy']), h_rot)
-
-        # Layer 5: Foreleg (Front Layer)
-        f_rot = comp_forelegs.rotate(cfg['fleg_rot'], expand=True, resample=Image.Resampling.NEAREST)
-        frame.paste(f_rot, (bx + cfg['fleg_dx'], by + cfg['fleg_dy']), f_rot)
-
-        # Anatomical Seam-Healer: Ensure no transparent disconnects between torso and legs
-        for y in range(by + 14, min(63, by + 26)):
-            for x in range(bx + 6, min(63, bx + 26)):
-                p = frame.getpixel((x, y))
-                if p[3] < 30:
-                    above = frame.getpixel((x, y - 1)) if y > 0 else (0,0,0,0)
-                    below = frame.getpixel((x, y + 1)) if y < 63 else (0,0,0,0)
-                    left = frame.getpixel((x - 1, y)) if x > 0 else (0,0,0,0)
-                    right = frame.getpixel((x + 1, y)) if x < 63 else (0,0,0,0)
-                    surrounding = sum(1 for n in (above, below, left, right) if n[3] > 100)
-                    if surrounding >= 2:
-                        frame.putpixel((x, y), MID_FUR)
-
-        run_sheet.paste(frame, (f * 64, 0))
-
-    run_path = os.path.join(ASSETS_DIR, 'pc-wolf-run.png')
-    run_sheet.save(run_path)
-    print(f'Saved {run_path} ({run_sheet.size})')
-
-    # -------------------------------------------------------------
-    # 3. DEATH SHEET: 6 frames, 48x48 (288x48)
-    # Stagger -> Forelegs collapse -> Side roll -> Settle to ground
-    # Facing RIGHT by default, ground at y = 40
-    # -------------------------------------------------------------
-    death_sheet = Image.new('RGBA', (48 * 6, 48), (0, 0, 0, 0))
-    for f in range(6):
-        frame = Image.new('RGBA', (48, 48), (0, 0, 0, 0))
-        bx = 8
-        by = 10
+    # 2. RUN (6 frames, 32x32)
+    def generate_run(is_dire=False):
+        sheet = Image.new('RGBA', (32 * 6, 32), (0, 0, 0, 0))
+        base = recolor_warg(warg_base, is_dire)
         
-        if f == 0:
-            recoil = warg_base.copy()
-            enhancer = ImageEnhance.Brightness(recoil)
-            bright = enhancer.enhance(1.4)
-            frame.paste(bright, (bx - 3, by - 2), bright)
-            
-        elif f == 1:
-            rot = warg_base.rotate(-15, expand=True, resample=Image.Resampling.NEAREST)
-            frame.paste(rot, (bx - 4, by + 1), rot)
-            
-        elif f == 2:
-            rot = warg_base.rotate(-35, expand=True, resample=Image.Resampling.NEAREST)
-            frame.paste(rot, (bx - 3, by + 5), rot)
-            
-        elif f == 3:
-            flat = warg_base.resize((34, 18), Image.Resampling.NEAREST)
-            frame.paste(flat, (bx + 1, by + 12), flat)
-            
-        elif f == 4:
-            flat = warg_base.resize((34, 15), Image.Resampling.NEAREST)
-            enhancer = ImageEnhance.Brightness(flat)
-            dimmed = enhancer.enhance(0.75)
-            frame.paste(dimmed, (bx + 2, by + 15), dimmed)
-            
-        elif f == 5:
-            flat = warg_base.resize((34, 13), Image.Resampling.NEAREST)
-            enhancer = ImageEnhance.Brightness(flat)
-            dimmed = enhancer.enhance(0.5)
-            frame.paste(dimmed, (bx + 2, by + 17), dimmed)
+        dark = DIRE_DARK if is_dire else WOLF_DARK
+        mid = DIRE_MID if is_dire else WOLF_MID
+        light = DIRE_LIGHT if is_dire else WOLF_LIGHT
+        hilight = DIRE_HILIGHT if is_dire else WOLF_HILIGHT
+        out = DIRE_OUTLINE if is_dire else WOLF_OUTLINE
+        eye = DIRE_EYE_GLOW if is_dire else WOLF_EYE_GLOW
 
-        death_sheet.paste(frame, (f * 48, 0))
+        for f in range(6):
+            frame = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+            
+            if f == 0:
+                body = base.crop((4, 7, 32, 23))
+                frame.paste(body, (4, 8), body)
+                for x, y in [(4, 25), (5, 25), (6, 26), (7, 26), (8, 27), (9, 28), (10, 29), (11, 29)]:
+                    frame.putpixel((x, y), dark)
+                    frame.putpixel((x, y-1), mid)
+                for x, y in [(22, 22), (23, 23), (24, 24), (25, 25), (26, 25), (27, 26), (28, 26)]:
+                    frame.putpixel((x, y), light)
+                    frame.putpixel((x, y+1), dark)
+                for x, y in [(0, 18), (1, 18), (2, 17), (3, 17), (4, 16)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((27, 13), eye)
+                
+            elif f == 1:
+                body = base.crop((4, 7, 32, 23))
+                frame.paste(body, (5, 7), body)
+                for x, y in [(2, 21), (3, 21), (4, 22), (5, 22), (6, 23), (7, 23), (8, 24)]:
+                    frame.putpixel((x, y), dark)
+                    frame.putpixel((x, y-1), mid)
+                for x, y in [(24, 20), (25, 21), (26, 21), (27, 22), (28, 22), (29, 23), (30, 23)]:
+                    frame.putpixel((x, y), light)
+                    frame.putpixel((x, y+1), out)
+                for x, y in [(0, 16), (1, 16), (2, 16), (3, 16), (4, 16)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((28, 12), eye)
+                
+            elif f == 2:
+                body = base.crop((4, 7, 32, 23))
+                frame.paste(body, (4, 8), body)
+                for y in range(24, 30):
+                    frame.putpixel((24, y), mid)
+                    frame.putpixel((25, y), light)
+                    frame.putpixel((26, y), dark)
+                frame.putpixel((25, 30), out)
+                frame.putpixel((26, 30), out)
+                for x, y in [(8, 20), (9, 21), (10, 22), (11, 23), (12, 24), (13, 25)]:
+                    frame.putpixel((x, y), dark)
+                    frame.putpixel((x+1, y), mid)
+                for x, y in [(1, 18), (2, 19), (3, 20), (4, 20)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((27, 13), eye)
+                
+            elif f == 3:
+                body = base.crop((4, 7, 32, 23))
+                frame.paste(body, (3, 9), body)
+                for x, y in [(18, 27), (19, 26), (20, 25), (21, 24), (22, 23)]:
+                    frame.putpixel((x, y), light)
+                    frame.putpixel((x, y+1), dark)
+                for x, y in [(11, 23), (12, 24), (13, 25), (14, 26), (15, 27)]:
+                    frame.putpixel((x, y), dark)
+                    frame.putpixel((x, y-1), mid)
+                for x, y in [(2, 20), (3, 21), (4, 21)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((26, 14), eye)
+                
+            elif f == 4:
+                body = base.crop((4, 7, 32, 23))
+                frame.paste(body, (3, 8), body)
+                for y in range(24, 30):
+                    frame.putpixel((14, y), dark)
+                    frame.putpixel((15, y), mid)
+                frame.putpixel((14, 30), out)
+                frame.putpixel((15, 30), out)
+                for x, y in [(20, 22), (21, 22), (22, 21), (23, 21), (24, 20)]:
+                    frame.putpixel((x, y), light)
+                    frame.putpixel((x, y+1), out)
+                for x, y in [(0, 14), (1, 15), (2, 16), (3, 17)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((26, 13), eye)
+                
+            elif f == 5:
+                body = base.crop((4, 7, 32, 23))
+                frame.paste(body, (4, 7), body)
+                for x, y in [(8, 28), (9, 27), (10, 26), (11, 25), (12, 24)]:
+                    frame.putpixel((x, y), dark)
+                    frame.putpixel((x+1, y), mid)
+                for x, y in [(23, 20), (24, 21), (25, 22), (26, 23), (27, 24)]:
+                    frame.putpixel((x, y), light)
+                    frame.putpixel((x, y+1), dark)
+                for x, y in [(0, 17), (1, 17), (2, 17), (3, 17)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((27, 12), eye)
+                
+            sheet.paste(frame, (f * 32, 0))
+        return sheet
 
-    death_path = os.path.join(ASSETS_DIR, 'pc-wolf-death.png')
-    death_sheet.save(death_path)
-    print(f'Saved {death_path} ({death_sheet.size})')
+    # 3. DEATH (6 frames, 32x32)
+    def generate_death(is_dire=False):
+        sheet = Image.new('RGBA', (32 * 6, 32), (0, 0, 0, 0))
+        base = recolor_warg(warg_base, is_dire)
+
+        for f in range(6):
+            frame = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+            if f == 0:
+                b = base.copy()
+                frame.paste(b, (-2, -1), b)
+            elif f == 1:
+                b = base.copy()
+                frame.paste(b, (-1, 2), b)
+            elif f == 2:
+                head_chest = base.crop((12, 7, 32, 23))
+                frame.paste(head_chest, (12, 12), head_chest)
+                rear = base.crop((0, 7, 14, 30))
+                frame.paste(rear, (0, 6), rear)
+            elif f == 3:
+                flat = base.crop((0, 8, 32, 24))
+                frame.paste(flat, (0, 15), flat)
+            elif f == 4:
+                flat = base.crop((0, 9, 32, 23))
+                frame.paste(flat, (0, 17), flat)
+            elif f == 5:
+                flat = base.crop((0, 10, 32, 23))
+                frame.paste(flat, (0, 18), flat)
+                
+            sheet.paste(frame, (f * 32, 0))
+        return sheet
+
+    # Generate Regular Wolf Sheets
+    wolf_idle = generate_idle(is_dire=False)
+    wolf_run = generate_run(is_dire=False)
+    wolf_death = generate_death(is_dire=False)
+
+    wolf_idle.save(os.path.join(ASSETS_DIR, 'pc-wolf-idle.png'))
+    wolf_run.save(os.path.join(ASSETS_DIR, 'pc-wolf-run.png'))
+    wolf_death.save(os.path.join(ASSETS_DIR, 'pc-wolf-death.png'))
+    print(f'Generated Wolf sprites: Idle {wolf_idle.size}, Run {wolf_run.size}, Death {wolf_death.size}')
+
+    # Generate Direwolf Sheets
+    dire_idle = generate_idle(is_dire=True)
+    dire_run = generate_run(is_dire=True)
+    dire_death = generate_death(is_dire=True)
+
+    dire_idle.save(os.path.join(ASSETS_DIR, 'direwolf-idle.png'))
+    dire_run.save(os.path.join(ASSETS_DIR, 'direwolf-run.png'))
+    print(f'Generated Direwolf sprites: Idle {dire_idle.size}, Run {dire_run.size}, Death {dire_death.size}')
 
 if __name__ == '__main__':
-    build_refined_wolf_sprites()
-
+    build_wolf_sprites()

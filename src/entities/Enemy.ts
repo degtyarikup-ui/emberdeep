@@ -111,7 +111,7 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   },
   orc_shield: {
     clips: ACTORS.ORC_WARRIOR,
-    originY: { idle: 0.82, run: 0.74, death: 0.74 },
+    originY: { idle: 0.82, run: 0.74, death: 0.82 },
     bodySize: { idle: [20, 22], run: [20, 22] },
     bodyOffset: { idle: [2, 4], run: [2, 4] },
     maxHp: 20,
@@ -131,7 +131,7 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   },
   orc_archer: {
     clips: ACTORS.MASKED_ORC,
-    originY: { idle: 0.82, run: 0.74, death: 0.74 },
+    originY: { idle: 0.82, run: 0.74, death: 0.82 },
     bodySize: { idle: [20, 22], run: [20, 22] },
     bodyOffset: { idle: [2, 4], run: [2, 4] },
     maxHp: 15,
@@ -171,7 +171,7 @@ const STATS: Record<EnemyKind, EnemyStats> = {
   },
   orc_grunt: {
     clips: ACTORS.ORC_GRUNT,
-    originY: { idle: 0.82, run: 0.74, death: 0.74 },
+    originY: { idle: 0.82, run: 0.74, death: 0.82 },
     bodySize: { idle: [20, 22], run: [20, 22] },
     bodyOffset: { idle: [2, 4], run: [2, 4] },
     maxHp: 14,

@@ -32,15 +32,19 @@ export interface TileUpdate {
   val: number;
 }
 
+export type CollabStatus = 'connecting' | 'connected' | 'offline' | 'error';
+
 export class MapCollabClient {
   readonly peerId = crypto.randomUUID();
-  readonly name: string;
+  public name: string;
   readonly color: string;
   readonly roomCode: string;
+  public status: CollabStatus = 'connecting';
 
   private channel!: RealtimeChannel;
   private peers: Map<string, CollabPeer> = new Map();
 
+  private onStatusChangeCb?: (status: CollabStatus, errorMsg?: string) => void;
   private onPeersChangeCb?: (peers: CollabPeer[]) => void;
   private onTileUpdatesCb?: (updates: TileUpdate[]) => void;
   private onCellErasedCb?: (col: number, row: number) => void;
@@ -75,6 +79,21 @@ export class MapCollabClient {
 
   public async connect(): Promise<void> {
     const channelName = `emberdeep_map_${this.roomCode}`;
+    this.status = 'connecting';
+    this.onStatusChangeCb?.('connecting');
+
+    // Remove any pre-existing channel with this topic before creating new one
+    try {
+      const existing = supabase.getChannels().find(
+        (c) => c.topic === `realtime:${channelName}` || c.topic === channelName
+      );
+      if (existing) {
+        await supabase.removeChannel(existing);
+      }
+    } catch {
+      // ignore cleanup errors
+    }
+
     this.channel = supabase.channel(channelName, {
       config: {
         presence: { key: this.peerId },
@@ -170,17 +189,46 @@ export class MapCollabClient {
         this.onRequestSyncCb?.(payload.peerId);
       });
 
-    await this.channel.subscribe(async (status) => {
+    this.channel.subscribe(async (status, err) => {
       if (status === 'SUBSCRIBED') {
+        this.status = 'connected';
+        this.onStatusChangeCb?.('connected');
+        try {
+          await this.channel.track({
+            name: this.name,
+            color: this.color,
+            joinedAt: Date.now(),
+          });
+          this.sendRequestSync();
+        } catch {
+          // ignore tracking error
+        }
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        this.status = 'offline';
+        this.onStatusChangeCb?.('offline', err?.message || 'Офлайн (нет связи с сервером)');
+      }
+    });
+  }
+
+  public async updateName(newName: string): Promise<void> {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === this.name) return;
+    this.name = trimmed;
+    if (this.channel && this.status === 'connected') {
+      try {
         await this.channel.track({
           name: this.name,
           color: this.color,
           joinedAt: Date.now(),
         });
-        // Request existing map state from room peers
-        this.sendRequestSync();
+      } catch {
+        // ignore
       }
-    });
+    }
+  }
+
+  public onStatusChange(cb: (status: CollabStatus, errorMsg?: string) => void): void {
+    this.onStatusChangeCb = cb;
   }
 
   public getConnectedPeers(): CollabPeer[] {

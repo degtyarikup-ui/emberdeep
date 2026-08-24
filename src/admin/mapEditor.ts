@@ -1322,6 +1322,10 @@ export class MapEditor {
       this.draw();
     });
 
+    client.onStatusChange((status) => {
+      this.updateCollabUI(status);
+    });
+
     client.onRequestSync((fromPeerId) => {
       client.sendLevelSync(this.level, fromPeerId);
     });
@@ -1329,38 +1333,27 @@ export class MapEditor {
     try {
       await client.connect();
       this.updateCollabUI();
-      const url = new URL(window.location.href);
-      url.searchParams.set('mapRoom', client.roomCode);
-      window.history.replaceState({}, '', url.toString());
-    } catch (err) {
-      alert(`Не удалось подключиться к комнате: ${err instanceof Error ? err.message : String(err)}`);
+    } catch {
+      this.updateCollabUI('offline');
     }
   }
 
-  private async disconnectCollab(): Promise<void> {
-    if (this.collabClient) {
-      await this.collabClient.disconnect();
-      this.collabClient = undefined;
-      const url = new URL(window.location.href);
-      url.searchParams.delete('mapRoom');
-      window.history.replaceState({}, '', url.toString());
-      this.updateCollabUI();
-      this.draw();
-    }
-  }
-
-  private updateCollabUI(): void {
+  private updateCollabUI(forcedStatus?: string): void {
+    const badge = document.getElementById('me-collab-status');
     const statusText = document.getElementById('me-collab-count');
     const peerList = document.getElementById('me-collab-peers');
 
-    if (!peerList) return;
+    if (!badge || !statusText || !peerList) return;
 
-    if (this.collabClient) {
+    const status = forcedStatus || this.collabClient?.status || 'offline';
+
+    badge.classList.remove('connecting', 'offline');
+
+    if (status === 'connected' && this.collabClient) {
       const peers = this.collabClient.getConnectedPeers();
       const totalCount = peers.length + 1;
-      if (statusText) {
-        statusText.textContent = totalCount > 1 ? `Онлайн (${totalCount})` : 'Онлайн (Вы)';
-      }
+      statusText.innerHTML = `<span class="me-live-dot"></span> В сети (${totalCount})`;
+      badge.title = `Совместное редактирование активно (${totalCount} в сети). Нажмите, чтобы изменить имя или скопировать ссылку.`;
 
       peerList.innerHTML = '';
 
@@ -1369,7 +1362,7 @@ export class MapEditor {
       selfAvatar.className = 'me-peer-avatar';
       selfAvatar.style.backgroundColor = this.collabClient.color;
       selfAvatar.textContent = this.collabClient.name.slice(0, 1).toUpperCase();
-      selfAvatar.title = `${this.collabClient.name} (Вы)`;
+      selfAvatar.title = `${this.collabClient.name} (Вы - нажмите для смены имени)`;
       peerList.appendChild(selfAvatar);
 
       // Add peers avatars
@@ -1381,111 +1374,100 @@ export class MapEditor {
         pAvatar.title = `${p.name} (в сети)`;
         peerList.appendChild(pAvatar);
       });
+    } else if (status === 'connecting') {
+      badge.classList.add('connecting');
+      statusText.innerHTML = `<span class="me-connecting-dot"></span> Подключение...`;
+      badge.title = 'Подключение к совместному серверу...';
+      peerList.innerHTML = '';
     } else {
-      if (statusText) statusText.textContent = 'Офлайн';
+      badge.classList.add('offline');
+      statusText.innerHTML = `<span class="me-offline-dot"></span> Офлайн (локально)`;
+      badge.title = 'Нет связи с сервером — все правки сохраняются в браузере локально. Нажмите для повторного подключения.';
       peerList.innerHTML = '';
     }
   }
 
   private showCollabModal(): void {
-    if (this.collabClient) {
-      const code = this.collabClient.roomCode;
-      const shareUrl = `${window.location.origin}${window.location.pathname}?mapRoom=${code}`;
-
-      const backdrop = document.createElement('div');
-      backdrop.className = 'me-modal-backdrop';
-      backdrop.innerHTML = `
-        <div class="me-modal-window" style="width:450px;">
-          <div class="me-modal-header">
-            <span>Совместная комната: <strong>${code}</strong></span>
-            <button id="me-collab-modal-close" class="me-btn me-btn-danger">&times;</button>
-          </div>
-          <div class="me-modal-body" style="display:flex; flex-direction:column; gap:12px;">
-            <p style="margin:0; font-size:12px; color:var(--text-secondary);">
-              Отправьте эту ссылку другу — вы сможете редактировать карту вместе в реальном времени:
-            </p>
-            <div style="display:flex; gap:6px;">
-              <input type="text" readonly value="${shareUrl}" class="me-input" style="flex:1; font-family:monospace; font-size:11px;" id="me-share-link-input">
-              <button id="me-copy-share-link-btn" class="me-btn me-btn-primary">${ICONS.copy} Копировать</button>
-            </div>
-            <div style="margin-top:8px;">
-              <span style="font-size:11px; color:var(--text-tertiary);">В комнате (${this.collabClient.getConnectedPeers().length + 1}):</span>
-              <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px;">
-                <div style="font-size:12px; color:${this.collabClient.color}; font-weight:600;">
-                  ● ${this.collabClient.name} (Вы)
-                </div>
-                ${this.collabClient.getConnectedPeers().map((p) => `
-                  <div style="font-size:12px; color:${p.color};">
-                    ● ${p.name}
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-          <div class="me-modal-footer">
-            <button id="me-leave-collab-btn" class="me-btn me-btn-danger">Покинуть комнату</button>
-            <button id="me-collab-modal-done" class="me-btn">Закрыть</button>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(backdrop);
-      const close = () => backdrop.remove();
-      backdrop.querySelector('#me-collab-modal-close')?.addEventListener('click', close);
-      backdrop.querySelector('#me-collab-modal-done')?.addEventListener('click', close);
-
-      backdrop.querySelector('#me-copy-share-link-btn')?.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-          const copyBtn = backdrop.querySelector('#me-copy-share-link-btn');
-          if (copyBtn) copyBtn.textContent = '✓ Скопировано!';
-          setTimeout(() => {
-            if (copyBtn) copyBtn.innerHTML = `${ICONS.copy} Копировать`;
-          }, 2000);
-        } catch {
-          // ignore
-        }
-      });
-
-      backdrop.querySelector('#me-leave-collab-btn')?.addEventListener('click', async () => {
-        await this.disconnectCollab();
-        close();
-      });
-      return;
-    }
-
-    const defaultName = localStorage.getItem('emberdeep_user_name') || `Игрок_${Math.floor(Math.random() * 900 + 100)}`;
-    const newCode = MapCollabClient.generateRoomCode();
+    const isOnline = this.collabClient && this.collabClient.status === 'connected';
+    const currentName = this.collabClient?.name || localStorage.getItem('emberdeep_user_name') || 'Игрок';
+    const code = this.collabClient?.roomCode || 'LIVE';
+    const shareUrl = `${window.location.origin}${window.location.pathname}?mapRoom=${code}`;
 
     const backdrop = document.createElement('div');
     backdrop.className = 'me-modal-backdrop';
     backdrop.innerHTML = `
       <div class="me-modal-window" style="width:460px;">
         <div class="me-modal-header">
-          <span>Совместное редактирование карт</span>
+          <span>Настройки профиля и совместной работы</span>
           <button id="me-collab-modal-close" class="me-btn me-btn-danger">&times;</button>
         </div>
         <div class="me-modal-body" style="display:flex; flex-direction:column; gap:16px;">
+          <!-- Name Section -->
           <div>
-            <label style="font-size:11px; font-weight:600; color:var(--text-tertiary); display:block; margin-bottom:4px;">Ваше имя:</label>
-            <input type="text" id="me-user-name-input" class="me-input" value="${defaultName}" placeholder="Введите имя..." style="width:100%;">
-          </div>
-
-          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:12px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">1. Создать новую комнату</div>
-            <div style="font-size:11px; color:var(--text-tertiary); margin-bottom:8px;">Сгенерирует 5-значный код и ссылку для друга:</div>
-            <button id="me-create-room-btn" class="me-btn me-btn-primary" style="width:100%;">
-              Создать комнату (${newCode})
-            </button>
-          </div>
-
-          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:12px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">2. Присоединиться к существующей</div>
-            <div style="display:flex; gap:6px; margin-top:8px;">
-              <input type="text" id="me-join-code-input" class="me-input" placeholder="Код комнаты (5 букв)" maxlength="5" style="flex:1; text-transform:uppercase; font-family:monospace; font-weight:700;">
-              <button id="me-join-room-btn" class="me-btn me-btn-success">Подключиться</button>
+            <label style="font-size:11px; font-weight:600; color:var(--text-tertiary); display:block; margin-bottom:5px;">
+              Ваше отображаемое имя:
+            </label>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="me-edit-name-input" class="me-input" value="${currentName}" placeholder="Введите ваше имя..." style="flex:1;">
+              <button id="me-save-name-btn" class="me-btn me-btn-primary">Сохранить</button>
             </div>
           </div>
+
+          <!-- Share Link Section -->
+          <div>
+            <label style="font-size:11px; font-weight:600; color:var(--text-tertiary); display:block; margin-bottom:5px;">
+              Ссылка для друга (совместное редактирование):
+            </label>
+            <div style="display:flex; gap:6px;">
+              <input type="text" readonly value="${shareUrl}" class="me-input" style="flex:1; font-family:monospace; font-size:11px;" id="me-share-link-input">
+              <button id="me-copy-share-link-btn" class="me-btn me-btn-primary">${ICONS.copy} Копировать</button>
+            </div>
+          </div>
+
+          <!-- Network Status Info -->
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:10px 12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:11px; color:var(--text-secondary);">Статус сети:</span>
+              <span style="font-size:11px; font-weight:600; color:${isOnline ? '#4ade80' : '#f87171'};">
+                ${isOnline ? '● Подключено к серверу' : '○ Офлайн (автосохранение только локально)'}
+              </span>
+            </div>
+            ${
+              !isOnline
+                ? `<p style="margin:6px 0 0 0; font-size:10px; color:var(--text-tertiary);">
+                    Связь с сервером не установлена. Вы можете продолжать редактировать карту — всё автоматически сохраняется в вашем браузере.
+                   </p>`
+                : ''
+            }
+          </div>
+
+          <!-- Connected Peers List -->
+          ${
+            isOnline && this.collabClient
+              ? `<div>
+                  <span style="font-size:11px; color:var(--text-tertiary);">В комнате сейчас (${this.collabClient.getConnectedPeers().length + 1}):</span>
+                  <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px;">
+                    <div style="font-size:12px; color:${this.collabClient.color}; font-weight:600;">
+                      ● ${this.collabClient.name} (Вы)
+                    </div>
+                    ${this.collabClient
+                      .getConnectedPeers()
+                      .map(
+                        (p) => `
+                      <div style="font-size:12px; color:${p.color};">
+                        ● ${p.name}
+                      </div>
+                    `
+                      )
+                      .join('')}
+                  </div>
+                </div>`
+              : ''
+          }
+        </div>
+        <div class="me-modal-footer">
+          ${!isOnline ? `<button id="me-retry-collab-btn" class="me-btn me-btn-primary">Повторить подключение</button>` : ''}
+          <button id="me-collab-modal-done" class="me-btn">Закрыть</button>
         </div>
       </div>
     `;
@@ -1493,22 +1475,42 @@ export class MapEditor {
     document.body.appendChild(backdrop);
     const close = () => backdrop.remove();
     backdrop.querySelector('#me-collab-modal-close')?.addEventListener('click', close);
+    backdrop.querySelector('#me-collab-modal-done')?.addEventListener('click', close);
 
-    backdrop.querySelector('#me-create-room-btn')?.addEventListener('click', async () => {
-      const name = (backdrop.querySelector('#me-user-name-input') as HTMLInputElement).value.trim();
-      await this.connectCollab(newCode, name);
-      close();
+    backdrop.querySelector('#me-save-name-btn')?.addEventListener('click', async () => {
+      const nameInput = backdrop.querySelector('#me-edit-name-input') as HTMLInputElement | null;
+      const newName = nameInput?.value.trim();
+      if (newName) {
+        localStorage.setItem('emberdeep_user_name', newName);
+        if (this.collabClient) {
+          await this.collabClient.updateName(newName);
+          this.updateCollabUI();
+          this.draw();
+        }
+        const saveBtn = backdrop.querySelector('#me-save-name-btn');
+        if (saveBtn) saveBtn.textContent = '✓ Сохранено';
+        setTimeout(() => {
+          if (saveBtn) saveBtn.textContent = 'Сохранить';
+        }, 1500);
+      }
     });
 
-    backdrop.querySelector('#me-join-room-btn')?.addEventListener('click', async () => {
-      const name = (backdrop.querySelector('#me-user-name-input') as HTMLInputElement).value.trim();
-      const code = (backdrop.querySelector('#me-join-code-input') as HTMLInputElement).value.trim();
-      if (!code) {
-        alert('Введите код комнаты!');
-        return;
+    backdrop.querySelector('#me-copy-share-link-btn')?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        const copyBtn = backdrop.querySelector('#me-copy-share-link-btn');
+        if (copyBtn) copyBtn.textContent = '✓ Скопировано!';
+        setTimeout(() => {
+          if (copyBtn) copyBtn.innerHTML = `${ICONS.copy} Копировать`;
+        }, 2000);
+      } catch {
+        // ignore
       }
-      await this.connectCollab(code, name);
+    });
+
+    backdrop.querySelector('#me-retry-collab-btn')?.addEventListener('click', async () => {
       close();
+      await this.connectCollab(code);
     });
   }
 

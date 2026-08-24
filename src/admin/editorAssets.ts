@@ -378,27 +378,13 @@ class EditorAssetManager {
     x: number,
     y: number,
     w: number,
-    hOrRotation?: number,
-    rotationOrFlipX?: number | boolean,
-    flipXOrFlipY?: boolean,
-    flipY?: boolean
+    h: number = w,
+    rotation = 0,
+    flipX = false,
+    flipY = false
   ): void {
     const width = w;
-    let height = w;
-    let rotation = 0;
-    let flipX = false;
-    let flipYVal = false;
-
-    if (typeof hOrRotation === 'number' && typeof rotationOrFlipX === 'number') {
-      height = hOrRotation;
-      rotation = rotationOrFlipX;
-      flipX = Boolean(flipXOrFlipY);
-      flipYVal = Boolean(flipY);
-    } else {
-      if (typeof hOrRotation === 'number') rotation = hOrRotation;
-      if (typeof rotationOrFlipX === 'boolean') flipX = rotationOrFlipX;
-      if (typeof flipXOrFlipY === 'boolean') flipYVal = flipXOrFlipY;
-    }
+    const height = h;
 
     const tilesBiomeImg = this.images.get(asset('tiles-biome.png'));
 
@@ -407,11 +393,11 @@ class EditorAssetManager {
       const tileIndex = Math.max(0, Math.min(TOTAL_TILES - 1, tileVal));
       const sx = tileIndex * 32;
       if (sx + 32 <= tilesBiomeImg.naturalWidth) {
-        if (rotation !== 0 || flipX || flipYVal) {
+        if (rotation !== 0 || flipX || flipY) {
           ctx.save();
           ctx.translate(x + width / 2, y + height / 2);
           if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
-          if (flipX || flipYVal) ctx.scale(flipX ? -1 : 1, flipYVal ? -1 : 1);
+          if (flipX || flipY) ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
           ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, -width / 2, -height / 2, width, height);
           ctx.restore();
         } else {

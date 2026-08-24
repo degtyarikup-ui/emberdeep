@@ -1637,7 +1637,7 @@ export class MapEditor {
               if (targetR >= 0 && targetR < rows && targetC >= 0 && targetC < cols) {
                 const tx = this.panX + targetC * step;
                 const ty = this.panY + targetR * step;
-                editorAssets.drawTile(this.ctx, cell.tileId, tx, ty, step, cell.rotation, cell.flipX, cell.flipY);
+                editorAssets.drawTile(this.ctx, cell.tileId, tx, ty, step, step, cell.rotation, cell.flipX, cell.flipY);
               }
             }
           }
@@ -2111,6 +2111,7 @@ export class MapEditor {
             cell.tileId,
             offsetX + c * cellSize,
             offsetY + r * cellSize,
+            cellSize,
             cellSize,
             cell.rotation,
             cell.flipX,

@@ -13,6 +13,7 @@ import {
   type ValidationResult,
 } from './mapEditorHelper';
 import { editorAssets } from './editorAssets';
+import { MapCollabClient, type TileUpdate } from './mapCollab';
 import { buildLevel1, type LevelData } from '../world/level1';
 import { getBiomeForDepth, type BiomeId } from '../world/biomes';
 import type { EnemyKind } from '../entities/Enemy';
@@ -58,9 +59,23 @@ export class MapEditor {
   private history: string[] = [];
   private historyIndex = -1;
 
+  private collabClient?: MapCollabClient;
+  private autoSaveTimer?: number;
+
   constructor(targetEl: HTMLElement) {
     this.container = targetEl;
-    this.level = buildLevel1(1);
+
+    // Restore draft from localStorage if available
+    const savedDraft = localStorage.getItem('emberdeep_map_editor_draft');
+    if (savedDraft) {
+      try {
+        this.level = deserializeLevelFromJson(savedDraft);
+      } catch {
+        this.level = buildLevel1(1);
+      }
+    } else {
+      this.level = buildLevel1(1);
+    }
     this.pushHistory();
   }
 
@@ -71,6 +86,13 @@ export class MapEditor {
     this.renderPalette();
     this.updateStatus();
     this.fitToView();
+
+    // Check if URL contains ?mapRoom= to auto-join
+    const params = new URLSearchParams(window.location.search);
+    const roomCode = params.get('mapRoom');
+    if (roomCode) {
+      void this.connectCollab(roomCode);
+    }
 
     // Preload actual in-game textures
     editorAssets.preloadAll(() => {
@@ -87,14 +109,51 @@ export class MapEditor {
     this.history.push(serialized);
     if (this.history.length > 30) this.history.shift();
     this.historyIndex = this.history.length - 1;
+    this.scheduleAutoSave();
+  }
+
+  private scheduleAutoSave(): void {
+    if (this.autoSaveTimer) window.clearTimeout(this.autoSaveTimer);
+    this.autoSaveTimer = window.setTimeout(() => {
+      try {
+        const json = serializeLevelToJson(this.level);
+        localStorage.setItem('emberdeep_map_editor_draft', json);
+        const badge = document.getElementById('me-draft-status');
+        if (badge) {
+          badge.textContent = '✓ Сохранено';
+          badge.style.color = '#4ade80';
+        }
+      } catch {
+        // ignore
+      }
+    }, 400);
+  }
+
+  private resetDraft(): void {
+    if (!confirm('Сбросить несохраненный локальный черновик и перезагрузить чистый пресет?')) return;
+    localStorage.removeItem('emberdeep_map_editor_draft');
+    this.level = buildLevel1(1);
+    this.history = [];
+    this.historyIndex = -1;
+    this.pushHistory();
+    this.updateStatus();
+    this.fitToView();
+    this.draw();
+    if (this.collabClient) {
+      this.collabClient.sendLevelSync(this.level);
+    }
   }
 
   public undo(): void {
     if (this.historyIndex > 0) {
       this.historyIndex--;
       this.level = deserializeLevelFromJson(this.history[this.historyIndex]);
+      this.scheduleAutoSave();
       this.draw();
       this.updateStatus();
+      if (this.collabClient) {
+        this.collabClient.sendLevelSync(this.level);
+      }
     }
   }
 
@@ -102,8 +161,12 @@ export class MapEditor {
     if (this.historyIndex < this.history.length - 1) {
       this.historyIndex++;
       this.level = deserializeLevelFromJson(this.history[this.historyIndex]);
+      this.scheduleAutoSave();
       this.draw();
       this.updateStatus();
+      if (this.collabClient) {
+        this.collabClient.sendLevelSync(this.level);
+      }
     }
   }
 
@@ -125,6 +188,8 @@ export class MapEditor {
               <option value="empty_dungeon">Новая: Подземелье (60x38)</option>
             </select>
             <button id="me-load-preset-btn" class="me-btn">Загрузить</button>
+            <button id="me-reset-draft-btn" class="me-btn" title="Сбросить локальные правки к пресету">${ICONS.rotateCcw}</button>
+            <span id="me-draft-status" style="font-size:10px; color:#4ade80; margin-left:4px; font-weight:500;">✓ Автосохранение</span>
           </div>
 
           <div class="me-toolbar-group">
@@ -165,6 +230,14 @@ export class MapEditor {
               ${ICONS.folder} Загрузить
             </button>
             <input type="file" id="me-file-input" style="display:none;" accept=".json">
+          </div>
+
+          <div class="me-toolbar-group me-collab-group">
+            <span class="me-divider"></span>
+            <button id="me-collab-btn" class="me-btn me-btn-collab" title="Совместное редактирование в реальном времени (Figma-style)">
+              ${ICONS.users} <span id="me-collab-btn-text">Мультиплеер</span>
+            </button>
+            <div id="me-collab-peers" class="me-collab-peer-list" style="display:none;"></div>
           </div>
         </div>
 
@@ -319,6 +392,9 @@ export class MapEditor {
     document.getElementById('me-hud-zoom-in')?.addEventListener('click', () => this.setZoom(this.zoom * 1.25));
     document.getElementById('me-hud-zoom-out')?.addEventListener('click', () => this.setZoom(this.zoom / 1.25));
     document.getElementById('me-hud-zoom-val')?.addEventListener('click', () => this.setZoom(1.0));
+
+    document.getElementById('me-reset-draft-btn')?.addEventListener('click', () => this.resetDraft());
+    document.getElementById('me-collab-btn')?.addEventListener('click', () => this.showCollabModal());
 
     document.getElementById('me-export-code-btn')?.addEventListener('click', () => this.showExportModal());
     document.getElementById('me-save-json-btn')?.addEventListener('click', () => this.downloadJson());
@@ -695,6 +771,12 @@ export class MapEditor {
     this.hoverRow = row;
     this.updateCoordinatesDisplay(col, row);
 
+    if (this.collabClient) {
+      const worldX = (sx - this.panX) / this.zoom;
+      const worldY = (sy - this.panY) / this.zoom;
+      this.collabClient.sendCursor(col, row, worldX, worldY, this.activeTool);
+    }
+
     if (this.isMouseDown) {
       if (this.activeTool === 'brush' || this.activeTool === 'eraser') {
         if (col >= 0 && col < this.level.cols && row >= 0 && row < this.level.rows) {
@@ -783,6 +865,9 @@ export class MapEditor {
     if (!removed) {
       this.level.data[row][col] = EDITOR_TILE.FLOOR;
     }
+    if (this.collabClient) {
+      this.collabClient.sendCellErased(col, row);
+    }
     return removed;
   }
 
@@ -822,10 +907,16 @@ export class MapEditor {
         const minR = Math.max(0, row - half);
         const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
 
+        const updates: TileUpdate[] = [];
         for (let r = minR; r <= maxR; r++) {
           for (let c = minC; c <= maxC; c++) {
-            this.level.data[r][c] = Number(this.activeItemId);
+            const val = Number(this.activeItemId);
+            this.level.data[r][c] = val;
+            updates.push({ col: c, row: r, val });
           }
+        }
+        if (this.collabClient && updates.length > 0) {
+          this.collabClient.sendTileUpdates(updates);
         }
       } else if (this.activeCategory === 'poi') {
         if (this.activeItemId === 'spawn') this.level.spawn = { col, row };
@@ -835,9 +926,11 @@ export class MapEditor {
           this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
           this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
         }
+        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       } else if (this.activeCategory === 'npc') {
         this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
         this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
+        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       } else if (this.activeCategory === 'enemy') {
         const standardEnemies: string[] = ['wolf', 'direwolf', 'skeleton', 'imp', 'orc_grunt', 'orc_shield', 'orc_archer', 'bandit_assassin'];
         if (standardEnemies.includes(String(this.activeItemId))) {
@@ -847,6 +940,7 @@ export class MapEditor {
           this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
           this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
         }
+        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       } else if (this.activeCategory === 'pickup') {
         if (this.activeItemId === 'chest') {
           this.level.chests = this.level.chests.filter((c) => c.col !== col || c.row !== row);
@@ -857,13 +951,17 @@ export class MapEditor {
         } else if (this.activeItemId === 'shrine_chance') {
           this.level.shrines = this.level.shrines.filter((s) => s.col !== col || s.row !== row);
           this.level.shrines.push({ col, row, kind: 'chance' });
-        } else if (this.activeItemId === 'flask_red' || this.activeItemId === 'flask_blue' || this.activeItemId === 'flask_yellow') {
+        } else if (this.activeItemId === 'shrine_hero') {
+          this.level.shrines = this.level.shrines.filter((s) => s.col !== col || s.row !== row);
+          this.level.shrines.push({ col, row, kind: 'chance' });
+        } else if (String(this.activeItemId).startsWith('flask')) {
           this.level.flasks = this.level.flasks.filter((f) => f.col !== col || f.row !== row);
-          this.level.flasks.push({ col, row, key: this.activeItemId as PropKey });
+          this.level.flasks.push({ col, row, key: String(this.activeItemId) as PropKey });
         } else {
           this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
           this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: false });
         }
+        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       } else if (this.activeCategory === 'prop') {
         if (this.activeItemId === 'torch') {
           this.level.torches = this.level.torches.filter((t) => t.col !== col || t.row !== row);
@@ -873,16 +971,16 @@ export class MapEditor {
           this.level.bonfires = this.level.bonfires.filter((b) => b.col !== col || b.row !== row);
           this.level.bonfires.push({ col, row });
         } else {
-          const passThroughProps = ['button_blue', 'button_red', 'lever_left', 'lever_right', 'banner_blue', 'banner_red', 'banner_green', 'banner_yellow', 'wall_goo', 'wall_hole', 'blood_spill', 'lupine', 'skull_prop'];
-          const isSolid = !passThroughProps.includes(String(this.activeItemId));
           this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
-          this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: isSolid });
+          this.level.decorations.push({ col, row, key: this.activeItemId as PropKey, solid: true });
         }
+        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       } else if (this.activeCategory === 'tree') {
         if (!this.level.trees) this.level.trees = [];
         const kind = this.activeItemId === 'tree_oak' ? 'oak' : 'pine';
         this.level.trees = this.level.trees.filter((t) => t.col !== col || t.row !== row);
         this.level.trees.push({ col, row, kind });
+        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       }
       this.draw();
     }
@@ -1105,6 +1203,290 @@ export class MapEditor {
       this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(hx, hy, hw, hh);
     }
+
+    // 5. Real-Time Multiplayer Cursors (Figma-style)
+    if (this.collabClient) {
+      const peers = this.collabClient.getConnectedPeers();
+      const now = Date.now();
+
+      peers.forEach((peer) => {
+        if (now - peer.lastActive > 40000) return; // skip inactive
+
+        // Highlight other user's selected grid cell
+        if (peer.col >= 0 && peer.col < cols && peer.row >= 0 && peer.row < rows) {
+          const phx = this.panX + peer.col * step;
+          const phy = this.panY + peer.row * step;
+          this.ctx.fillStyle = `${peer.color}22`;
+          this.ctx.fillRect(phx, phy, step, step);
+          this.ctx.strokeStyle = peer.color;
+          this.ctx.lineWidth = 1.5;
+          this.ctx.strokeRect(phx, phy, step, step);
+        }
+
+        // Draw smooth Figma-style pointer
+        const psx = this.panX + peer.worldX * this.zoom;
+        const psy = this.panY + peer.worldY * this.zoom;
+
+        this.ctx.fillStyle = peer.color;
+        this.ctx.beginPath();
+        this.ctx.moveTo(psx, psy);
+        this.ctx.lineTo(psx, psy + 14);
+        this.ctx.lineTo(psx + 4, psy + 10);
+        this.ctx.lineTo(psx + 10, psy + 10);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Draw user name badge
+        const label = peer.name;
+        this.ctx.font = '10px Inter, -apple-system, sans-serif';
+        const textW = this.ctx.measureText(label).width;
+        const badgeW = textW + 10;
+        const badgeH = 16;
+        const badgeX = psx + 8;
+        const badgeY = psy + 10;
+
+        this.ctx.fillStyle = peer.color;
+        this.ctx.beginPath();
+        this.ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+        this.ctx.fill();
+
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(label, badgeX + 5, badgeY + badgeH / 2);
+      });
+    }
+  }
+
+  private async connectCollab(roomCode: string, userName?: string): Promise<void> {
+    const name = userName || localStorage.getItem('emberdeep_user_name') || `Игрок_${Math.floor(Math.random() * 900 + 100)}`;
+    localStorage.setItem('emberdeep_user_name', name);
+
+    if (this.collabClient) {
+      await this.collabClient.disconnect();
+    }
+
+    const client = new MapCollabClient(roomCode, name);
+    this.collabClient = client;
+
+    client.onPeersChange(() => {
+      this.updateCollabUI();
+      this.draw();
+    });
+
+    client.onTileUpdates((updates) => {
+      updates.forEach((u) => {
+        if (u.row >= 0 && u.row < this.level.rows && u.col >= 0 && u.col < this.level.cols) {
+          this.level.data[u.row][u.col] = u.val;
+        }
+      });
+      this.scheduleAutoSave();
+      this.draw();
+    });
+
+    client.onCellErased((col, row) => {
+      this.eraseCellAt(col, row);
+      this.scheduleAutoSave();
+      this.draw();
+    });
+
+    client.onLevelSync((level) => {
+      this.level = level;
+      (document.getElementById('me-cols-input') as HTMLInputElement).value = String(this.level.cols);
+      (document.getElementById('me-rows-input') as HTMLInputElement).value = String(this.level.rows);
+      (document.getElementById('me-biome-select') as HTMLSelectElement).value = this.level.biome.id;
+      this.scheduleAutoSave();
+      this.draw();
+    });
+
+    client.onRequestSync((fromPeerId) => {
+      client.sendLevelSync(this.level, fromPeerId);
+    });
+
+    try {
+      await client.connect();
+      this.updateCollabUI();
+      const url = new URL(window.location.href);
+      url.searchParams.set('mapRoom', client.roomCode);
+      window.history.replaceState({}, '', url.toString());
+    } catch (err) {
+      alert(`Не удалось подключиться к комнате: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private async disconnectCollab(): Promise<void> {
+    if (this.collabClient) {
+      await this.collabClient.disconnect();
+      this.collabClient = undefined;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('mapRoom');
+      window.history.replaceState({}, '', url.toString());
+      this.updateCollabUI();
+      this.draw();
+    }
+  }
+
+  private updateCollabUI(): void {
+    const btn = document.getElementById('me-collab-btn');
+    const textSpan = document.getElementById('me-collab-btn-text');
+    const peerList = document.getElementById('me-collab-peers');
+
+    if (!btn || !textSpan || !peerList) return;
+
+    if (this.collabClient) {
+      btn.classList.add('connected');
+      textSpan.textContent = `Комната: ${this.collabClient.roomCode}`;
+      peerList.style.display = 'flex';
+      peerList.innerHTML = '';
+
+      // Add self avatar
+      const selfAvatar = document.createElement('div');
+      selfAvatar.className = 'me-peer-avatar';
+      selfAvatar.style.backgroundColor = this.collabClient.color;
+      selfAvatar.textContent = this.collabClient.name.slice(0, 1).toUpperCase();
+      selfAvatar.title = `${this.collabClient.name} (Вы)`;
+      peerList.appendChild(selfAvatar);
+
+      // Add peers avatars
+      const peers = this.collabClient.getConnectedPeers();
+      peers.forEach((p) => {
+        const pAvatar = document.createElement('div');
+        pAvatar.className = 'me-peer-avatar';
+        pAvatar.style.backgroundColor = p.color;
+        pAvatar.textContent = p.name.slice(0, 1).toUpperCase();
+        pAvatar.title = p.name;
+        peerList.appendChild(pAvatar);
+      });
+    } else {
+      btn.classList.remove('connected');
+      textSpan.textContent = 'Мультиплеер';
+      peerList.style.display = 'none';
+      peerList.innerHTML = '';
+    }
+  }
+
+  private showCollabModal(): void {
+    if (this.collabClient) {
+      const code = this.collabClient.roomCode;
+      const shareUrl = `${window.location.origin}${window.location.pathname}?mapRoom=${code}`;
+
+      const backdrop = document.createElement('div');
+      backdrop.className = 'me-modal-backdrop';
+      backdrop.innerHTML = `
+        <div class="me-modal-window" style="width:450px;">
+          <div class="me-modal-header">
+            <span>Совместная комната: <strong>${code}</strong></span>
+            <button id="me-collab-modal-close" class="me-btn me-btn-danger">&times;</button>
+          </div>
+          <div class="me-modal-body" style="display:flex; flex-direction:column; gap:12px;">
+            <p style="margin:0; font-size:12px; color:var(--text-secondary);">
+              Отправьте эту ссылку другу — вы сможете редактировать карту вместе в реальном времени:
+            </p>
+            <div style="display:flex; gap:6px;">
+              <input type="text" readonly value="${shareUrl}" class="me-input" style="flex:1; font-family:monospace; font-size:11px;" id="me-share-link-input">
+              <button id="me-copy-share-link-btn" class="me-btn me-btn-primary">${ICONS.copy} Копировать</button>
+            </div>
+            <div style="margin-top:8px;">
+              <span style="font-size:11px; color:var(--text-tertiary);">В комнате (${this.collabClient.getConnectedPeers().length + 1}):</span>
+              <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px;">
+                <div style="font-size:12px; color:${this.collabClient.color}; font-weight:600;">
+                  ● ${this.collabClient.name} (Вы)
+                </div>
+                ${this.collabClient.getConnectedPeers().map((p) => `
+                  <div style="font-size:12px; color:${p.color};">
+                    ● ${p.name}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          <div class="me-modal-footer">
+            <button id="me-leave-collab-btn" class="me-btn me-btn-danger">Покинуть комнату</button>
+            <button id="me-collab-modal-done" class="me-btn">Закрыть</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(backdrop);
+      const close = () => backdrop.remove();
+      backdrop.querySelector('#me-collab-modal-close')?.addEventListener('click', close);
+      backdrop.querySelector('#me-collab-modal-done')?.addEventListener('click', close);
+
+      backdrop.querySelector('#me-copy-share-link-btn')?.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          const copyBtn = backdrop.querySelector('#me-copy-share-link-btn');
+          if (copyBtn) copyBtn.textContent = '✓ Скопировано!';
+          setTimeout(() => {
+            if (copyBtn) copyBtn.innerHTML = `${ICONS.copy} Копировать`;
+          }, 2000);
+        } catch {
+          // ignore
+        }
+      });
+
+      backdrop.querySelector('#me-leave-collab-btn')?.addEventListener('click', async () => {
+        await this.disconnectCollab();
+        close();
+      });
+      return;
+    }
+
+    const defaultName = localStorage.getItem('emberdeep_user_name') || `Игрок_${Math.floor(Math.random() * 900 + 100)}`;
+    const newCode = MapCollabClient.generateRoomCode();
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'me-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="me-modal-window" style="width:460px;">
+        <div class="me-modal-header">
+          <span>Совместное редактирование карт</span>
+          <button id="me-collab-modal-close" class="me-btn me-btn-danger">&times;</button>
+        </div>
+        <div class="me-modal-body" style="display:flex; flex-direction:column; gap:16px;">
+          <div>
+            <label style="font-size:11px; font-weight:600; color:var(--text-tertiary); display:block; margin-bottom:4px;">Ваше имя:</label>
+            <input type="text" id="me-user-name-input" class="me-input" value="${defaultName}" placeholder="Введите имя..." style="width:100%;">
+          </div>
+
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:12px;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">1. Создать новую комнату</div>
+            <div style="font-size:11px; color:var(--text-tertiary); margin-bottom:8px;">Сгенерирует 5-значный код и ссылку для друга:</div>
+            <button id="me-create-room-btn" class="me-btn me-btn-primary" style="width:100%;">
+              Создать комнату (${newCode})
+            </button>
+          </div>
+
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:12px;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">2. Присоединиться к существующей</div>
+            <div style="display:flex; gap:6px; margin-top:8px;">
+              <input type="text" id="me-join-code-input" class="me-input" placeholder="Код комнаты (5 букв)" maxlength="5" style="flex:1; text-transform:uppercase; font-family:monospace; font-weight:700;">
+              <button id="me-join-room-btn" class="me-btn me-btn-success">Подключиться</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    backdrop.querySelector('#me-collab-modal-close')?.addEventListener('click', close);
+
+    backdrop.querySelector('#me-create-room-btn')?.addEventListener('click', async () => {
+      const name = (backdrop.querySelector('#me-user-name-input') as HTMLInputElement).value.trim();
+      await this.connectCollab(newCode, name);
+      close();
+    });
+
+    backdrop.querySelector('#me-join-room-btn')?.addEventListener('click', async () => {
+      const name = (backdrop.querySelector('#me-user-name-input') as HTMLInputElement).value.trim();
+      const code = (backdrop.querySelector('#me-join-code-input') as HTMLInputElement).value.trim();
+      if (!code) {
+        alert('Введите код комнаты!');
+        return;
+      }
+      await this.connectCollab(code, name);
+      close();
+    });
   }
 
   private showExportModal(): void {

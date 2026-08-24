@@ -39,7 +39,7 @@ export class MapEditor {
   private tileSize = 28;
 
   private activeTool: 'brush' | 'rect' | 'eraser' | 'picker' | 'inspect' | 'hand' = 'brush';
-  private activeCategory: 'tiles' | 'poi' | 'enemy' | 'pickup' | 'prop' | 'tree' = 'tiles';
+  private activeCategory: 'tiles' | 'poi' | 'npc' | 'enemy' | 'pickup' | 'prop' | 'tree' = 'tiles';
   private activeItemId: string | number = EDITOR_TILE.FLOOR;
   private searchQuery = '';
 
@@ -206,10 +206,11 @@ export class MapEditor {
             <div class="me-category-tabs">
               <button class="me-tab-btn active" data-cat="tiles">Тайлы <kbd>1</kbd></button>
               <button class="me-tab-btn" data-cat="poi">Точки <kbd>2</kbd></button>
-              <button class="me-tab-btn" data-cat="enemy">Враги <kbd>3</kbd></button>
-              <button class="me-tab-btn" data-cat="pickup">Лут <kbd>4</kbd></button>
-              <button class="me-tab-btn" data-cat="prop">Пропсы <kbd>5</kbd></button>
-              <button class="me-tab-btn" data-cat="tree">Деревья <kbd>6</kbd></button>
+              <button class="me-tab-btn" data-cat="npc">NPC <kbd>3</kbd></button>
+              <button class="me-tab-btn" data-cat="enemy">Враги <kbd>4</kbd></button>
+              <button class="me-tab-btn" data-cat="pickup">Лут <kbd>5</kbd></button>
+              <button class="me-tab-btn" data-cat="prop">Пропсы <kbd>6</kbd></button>
+              <button class="me-tab-btn" data-cat="tree">Деревья <kbd>7</kbd></button>
             </div>
 
             <div class="me-palette-search-box">
@@ -419,14 +420,15 @@ export class MapEditor {
         this.setTool('picker');
       } else if (e.key === 'h' || e.key === 'H') {
         this.setTool('hand');
-      } else if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+      } else if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) {
         const catMap: Record<string, typeof this.activeCategory> = {
           '1': 'tiles',
           '2': 'poi',
-          '3': 'enemy',
-          '4': 'pickup',
-          '5': 'prop',
-          '6': 'tree',
+          '3': 'npc',
+          '4': 'enemy',
+          '5': 'pickup',
+          '6': 'prop',
+          '7': 'tree',
         };
         const targetCat = catMap[e.key];
         if (targetCat) {
@@ -769,9 +771,22 @@ export class MapEditor {
         if (this.activeItemId === 'spawn') this.level.spawn = { col, row };
         else if (this.activeItemId === 'altar') this.level.altar = { col, row };
         else if (this.activeItemId === 'exit') this.level.exit = { col, row };
+        else {
+          this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
+          this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
+        }
+      } else if (this.activeCategory === 'npc') {
+        this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
+        this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
       } else if (this.activeCategory === 'enemy') {
-        this.level.enemies = this.level.enemies.filter((e) => e.col !== col || e.row !== row);
-        this.level.enemies.push({ col, row, kind: this.activeItemId as EnemyKind });
+        const standardEnemies: string[] = ['wolf', 'direwolf', 'skeleton', 'imp', 'orc_grunt', 'orc_shield', 'orc_archer', 'bandit_assassin'];
+        if (standardEnemies.includes(String(this.activeItemId))) {
+          this.level.enemies = this.level.enemies.filter((e) => e.col !== col || e.row !== row);
+          this.level.enemies.push({ col, row, kind: this.activeItemId as EnemyKind });
+        } else {
+          this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
+          this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
+        }
       } else if (this.activeCategory === 'pickup') {
         if (this.activeItemId === 'chest') {
           this.level.chests = this.level.chests.filter((c) => c.col !== col || c.row !== row);
@@ -782,9 +797,12 @@ export class MapEditor {
         } else if (this.activeItemId === 'shrine_chance') {
           this.level.shrines = this.level.shrines.filter((s) => s.col !== col || s.row !== row);
           this.level.shrines.push({ col, row, kind: 'chance' });
-        } else if (String(this.activeItemId).startsWith('flask_')) {
+        } else if (this.activeItemId === 'flask_red' || this.activeItemId === 'flask_blue' || this.activeItemId === 'flask_yellow') {
           this.level.flasks = this.level.flasks.filter((f) => f.col !== col || f.row !== row);
           this.level.flasks.push({ col, row, key: this.activeItemId as PropKey });
+        } else {
+          this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
+          this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: false });
         }
       } else if (this.activeCategory === 'prop') {
         if (this.activeItemId === 'torch') {
@@ -795,8 +813,8 @@ export class MapEditor {
           this.level.bonfires = this.level.bonfires.filter((b) => b.col !== col || b.row !== row);
           this.level.bonfires.push({ col, row });
         } else {
-          const solidProps = ['spikes', 'barrel', 'crate', 'fence', 'rock', 'tombstone', 'obelisk', 'minecart', 'mushroom'];
-          const isSolid = solidProps.includes(String(this.activeItemId));
+          const passThroughProps = ['button_blue', 'button_red', 'lever_left', 'lever_right', 'banner_blue', 'banner_red', 'banner_green', 'banner_yellow', 'wall_goo', 'wall_hole', 'blood_spill', 'lupine', 'skull_prop'];
+          const isSolid = !passThroughProps.includes(String(this.activeItemId));
           this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
           this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: isSolid });
         }

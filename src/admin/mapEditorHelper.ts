@@ -42,7 +42,7 @@ export const TILE_METAS: Record<EditorTileType, TileMeta> = {
 };
 
 export interface EditorEntityItem {
-  category: 'poi' | 'enemy' | 'pickup' | 'prop' | 'tree';
+  category: 'poi' | 'npc' | 'enemy' | 'pickup' | 'prop' | 'tree';
   id: string;
   name: string;
   icon: string;
@@ -54,8 +54,24 @@ export const ENTITY_PALETTE: EditorEntityItem[] = [
   { category: 'poi', id: 'spawn', name: 'Точка спавна', icon: 'SP', color: '#22c55e' },
   { category: 'poi', id: 'altar', name: 'Алтарь босса', icon: 'AL', color: '#eab308' },
   { category: 'poi', id: 'exit', name: 'Выход / Лестница', icon: 'EX', color: '#38bdf8' },
+  { category: 'poi', id: 'portal_angel', name: 'Портал Ангела', icon: 'AG', color: '#fef08a' },
+  { category: 'poi', id: 'portal_ladder', name: 'Люк в полу', icon: 'LD', color: '#cbd5e1' },
+  { category: 'poi', id: 'portal_hole', name: 'Провал в Бездну', icon: 'HL', color: '#64748b' },
 
-  // Enemies
+  // NPCs & Allies
+  { category: 'npc', id: 'npc_knight_m', name: 'Рыцарь (Муж)', icon: 'KM', color: '#60a5fa' },
+  { category: 'npc', id: 'npc_knight_f', name: 'Дева-рыцарь', icon: 'KF', color: '#93c5fd' },
+  { category: 'npc', id: 'npc_wizard_m', name: 'Верховный маг', icon: 'WM', color: '#c084fc' },
+  { category: 'npc', id: 'npc_wizard_f', name: 'Волшебница', icon: 'WF', color: '#e879f9' },
+  { category: 'npc', id: 'npc_elf_m', name: 'Лесной эльф', icon: 'EM', color: '#4ade80' },
+  { category: 'npc', id: 'npc_elf_f', name: 'Эльфийка', icon: 'EF', color: '#86efac' },
+  { category: 'npc', id: 'npc_dwarf_m', name: 'Гном-кузнец', icon: 'DM', color: '#fb923c' },
+  { category: 'npc', id: 'npc_dwarf_f', name: 'Гномиха', icon: 'DF', color: '#fdba74' },
+  { category: 'npc', id: 'npc_lizard_m', name: 'Ящер-воин', icon: 'LM', color: '#34d399' },
+  { category: 'npc', id: 'npc_lizard_f', name: 'Ящерица-жрица', icon: 'LF', color: '#6ee7b7' },
+  { category: 'npc', id: 'npc_doctor', name: 'Чумной доктор', icon: 'DC', color: '#a1a1aa' },
+
+  // Enemies & Bosses
   { category: 'enemy', id: 'wolf', name: 'Волк', icon: 'WF', color: '#a8a29e' },
   { category: 'enemy', id: 'direwolf', name: 'Лютоволк', icon: 'DW', color: '#e2e8f0' },
   { category: 'enemy', id: 'skeleton', name: 'Скелет', icon: 'SK', color: '#f8fafc' },
@@ -63,17 +79,43 @@ export const ENTITY_PALETTE: EditorEntityItem[] = [
   { category: 'enemy', id: 'orc_grunt', name: 'Орк-пехотинец', icon: 'OG', color: '#4ade80' },
   { category: 'enemy', id: 'orc_shield', name: 'Орк со щитом', icon: 'OS', color: '#60a5fa' },
   { category: 'enemy', id: 'orc_archer', name: 'Орк-лучник', icon: 'OA', color: '#fb923c' },
+  { category: 'enemy', id: 'orc_shaman', name: 'Орк-шаман', icon: 'SH', color: '#a855f7' },
   { category: 'enemy', id: 'bandit_assassin', name: 'Бандит', icon: 'BA', color: '#c084fc' },
+  { category: 'enemy', id: 'boss_demon', name: 'Архидемон (Босс)', icon: 'BD', color: '#dc2626' },
+  { category: 'enemy', id: 'boss_ogre', name: 'Огр-великан (Босс)', icon: 'BO', color: '#ea580c' },
+  { category: 'enemy', id: 'necromancer', name: 'Некромант', icon: 'NC', color: '#9333ea' },
+  { category: 'enemy', id: 'big_zombie', name: 'Большой зомби', icon: 'BZ', color: '#15803d' },
+  { category: 'enemy', id: 'tiny_zombie', name: 'Малый зомби', icon: 'TZ', color: '#22c55e' },
+  { category: 'enemy', id: 'ice_zombie', name: 'Ледяной зомби', icon: 'IZ', color: '#38bdf8' },
+  { category: 'enemy', id: 'chort', name: 'Рогатый чёрт', icon: 'CT', color: '#b91c1c' },
+  { category: 'enemy', id: 'goblin', name: 'Гоблин', icon: 'GB', color: '#65a30d' },
+  { category: 'enemy', id: 'pumpkin_dude', name: 'Тыквенный Джек', icon: 'PK', color: '#d97706' },
+  { category: 'enemy', id: 'wogol', name: 'Вогол / Тень', icon: 'WG', color: '#475569' },
+  { category: 'enemy', id: 'muddy', name: 'Грязевик', icon: 'MD', color: '#78350f' },
+  { category: 'enemy', id: 'swampy', name: 'Болотник', icon: 'SW', color: '#166534' },
+  { category: 'enemy', id: 'slug', name: 'Пещерный слизень', icon: 'SL', color: '#0284c7' },
+  { category: 'enemy', id: 'tiny_slug', name: 'Малый слизень', icon: 'TS', color: '#38bdf8' },
 
-  // Pickups
+  // Pickups & Interactive
   { category: 'pickup', id: 'chest', name: 'Сундук сокровищ', icon: 'CH', color: '#f59e0b' },
+  { category: 'pickup', id: 'chest_empty', name: 'Открытый сундук', icon: 'CE', color: '#d97706' },
+  { category: 'pickup', id: 'chest_mimic', name: 'Сундук-Мимик', icon: 'CM', color: '#ef4444' },
   { category: 'pickup', id: 'shrine_blood', name: 'Кровавое святилище', icon: 'SB', color: '#ef4444' },
   { category: 'pickup', id: 'shrine_chance', name: 'Святилище шанса', icon: 'SC', color: '#38bdf8' },
+  { category: 'pickup', id: 'fountain_basin_blue', name: 'Чаша синего фонтана', icon: 'FB', color: '#0ea5e9' },
+  { category: 'pickup', id: 'fountain_basin_red', name: 'Чаша красного фонтана', icon: 'FR', color: '#f43f5e' },
   { category: 'pickup', id: 'flask_red', name: 'Колба здоровья (HP)', icon: 'HP', color: '#f43f5e' },
   { category: 'pickup', id: 'flask_yellow', name: 'Солнечная колба (Свет)', icon: 'LT', color: '#facc15' },
-  { category: 'pickup', id: 'flask_blue', name: 'Колба маны', icon: 'MP', color: '#60a5fa' },
+  { category: 'pickup', id: 'flask_blue', name: 'Колба маны (MP)', icon: 'MP', color: '#60a5fa' },
+  { category: 'pickup', id: 'flask_green', name: 'Колба яда (Выносливость)', icon: 'GP', color: '#22c55e' },
+  { category: 'pickup', id: 'flask_big_red', name: 'Великое зелье HP', icon: 'BH', color: '#e11d48' },
+  { category: 'pickup', id: 'flask_big_blue', name: 'Великое зелье маны', icon: 'BM', color: '#2563eb' },
+  { category: 'pickup', id: 'flask_big_green', name: 'Великое зелье яда', icon: 'BG', color: '#16a34a' },
+  { category: 'pickup', id: 'flask_big_yellow', name: 'Великое зелье света', icon: 'BY', color: '#ca8a04' },
+  { category: 'pickup', id: 'coin_gold', name: 'Золотая монета', icon: 'CN', color: '#eab308' },
+  { category: 'pickup', id: 'bomb', name: 'Бомба с фитилем', icon: 'BB', color: '#71717a' },
 
-  // Props & Hazards
+  // Props & Dungeon Obstacles
   { category: 'prop', id: 'torch', name: 'Факел', icon: 'TC', color: '#f97316' },
   { category: 'prop', id: 'bonfire', name: 'Костер лагеря', icon: 'BF', color: '#fb923c' },
   { category: 'prop', id: 'spikes', name: 'Шипы-ловушка', icon: 'SK', color: '#dc2626' },
@@ -81,10 +123,37 @@ export const ENTITY_PALETTE: EditorEntityItem[] = [
   { category: 'prop', id: 'crate', name: 'Ящик', icon: 'CR', color: '#d97706' },
   { category: 'prop', id: 'fence', name: 'Забор', icon: 'FN', color: '#78350f' },
   { category: 'prop', id: 'rock', name: 'Валун / Камень', icon: 'RK', color: '#64748b' },
+  { category: 'prop', id: 'rock_large', name: 'Большой валун', icon: 'RL', color: '#475569' },
+  { category: 'prop', id: 'bush', name: 'Куст', icon: 'BS', color: '#15803d' },
+  { category: 'prop', id: 'reeds', name: 'Тростник', icon: 'RD', color: '#166534' },
+  { category: 'prop', id: 'cabin', name: 'Лесная хижина', icon: 'CB', color: '#78350f' },
+  { category: 'prop', id: 'statue', name: 'Каменная статуя', icon: 'ST', color: '#94a3b8' },
+  { category: 'prop', id: 'workbench', name: 'Верстак', icon: 'WB', color: '#a16207' },
   { category: 'prop', id: 'tombstone', name: 'Могильная плита', icon: 'TB', color: '#94a3b8' },
   { category: 'prop', id: 'obelisk', name: 'Обелиск Бездны', icon: 'OB', color: '#818cf8' },
   { category: 'prop', id: 'minecart', name: 'Вагонетка', icon: 'MC', color: '#a1a1aa' },
   { category: 'prop', id: 'mushroom', name: 'Гигантский гриб', icon: 'MS', color: '#a855f7' },
+  { category: 'prop', id: 'column', name: 'Каменная колонна', icon: 'CL', color: '#64748b' },
+  { category: 'prop', id: 'column_wall', name: 'Пристенная колонна', icon: 'CW', color: '#475569' },
+  { category: 'prop', id: 'door_closed', name: 'Закрытая дверь', icon: 'DC', color: '#92400e' },
+  { category: 'prop', id: 'door_open', name: 'Открытая дверь', icon: 'DO', color: '#b45309' },
+  { category: 'prop', id: 'button_blue', name: 'Синяя нажимная плита', icon: 'BB', color: '#0284c7' },
+  { category: 'prop', id: 'button_red', name: 'Красная нажимная плита', icon: 'BR', color: '#dc2626' },
+  { category: 'prop', id: 'lever_left', name: 'Рычаг (влево)', icon: 'LL', color: '#d97706' },
+  { category: 'prop', id: 'lever_right', name: 'Рычаг (вправо)', icon: 'LR', color: '#d97706' },
+  { category: 'prop', id: 'banner_blue', name: 'Синее настенное знамя', icon: 'BL', color: '#2563eb' },
+  { category: 'prop', id: 'banner_red', name: 'Красное настенное знамя', icon: 'RD', color: '#dc2626' },
+  { category: 'prop', id: 'banner_green', name: 'Зеленое настенное знамя', icon: 'GN', color: '#16a34a' },
+  { category: 'prop', id: 'banner_yellow', name: 'Желтое настенное знамя', icon: 'YL', color: '#ca8a04' },
+  { category: 'prop', id: 'wall_goo', name: 'Слизь на стене', icon: 'WG', color: '#84cc16' },
+  { category: 'prop', id: 'wall_hole', name: 'Пролом в стене', icon: 'WH', color: '#334155' },
+  { category: 'prop', id: 'skull_prop', name: 'Череп', icon: 'SK', color: '#f8fafc' },
+  { category: 'prop', id: 'prison_bars', name: 'Тюремная решетка', icon: 'PB', color: '#52525b' },
+  { category: 'prop', id: 'chains', name: 'Цепи', icon: 'CH', color: '#71717a' },
+  { category: 'prop', id: 'blood_spill', name: 'Пятно крови', icon: 'BS', color: '#991b1b' },
+  { category: 'prop', id: 'mine_shaft', name: 'Вход в шахту', icon: 'MS', color: '#3f3f46' },
+  { category: 'prop', id: 'lupine', name: 'Цветы люпина', icon: 'LP', color: '#c084fc' },
+  { category: 'prop', id: 'ice_crystal', name: 'Кристалл льда', icon: 'IC', color: '#38bdf8' },
 
   // Trees
   { category: 'tree', id: 'tree_pine', name: 'Сосна', icon: 'PN', color: '#15803d' },

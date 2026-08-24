@@ -24,7 +24,7 @@ def build_wolf_sprites():
     DIRE_DARK = (24, 20, 30, 255)
     DIRE_MID = (46, 38, 56, 255)
     DIRE_LIGHT = (78, 62, 92, 255)
-    DIRE_HILIGHT = (153, 27, 27, 255) # Crimson spine ridge
+    DIRE_HILIGHT = (153, 27, 27, 255)
     DIRE_EYE_BASE = (185, 28, 28, 255)
     DIRE_EYE_GLOW = (248, 113, 113, 255)
 
@@ -60,7 +60,7 @@ def build_wolf_sprites():
                     recolored.putpixel((x, y), hilight)
         return recolored
 
-    # 1. IDLE (4 frames, 32x32)
+    # 1. IDLE SHEET (4 frames, 32x32)
     def generate_idle(is_dire=False):
         sheet = Image.new('RGBA', (32 * 4, 32), (0, 0, 0, 0))
         base = recolor_warg(warg_base, is_dire)
@@ -106,9 +106,10 @@ def build_wolf_sprites():
             sheet.paste(frame, (f * 32, 0))
         return sheet
 
-    # 2. RUN (6 frames, 32x32)
+    # 2. RUN SHEET (4 frames, 32x32) — Stealth Trot Cycle (Стелющаяся рысь)
+    # Steady spine, natural diagonal 4-leg gait, ground locked at y=30
     def generate_run(is_dire=False):
-        sheet = Image.new('RGBA', (32 * 6, 32), (0, 0, 0, 0))
+        sheet = Image.new('RGBA', (32 * 4, 32), (0, 0, 0, 0))
         base = recolor_warg(warg_base, is_dire)
         
         dark = DIRE_DARK if is_dire else WOLF_DARK
@@ -118,96 +119,129 @@ def build_wolf_sprites():
         out = DIRE_OUTLINE if is_dire else WOLF_OUTLINE
         eye = DIRE_EYE_GLOW if is_dire else WOLF_EYE_GLOW
 
-        for f in range(6):
+        for f in range(4):
             frame = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+            # Torso, head, tail remain smoothly anchored on the 32x32 grid
+            upper_body = base.crop((0, 7, 32, 23))
             
             if f == 0:
-                body = base.crop((4, 7, 32, 23))
-                frame.paste(body, (4, 8), body)
-                for x, y in [(4, 25), (5, 25), (6, 26), (7, 26), (8, 27), (9, 28), (10, 29), (11, 29)]:
-                    frame.putpixel((x, y), dark)
-                    frame.putpixel((x, y-1), mid)
-                for x, y in [(22, 22), (23, 23), (24, 24), (25, 25), (26, 25), (27, 26), (28, 26)]:
-                    frame.putpixel((x, y), light)
-                    frame.putpixel((x, y+1), dark)
-                for x, y in [(0, 18), (1, 18), (2, 17), (3, 17), (4, 16)]:
-                    frame.putpixel((x, y), hilight)
-                frame.putpixel((27, 13), eye)
+                # Frame 0: Stride Phase A (Left-Front forward, Right-Rear back)
+                frame.paste(upper_body, (0, 8), upper_body)
                 
-            elif f == 1:
-                body = base.crop((4, 7, 32, 23))
-                frame.paste(body, (5, 7), body)
-                for x, y in [(2, 21), (3, 21), (4, 22), (5, 22), (6, 23), (7, 23), (8, 24)]:
-                    frame.putpixel((x, y), dark)
-                    frame.putpixel((x, y-1), mid)
-                for x, y in [(24, 20), (25, 21), (26, 21), (27, 22), (28, 22), (29, 23), (30, 23)]:
-                    frame.putpixel((x, y), light)
-                    frame.putpixel((x, y+1), out)
-                for x, y in [(0, 16), (1, 16), (2, 16), (3, 16), (4, 16)]:
-                    frame.putpixel((x, y), hilight)
-                frame.putpixel((28, 12), eye)
-                
-            elif f == 2:
-                body = base.crop((4, 7, 32, 23))
-                frame.paste(body, (4, 8), body)
-                for y in range(24, 30):
-                    frame.putpixel((24, y), mid)
+                # Front legs: Left reaching forward (x: 24..28), Right pushing back (x: 18..22)
+                for y in range(23, 30):
                     frame.putpixel((25, y), light)
-                    frame.putpixel((26, y), dark)
+                    frame.putpixel((26, y), mid)
                 frame.putpixel((25, 30), out)
                 frame.putpixel((26, 30), out)
-                for x, y in [(8, 20), (9, 21), (10, 22), (11, 23), (12, 24), (13, 25)]:
-                    frame.putpixel((x, y), dark)
-                    frame.putpixel((x+1, y), mid)
-                for x, y in [(1, 18), (2, 19), (3, 20), (4, 20)]:
-                    frame.putpixel((x, y), hilight)
-                frame.putpixel((27, 13), eye)
+                frame.putpixel((27, 30), out) # Forward paw plant
                 
-            elif f == 3:
-                body = base.crop((4, 7, 32, 23))
-                frame.paste(body, (3, 9), body)
-                for x, y in [(18, 27), (19, 26), (20, 25), (21, 24), (22, 23)]:
-                    frame.putpixel((x, y), light)
-                    frame.putpixel((x, y+1), dark)
-                for x, y in [(11, 23), (12, 24), (13, 25), (14, 26), (15, 27)]:
+                for x, y in [(19, 28), (20, 27), (21, 26), (22, 25), (23, 24)]:
                     frame.putpixel((x, y), dark)
                     frame.putpixel((x, y-1), mid)
-                for x, y in [(2, 20), (3, 21), (4, 21)]:
-                    frame.putpixel((x, y), hilight)
-                frame.putpixel((26, 14), eye)
-                
-            elif f == 4:
-                body = base.crop((4, 7, 32, 23))
-                frame.paste(body, (3, 8), body)
-                for y in range(24, 30):
-                    frame.putpixel((14, y), dark)
-                    frame.putpixel((15, y), mid)
+                    
+                # Rear legs: Left under torso (x: 13..16), Right extended back (x: 6..10)
+                for y in range(23, 30):
+                    frame.putpixel((14, y), mid)
+                    frame.putpixel((15, y), dark)
                 frame.putpixel((14, 30), out)
                 frame.putpixel((15, 30), out)
-                for x, y in [(20, 22), (21, 22), (22, 21), (23, 21), (24, 20)]:
-                    frame.putpixel((x, y), light)
-                    frame.putpixel((x, y+1), out)
-                for x, y in [(0, 14), (1, 15), (2, 16), (3, 17)]:
-                    frame.putpixel((x, y), hilight)
-                frame.putpixel((26, 13), eye)
                 
-            elif f == 5:
-                body = base.crop((4, 7, 32, 23))
-                frame.paste(body, (4, 7), body)
-                for x, y in [(8, 28), (9, 27), (10, 26), (11, 25), (12, 24)]:
+                for x, y in [(7, 28), (8, 27), (9, 26), (10, 25), (11, 24)]:
                     frame.putpixel((x, y), dark)
-                    frame.putpixel((x+1, y), mid)
-                for x, y in [(23, 20), (24, 21), (25, 22), (26, 23), (27, 24)]:
-                    frame.putpixel((x, y), light)
-                    frame.putpixel((x, y+1), dark)
-                for x, y in [(0, 17), (1, 17), (2, 17), (3, 17)]:
-                    frame.putpixel((x, y), hilight)
-                frame.putpixel((27, 12), eye)
+                    frame.putpixel((x, y-1), mid)
+                frame.putpixel((7, 29), out)
                 
+                # Tail low trail
+                for x, y in [(0, 18), (1, 18), (2, 17), (3, 17)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((27, 13), eye)
+
+            elif f == 1:
+                # Frame 1: Passing Phase A (Paws glide past center, spine level)
+                frame.paste(upper_body, (0, 8), upper_body)
+                
+                # Front legs passing (x: 21..25)
+                for y in range(23, 29):
+                    frame.putpixel((22, y), dark)
+                    frame.putpixel((23, y), mid)
+                    frame.putpixel((24, y), light)
+                frame.putpixel((23, 30), out)
+                frame.putpixel((24, 30), out)
+                
+                # Rear legs passing (x: 10..14)
+                for y in range(23, 29):
+                    frame.putpixel((11, y), dark)
+                    frame.putpixel((12, y), mid)
+                frame.putpixel((11, 30), out)
+                frame.putpixel((12, 30), out)
+                
+                # Tail slight lift
+                for x, y in [(0, 17), (1, 17), (2, 16), (3, 16)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((27, 13), eye)
+
+            elif f == 2:
+                # Frame 2: Stride Phase B (Right-Front forward, Left-Rear back)
+                frame.paste(upper_body, (0, 8), upper_body)
+                
+                # Front legs: Right reaching forward (x: 25..28), Left pushing back (x: 19..23)
+                for y in range(23, 30):
+                    frame.putpixel((26, y), light)
+                    frame.putpixel((27, y), mid)
+                frame.putpixel((26, 30), out)
+                frame.putpixel((27, 30), out)
+                frame.putpixel((28, 30), out) # Forward paw plant
+                
+                for x, y in [(20, 28), (21, 27), (22, 26), (23, 25), (24, 24)]:
+                    frame.putpixel((x, y), dark)
+                    frame.putpixel((x, y-1), mid)
+                    
+                # Rear legs: Right under torso (x: 14..17), Left extended back (x: 6..10)
+                for y in range(23, 30):
+                    frame.putpixel((15, y), mid)
+                    frame.putpixel((16, y), dark)
+                frame.putpixel((15, 30), out)
+                frame.putpixel((16, 30), out)
+                
+                for x, y in [(6, 28), (7, 27), (8, 26), (9, 25), (10, 24)]:
+                    frame.putpixel((x, y), dark)
+                    frame.putpixel((x, y-1), mid)
+                frame.putpixel((6, 29), out)
+                
+                # Tail low trail
+                for x, y in [(0, 18), (1, 18), (2, 17), (3, 17)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((27, 13), eye)
+
+            elif f == 3:
+                # Frame 3: Passing Phase B (Smooth glide back to Frame 0)
+                frame.paste(upper_body, (0, 8), upper_body)
+                
+                # Front legs passing
+                for y in range(23, 29):
+                    frame.putpixel((23, y), dark)
+                    frame.putpixel((24, y), mid)
+                    frame.putpixel((25, y), light)
+                frame.putpixel((24, 30), out)
+                frame.putpixel((25, 30), out)
+                
+                # Rear legs passing
+                for y in range(23, 29):
+                    frame.putpixel((12, y), dark)
+                    frame.putpixel((13, y), mid)
+                frame.putpixel((12, 30), out)
+                frame.putpixel((13, 30), out)
+                
+                # Tail subtle lift
+                for x, y in [(0, 17), (1, 17), (2, 16), (3, 16)]:
+                    frame.putpixel((x, y), hilight)
+                frame.putpixel((27, 13), eye)
+
             sheet.paste(frame, (f * 32, 0))
         return sheet
 
-    # 3. DEATH (6 frames, 32x32)
+    # 3. DEATH SHEET (6 frames, 32x32)
     def generate_death(is_dire=False):
         sheet = Image.new('RGBA', (32 * 6, 32), (0, 0, 0, 0))
         base = recolor_warg(warg_base, is_dire)
@@ -246,7 +280,7 @@ def build_wolf_sprites():
     wolf_idle.save(os.path.join(ASSETS_DIR, 'pc-wolf-idle.png'))
     wolf_run.save(os.path.join(ASSETS_DIR, 'pc-wolf-run.png'))
     wolf_death.save(os.path.join(ASSETS_DIR, 'pc-wolf-death.png'))
-    print(f'Generated Wolf sprites: Idle {wolf_idle.size}, Run {wolf_run.size}, Death {wolf_death.size}')
+    print(f'Generated Wolf: Idle {wolf_idle.size}, Run {wolf_run.size}, Death {wolf_death.size}')
 
     # Generate Direwolf Sheets
     dire_idle = generate_idle(is_dire=True)
@@ -255,7 +289,7 @@ def build_wolf_sprites():
 
     dire_idle.save(os.path.join(ASSETS_DIR, 'direwolf-idle.png'))
     dire_run.save(os.path.join(ASSETS_DIR, 'direwolf-run.png'))
-    print(f'Generated Direwolf sprites: Idle {dire_idle.size}, Run {dire_run.size}, Death {dire_death.size}')
+    print(f'Generated Direwolf: Idle {dire_idle.size}, Run {dire_run.size}, Death {dire_death.size}')
 
 if __name__ == '__main__':
     build_wolf_sprites()

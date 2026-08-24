@@ -125,8 +125,10 @@ class DashboardManager {
 
     const cicdView = document.getElementById('cicd-view');
     const mapView = document.getElementById('map-view');
+    const collabHeader = document.getElementById('me-header-collab');
     if (cicdView) cicdView.style.display = tab === 'cicd' ? 'block' : 'none';
     if (mapView) mapView.style.display = tab === 'map' ? 'block' : 'none';
+    if (collabHeader) collabHeader.style.display = tab === 'map' ? 'inline-flex' : 'none';
 
     if (tab === 'map') {
       if (!this.mapEditorInstance && mapView) {
@@ -313,6 +315,12 @@ class DashboardManager {
             </div>
           </div>
           <div class="header-actions">
+            <div id="me-header-collab" class="me-toolbar-group me-collab-group" style="display: ${this.activeTab === 'map' ? 'inline-flex' : 'none'}; margin-right: 8px;">
+              <div id="me-collab-status" class="me-live-badge" title="Синхронизация в реальном времени включена (Figma-style)">
+                <span class="me-live-dot"></span> <span id="me-collab-count">Онлайн</span>
+              </div>
+              <div id="me-collab-peers" class="me-collab-peer-list"></div>
+            </div>
             <a href="./" class="btn">${ICONS.play} Игра</a>
             <button id="refresh-btn" class="btn btn-primary" onclick="window.__adminRefresh()" style="display: ${this.activeTab === 'cicd' ? 'inline-flex' : 'none'};">
               ${ICONS.refresh} Обновить

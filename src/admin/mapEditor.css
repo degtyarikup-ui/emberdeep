@@ -12,24 +12,40 @@
   position: relative;
 }
 
-/* 1. Minimal Native Toolbar */
+/* 1. Minimal Native Toolbar (Single Clean Line) */
 .me-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
-  padding: 6px 14px;
+  padding: 5px 12px;
   background: var(--bg-subtle, #141417);
   border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   user-select: none;
   z-index: 10;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.me-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .me-toolbar-group {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+}
+
+.me-divider {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: var(--border, rgba(255, 255, 255, 0.1));
+  margin: 0 2px;
+  flex-shrink: 0;
 }
 
 .me-select, .me-input {
@@ -473,6 +489,12 @@
 .me-hud-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
+}
+
+.me-hud-btn.active {
+  background: rgba(255, 255, 255, 0.18);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.4);
 }
 
 .me-hud-btn:active {

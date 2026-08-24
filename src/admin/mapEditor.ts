@@ -240,29 +240,29 @@ export class MapEditor {
   private renderLayout(): void {
     this.container.innerHTML = `
       <div class="map-editor-container">
-        <!-- Top Toolbar -->
+        <!-- Top Toolbar (Compact Single Line) -->
         <div class="me-toolbar">
           <div class="me-toolbar-group">
             <label style="font-size:11px; font-weight:600; color:var(--text-secondary);">Пресет:</label>
-            <select id="me-preset-select" class="me-select">
-              <option value="1">Уровень 1: Темный Лес (200x80)</option>
-              <option value="2">Уровень 2: Руины (60x38)</option>
-              <option value="3">Уровень 3: Катакомбы (60x38)</option>
-              <option value="4">Уровень 4: Глубины (60x38)</option>
-              <option value="5">Уровень 5: Бездна (60x38)</option>
+            <select id="me-preset-select" class="me-select" style="max-width: 165px;">
+              <option value="1">1: Темный Лес (200x80)</option>
+              <option value="2">2: Руины (60x38)</option>
+              <option value="3">3: Катакомбы (60x38)</option>
+              <option value="4">4: Глубины (60x38)</option>
+              <option value="5">5: Бездна (60x38)</option>
               <option value="empty_forest">Новая: Лес (60x38)</option>
               <option value="empty_ruins">Новая: Руины (60x38)</option>
-              <option value="empty_dungeon">Новая: Подземелье (60x38)</option>
+              <option value="empty_dungeon">Новая: Катакомбы (60x38)</option>
             </select>
-            <button id="me-load-preset-btn" class="me-btn">Загрузить</button>
+            <button id="me-load-preset-btn" class="me-btn" title="Загрузить выбранный пресет">Загрузить</button>
             <button id="me-reset-draft-btn" class="me-btn" title="Сбросить локальные правки к пресету">${ICONS.rotateCcw}</button>
-            <span id="me-draft-status" style="font-size:10px; color:#4ade80; margin-left:4px; font-weight:500;">✓ Автосохранение</span>
+            <span id="me-draft-status" style="font-size:10px; color:#4ade80; margin-left:2px; font-weight:500;">✓ Автосохранение</span>
           </div>
 
           <div class="me-toolbar-group">
             <span class="me-divider"></span>
             <label style="font-size:11px; color:var(--text-tertiary);">Биом:</label>
-            <select id="me-biome-select" class="me-select">
+            <select id="me-biome-select" class="me-select" style="max-width: 105px;">
               <option value="forest">Темный Лес</option>
               <option value="ruins">Руины</option>
               <option value="catacombs">Катакомбы</option>
@@ -270,23 +270,16 @@ export class MapEditor {
               <option value="void">Бездна</option>
             </select>
 
-            <label style="font-size:11px; color:var(--text-tertiary);">Сетка:</label>
+            <label style="font-size:11px; color:var(--text-tertiary); margin-left:2px;">Сетка:</label>
             <input id="me-cols-input" type="number" class="me-input me-input-number" min="10" max="300" value="${this.level.cols}">
             <span style="color:var(--text-tertiary);">x</span>
             <input id="me-rows-input" type="number" class="me-input me-input-number" min="10" max="200" value="${this.level.rows}">
-            <button id="me-resize-btn" class="me-btn">Применить</button>
+            <button id="me-resize-btn" class="me-btn" title="Применить размер">OK</button>
           </div>
 
           <div class="me-toolbar-group">
             <span class="me-divider"></span>
-            <button id="me-undo-btn" class="me-btn" title="Отмена (Ctrl+Z)">Отмена</button>
-            <button id="me-redo-btn" class="me-btn" title="Повтор (Ctrl+Y)">Повтор</button>
-            <button id="me-grid-toggle-btn" class="me-btn ${this.showGrid ? 'me-btn-primary' : ''}" title="Вкл/Выкл сетку">Сетка</button>
-          </div>
-
-          <div class="me-toolbar-group">
-            <span class="me-divider"></span>
-            <button id="me-play-test-btn" class="me-btn" style="background:#16a34a; color:#ffffff; font-weight:700; border:1px solid #22c55e; box-shadow:0 1px 3px rgba(0,0,0,0.3);" title="Запустить и протестировать уровень прямо в игре">
+            <button id="me-play-test-btn" class="me-btn" style="background:#16a34a; color:#ffffff; font-weight:700; border:1px solid #22c55e;" title="Запустить и протестировать уровень прямо в игре">
               ▶ Играть на карте
             </button>
             <button id="me-bake-prod-btn" class="me-btn" style="background:#4f46e5; color:#ffffff; font-weight:600; border:1px solid #6366f1;" title="Вшить созданную карту в релизную сборку игры">
@@ -299,14 +292,6 @@ export class MapEditor {
               ${ICONS.folder} Загрузить
             </button>
             <input type="file" id="me-file-input" style="display:none;" accept=".json">
-          </div>
-
-          <div class="me-toolbar-group me-collab-group">
-            <span class="me-divider"></span>
-            <div id="me-collab-status" class="me-live-badge" title="Синхронизация в реальном времени включена (Figma-style)">
-              <span class="me-live-dot"></span> <span id="me-collab-count">Онлайн</span>
-            </div>
-            <div id="me-collab-peers" class="me-collab-peer-list"></div>
           </div>
         </div>
 
@@ -371,10 +356,14 @@ export class MapEditor {
 
             <!-- Floating View Navigator (Bottom Right) -->
             <div class="me-floating-hud">
+              <button id="me-hud-grid" class="me-hud-btn ${this.showGrid ? 'active' : ''}" style="width:auto; padding:0 6px;" title="Вкл/Выкл сетку (G)">
+                Сетка
+              </button>
+              <span class="me-hud-divider" style="width:1px; height:14px; background:rgba(255,255,255,0.15); margin:0 2px;"></span>
               <button id="me-hud-zoom-out" class="me-hud-btn" title="Уменьшить (-)">-</button>
               <span id="me-hud-zoom-val" class="me-hud-zoom-text" title="Клик для сброса на 100%">100%</span>
               <button id="me-hud-zoom-in" class="me-hud-btn" title="Увеличить (+)">+</button>
-              <button id="me-hud-fit" class="me-hud-btn" style="width:auto; padding:0 5px;" title="По размеру (Shift+1)">Fit</button>
+              <button id="me-hud-fit" class="me-hud-btn" style="width:auto; padding:0 6px;" title="По размеру (Shift+1)">Fit</button>
             </div>
           </div>
         </div>
@@ -451,12 +440,9 @@ export class MapEditor {
       }
     });
 
-    document.getElementById('me-undo-btn')?.addEventListener('click', () => this.undo());
-    document.getElementById('me-redo-btn')?.addEventListener('click', () => this.redo());
-
-    document.getElementById('me-grid-toggle-btn')?.addEventListener('click', (e) => {
+    document.getElementById('me-hud-grid')?.addEventListener('click', (e) => {
       this.showGrid = !this.showGrid;
-      (e.target as HTMLElement).classList.toggle('me-btn-primary', this.showGrid);
+      (e.currentTarget as HTMLElement).classList.toggle('active', this.showGrid);
       this.draw();
     });
 

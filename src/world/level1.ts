@@ -1766,9 +1766,9 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
   // 14. Supply Flasks
   const flasks = [
     { col: 42, row: 41, key: PROP.FLASK_RED },
-    { col: 58, row: 62, key: PROP.FLASK_BLUE },
+    { col: 58, row: 62, key: PROP.FLASK_YELLOW },
     { col: 106, row: 38, key: PROP.FLASK_RED },
-    { col: 114, row: 44, key: PROP.FLASK_BLUE },
+    { col: 114, row: 44, key: PROP.FLASK_YELLOW },
     { col: 154, row: 56, key: PROP.FLASK_RED },
   ];
 
@@ -2008,7 +2008,7 @@ function buildAncientRuinsLevel(biome: BiomeConfig, depth: number): LevelData {
 
   const flasks = [
     { col: 14, row: 18, key: PROP.FLASK_RED },
-    { col: 31, row: 17, key: PROP.FLASK_BLUE },
+    { col: 31, row: 17, key: PROP.FLASK_YELLOW },
     { col: 46, row: 18, key: PROP.FLASK_RED },
   ];
 
@@ -2122,7 +2122,7 @@ function buildPrisonCatacombsLevel(biome: BiomeConfig, depth: number): LevelData
 
   const flasks = [
     { col: 14, row: 18, key: PROP.FLASK_RED },
-    { col: 29, row: 19, key: PROP.FLASK_BLUE },
+    { col: 29, row: 19, key: PROP.FLASK_YELLOW },
     { col: 44, row: 18, key: PROP.FLASK_RED },
   ];
 
@@ -2223,7 +2223,7 @@ function buildCatacombDepthsLevel(biome: BiomeConfig, depth: number): LevelData 
 
   const flasks = [
     { col: 14, row: 18, key: PROP.FLASK_RED },
-    { col: 28, row: 18, key: PROP.FLASK_BLUE },
+    { col: 28, row: 18, key: PROP.FLASK_YELLOW },
     { col: 45, row: 18, key: PROP.FLASK_RED },
   ];
 
@@ -2315,8 +2315,8 @@ function buildAstralAbyssLevel(biome: BiomeConfig, depth: number): LevelData {
 
   const flasks = [
     { col: 14, row: 18, key: PROP.FLASK_BLUE },
-    { col: 30, row: 18, key: PROP.FLASK_RED },
-    { col: 44, row: 18, key: PROP.FLASK_BLUE },
+    { col: 30, row: 18, key: PROP.FLASK_YELLOW },
+    { col: 44, row: 18, key: PROP.FLASK_RED },
   ];
 
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [

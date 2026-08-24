@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { SCENE } from './keys';
 import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
 import { FLOOR_INDICES, TILE_MARGIN, TILE_SPACING } from '../gfx/tiles';
-import { PROP } from '../gfx/props';
+import { PROP, PropKey } from '../gfx/props';
 import { buildLevel1, TILE_SIZE } from '../world/level1';
 import { HeroClass, Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
@@ -62,6 +62,7 @@ interface Pickup {
   x: number;
   y: number;
   collected: boolean;
+  kind?: 'heal' | 'fullbright';
 }
 
 interface Chest {
@@ -251,6 +252,9 @@ export class GameScene extends Phaser.Scene {
   private godMode = false;
   private speedHack = false;
   private fullBright = false;
+  private fullBrightBuffTimer = 0;
+  private buffBadgeContainer?: Phaser.GameObjects.Container;
+  private buffBadgeTimeText?: Phaser.GameObjects.Text;
 
   public levelData?: ReturnType<typeof buildLevel1>;
 
@@ -454,7 +458,7 @@ export class GameScene extends Phaser.Scene {
       sprite.setDepth(DEPTH.YSORT_BASE + yBottom);
       world.add(sprite);
       this.tweens.add({ targets: sprite, y: yBottom - 3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return { sprite, x, y: yBottom, collected: false };
+      return { sprite, x, y: yBottom, collected: false, kind: f.key === PROP.FLASK_YELLOW ? 'fullbright' : 'heal' };
     });
 
     for (const c of level.chests) {
@@ -852,6 +856,7 @@ export class GameScene extends Phaser.Scene {
 
     this.buildHeartsUI();
     this.updateInventoryHUD();
+    this.createBuffBadgeUI();
 
     // 3D Stone Top-Right Status Header
     const headerW = 164;
@@ -1374,6 +1379,40 @@ export class GameScene extends Phaser.Scene {
       this.updateHostFrame(delta);
     }
 
+    // Full Brightness Buff countdown
+    if (this.fullBrightBuffTimer > 0) {
+      this.fullBrightBuffTimer -= delta;
+      if (this.buffBadgeTimeText) {
+        const secsLeft = Math.ceil(this.fullBrightBuffTimer / 1000);
+        this.buffBadgeTimeText.setText(`${secsLeft}с`);
+        if (this.fullBrightBuffTimer < 5000) {
+          const blink = Math.sin(this.time.now * 0.015) > 0;
+          this.buffBadgeTimeText.setColor(blink ? '#ef4444' : '#facc15');
+        } else {
+          this.buffBadgeTimeText.setColor('#facc15');
+        }
+      }
+
+      if (this.fullBrightBuffTimer <= 0) {
+        this.fullBrightBuffTimer = 0;
+        if (this.buffBadgeContainer) {
+          this.tweens.add({
+            targets: this.buffBadgeContainer,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => this.buffBadgeContainer?.setVisible(false),
+          });
+        }
+        if (!this.fullBright) {
+          const level = buildLevel1(this.depth);
+          this.lights.setAmbientColor(level.biome.ambientColor);
+          if (this.myPlayer) {
+            this.spawnDamageNumber(this.myPlayer.x, this.myPlayer.y - 16, 'Свет угас', '#94a3b8');
+          }
+        }
+      }
+    }
+
     this.updateThreatMeter(delta);
     this.updateBossProjectiles(delta);
     this.updatePlayerArrows(delta);
@@ -1763,6 +1802,12 @@ export class GameScene extends Phaser.Scene {
           if (Math.random() < emberChance) {
             MetaManager.get().addEmbers(1);
             this.spawnDamageNumber(enemy.x, enemy.y - 14, '+1 УГОЛЬ', '#f97316');
+          }
+
+          // 8% chance to drop a flask (healing or sunlight illumination)
+          if (Math.random() < 0.08) {
+            const isYellow = Math.random() < 0.40;
+            this.spawnFlask(enemy.x, enemy.y, isYellow ? PROP.FLASK_YELLOW : PROP.FLASK_RED);
           }
 
           // Leech Fang life steal
@@ -2663,16 +2708,11 @@ export class GameScene extends Phaser.Scene {
       this.spawnCoins(prop.x, prop.y, Phaser.Math.Between(1, 3));
     }
 
-    // 25% chance to drop a healing flask
-    if (Math.random() < 0.25) {
-      const flaskSprite = this.add.sprite(prop.x, prop.y, TEXTURE.PROPS, 'flask_red');
-      flaskSprite.setOrigin(0.5, 1);
-      flaskSprite.setScale(1.4);
-      flaskSprite.setPipeline('Light2D');
-      flaskSprite.setDepth(DEPTH.YSORT_BASE + prop.y);
-      this.worldLayer.add(flaskSprite);
-      this.tweens.add({ targets: flaskSprite, y: prop.y - 3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.flasks.push({ sprite: flaskSprite, x: prop.x, y: prop.y, collected: false });
+    // 30% chance to drop a flask (healing or sunlight illumination)
+    const flaskRoll = Math.random();
+    if (flaskRoll < 0.30) {
+      const isYellow = flaskRoll < 0.12;
+      this.spawnFlask(prop.x, prop.y, isYellow ? PROP.FLASK_YELLOW : PROP.FLASK_RED);
     }
   }
 
@@ -3087,6 +3127,69 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard!.once('keydown-E', triggerConfirm);
   }
 
+  private spawnFlask(x: number, y: number, key: PropKey = PROP.FLASK_RED): void {
+    const flaskSprite = this.add.sprite(x, y, TEXTURE.PROPS, key);
+    flaskSprite.setOrigin(0.5, 1);
+    flaskSprite.setScale(1.4);
+    flaskSprite.setPipeline('Light2D');
+    flaskSprite.setDepth(DEPTH.YSORT_BASE + y);
+    this.worldLayer.add(flaskSprite);
+    this.tweens.add({ targets: flaskSprite, y: y - 3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.flasks.push({ sprite: flaskSprite, x, y, collected: false, kind: key === PROP.FLASK_YELLOW ? 'fullbright' : 'heal' });
+  }
+
+  private activateFullBrightBuff(durationMs = 60000): void {
+    this.fullBrightBuffTimer = durationMs;
+    this.lights.setAmbientColor(0xffffff);
+    if (this.buffBadgeContainer) {
+      this.buffBadgeContainer.setVisible(true);
+      this.buffBadgeContainer.setAlpha(1);
+      this.tweens.add({
+        targets: this.buffBadgeContainer,
+        scaleX: 1.08,
+        scaleY: 1.08,
+        duration: 150,
+        yoyo: true,
+        ease: 'Back.easeOut',
+      });
+    }
+  }
+
+  private createBuffBadgeUI(): void {
+    const badgeW = 148;
+    const badgeH = 28;
+    this.buffBadgeContainer = this.add.container(20 + badgeW / 2, 108);
+    this.buffBadgeContainer.setDepth(DEPTH.UI);
+    this.buffBadgeContainer.setScrollFactor(0);
+    this.worldCam.ignore(this.buffBadgeContainer);
+    this.buffBadgeContainer.setVisible(false);
+
+    const bg = this.add.rectangle(0, 0, badgeW, badgeH, 0x140e06, 0.95);
+    bg.setStrokeStyle(1.5, 0xfacc15);
+
+    const slot = this.add.rectangle(-badgeW / 2 + 16, 0, 20, 20, 0x0a0602, 0.9);
+    slot.setStrokeStyle(1, 0xca8a04);
+
+    const icon = this.add.sprite(-badgeW / 2 + 16, 0, TEXTURE.PROPS, PROP.FLASK_YELLOW);
+    icon.setScale(1.1);
+
+    const label = this.add.text(-badgeW / 2 + 32, 0, 'СВЕТ', {
+      fontFamily: FONT.UI,
+      fontSize: '10px',
+      fontStyle: '700',
+      color: '#fef08a',
+    }).setOrigin(0, 0.5);
+
+    this.buffBadgeTimeText = this.add.text(badgeW / 2 - 10, 0, '60с', {
+      fontFamily: FONT.TITLE,
+      fontSize: '11px',
+      fontStyle: '700',
+      color: '#facc15',
+    }).setOrigin(1, 0.5);
+
+    this.buffBadgeContainer.add([bg, slot, icon, label, this.buffBadgeTimeText]);
+  }
+
   private updateFlaskPickups(): void {
     for (const flask of this.flasks) {
       if (flask.collected) continue;
@@ -3094,16 +3197,29 @@ export class GameScene extends Phaser.Scene {
         const dist = Phaser.Math.Distance.Between(player.x, player.y, flask.x, flask.y);
         if (dist < PICKUP_RANGE) {
           flask.collected = true;
-          player.heal(1);
-          SoundFX.playFlaskPickup();
-          this.buildHeartsUI();
-          if (player === this.myPlayer) this.spawnDamageNumber(flask.x, flask.y, '+1', '#9ee08a');
           this.hitSpark.setPosition(flask.x, flask.y);
-          this.hitSpark.explode(8);
+          this.hitSpark.explode(12);
+
+          if (flask.kind === 'fullbright') {
+            this.activateFullBrightBuff(60000);
+            SoundFX.playFlaskPickup();
+            SoundFX.playItemAcquired();
+            if (player === this.myPlayer) {
+              this.spawnDamageNumber(flask.x, flask.y - 12, '+СОЛНЕЧНЫЙ СВЕТ (60с)', '#fde047');
+            }
+          } else {
+            player.heal(1);
+            SoundFX.playFlaskPickup();
+            this.buildHeartsUI();
+            if (player === this.myPlayer) {
+              this.spawnDamageNumber(flask.x, flask.y - 12, '+1 HP', '#9ee08a');
+            }
+          }
+
           this.tweens.add({
             targets: flask.sprite,
             alpha: 0,
-            scale: 1.5,
+            scale: 1.6,
             duration: 200,
             onComplete: () => flask.sprite.destroy(),
           });

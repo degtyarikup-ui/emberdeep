@@ -23,6 +23,7 @@ export interface CollabPeer {
   worldX: number;
   worldY: number;
   tool: string;
+  brushSize?: number;
   lastActive: number;
 }
 
@@ -35,7 +36,7 @@ export interface TileUpdate {
 export type CollabStatus = 'connecting' | 'connected' | 'offline' | 'error';
 
 export class MapCollabClient {
-  readonly peerId = crypto.randomUUID();
+  readonly peerId: string;
   public name: string;
   readonly color: string;
   readonly roomCode: string;
@@ -54,6 +55,12 @@ export class MapCollabClient {
   private lastCursorSend = 0;
 
   constructor(roomCode = 'LIVE', name?: string) {
+    let savedId = sessionStorage.getItem('emberdeep_peer_id');
+    if (!savedId) {
+      savedId = crypto.randomUUID();
+      sessionStorage.setItem('emberdeep_peer_id', savedId);
+    }
+    this.peerId = savedId;
     this.roomCode = (roomCode || 'LIVE').toUpperCase().trim();
     this.name = name?.trim() || `Игрок_${this.peerId.slice(0, 4)}`;
     const colorIndex = Math.abs(this.hashCode(this.peerId)) % PEER_COLORS.length;
@@ -104,27 +111,30 @@ export class MapCollabClient {
     // Presence Sync
     this.channel
       .on('presence', { event: 'sync' }, () => {
-        const state = this.channel.presenceState<{ name: string; color: string; joinedAt: number }>();
+        const state = this.channel.presenceState<{ peerId?: string; name: string; color: string; joinedAt: number }>();
         const currentPeerIds = new Set<string>();
 
         Object.entries(state).forEach(([pId, metas]) => {
-          if (pId === this.peerId) return;
-          currentPeerIds.add(pId);
           const meta = metas[0];
-          const existing = this.peers.get(pId);
+          const actualPeerId = meta?.peerId || pId;
+          if (actualPeerId === this.peerId) return;
+
+          currentPeerIds.add(actualPeerId);
+          const existing = this.peers.get(actualPeerId);
           if (existing) {
             existing.name = meta?.name || existing.name;
             existing.color = meta?.color || existing.color;
           } else {
-            this.peers.set(pId, {
-              peerId: pId,
-              name: meta?.name || `Игрок_${pId.slice(0, 4)}`,
+            this.peers.set(actualPeerId, {
+              peerId: actualPeerId,
+              name: meta?.name || `Игрок_${actualPeerId.slice(0, 4)}`,
               color: meta?.color || '#38bdf8',
               col: -1,
               row: -1,
               worldX: 0,
               worldY: 0,
               tool: 'brush',
+              brushSize: 1,
               lastActive: Date.now(),
             });
           }
@@ -137,11 +147,11 @@ export class MapCollabClient {
           }
         }
 
-        this.onPeersChangeCb?.(Array.from(this.peers.values()));
+        this.onPeersChangeCb?.(this.getConnectedPeers());
       })
       .on('presence', { event: 'leave' }, ({ key }) => {
         this.peers.delete(key);
-        this.onPeersChangeCb?.(Array.from(this.peers.values()));
+        this.onPeersChangeCb?.(this.getConnectedPeers());
       });
 
     // Broadcast Handlers
@@ -155,6 +165,7 @@ export class MapCollabClient {
           p.worldX = payload.worldX;
           p.worldY = payload.worldY;
           p.tool = payload.tool || p.tool;
+          p.brushSize = payload.brushSize || 1;
           p.lastActive = Date.now();
         } else {
           this.peers.set(payload.peerId, {
@@ -166,10 +177,11 @@ export class MapCollabClient {
             worldX: payload.worldX,
             worldY: payload.worldY,
             tool: payload.tool || 'brush',
+            brushSize: payload.brushSize || 1,
             lastActive: Date.now(),
           });
         }
-        this.onPeersChangeCb?.(Array.from(this.peers.values()));
+        this.onPeersChangeCb?.(this.getConnectedPeers());
       })
       .on('broadcast', { event: 'tiles_updated' }, ({ payload }) => {
         if (!payload || payload.peerId === this.peerId) return;
@@ -195,6 +207,7 @@ export class MapCollabClient {
         this.onStatusChangeCb?.('connected');
         try {
           await this.channel.track({
+            peerId: this.peerId,
             name: this.name,
             color: this.color,
             joinedAt: Date.now(),
@@ -217,6 +230,7 @@ export class MapCollabClient {
     if (this.channel && this.status === 'connected') {
       try {
         await this.channel.track({
+          peerId: this.peerId,
           name: this.name,
           color: this.color,
           joinedAt: Date.now(),
@@ -232,7 +246,10 @@ export class MapCollabClient {
   }
 
   public getConnectedPeers(): CollabPeer[] {
-    return Array.from(this.peers.values());
+    const now = Date.now();
+    return Array.from(this.peers.values()).filter(
+      (p) => p.peerId !== this.peerId && now - p.lastActive < 30000
+    );
   }
 
   public onPeersChange(cb: (peers: CollabPeer[]) => void): void {
@@ -255,7 +272,7 @@ export class MapCollabClient {
     this.onRequestSyncCb = cb;
   }
 
-  public sendCursor(col: number, row: number, worldX: number, worldY: number, tool: string): void {
+  public sendCursor(col: number, row: number, worldX: number, worldY: number, tool: string, brushSize = 1): void {
     const now = Date.now();
     if (now - this.lastCursorSend < 35) return; // throttle ~30 Hz
     this.lastCursorSend = now;
@@ -272,6 +289,7 @@ export class MapCollabClient {
         worldX,
         worldY,
         tool,
+        brushSize,
       },
     });
   }

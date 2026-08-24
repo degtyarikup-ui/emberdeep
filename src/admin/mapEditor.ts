@@ -85,7 +85,27 @@ export class MapEditor {
     this.initEvents();
     this.renderPalette();
     this.updateStatus();
-    this.fitToView();
+
+    // Restore camera pan/zoom view if saved, otherwise fitToView
+    const savedView = sessionStorage.getItem('emberdeep_map_view');
+    if (savedView) {
+      try {
+        const v = JSON.parse(savedView);
+        if (typeof v.panX === 'number' && typeof v.panY === 'number' && typeof v.zoom === 'number') {
+          this.panX = v.panX;
+          this.panY = v.panY;
+          this.zoom = v.zoom;
+          const hudLabel = document.getElementById('me-hud-zoom-val');
+          if (hudLabel) hudLabel.textContent = `${Math.round(this.zoom * 100)}%`;
+        } else {
+          this.fitToView();
+        }
+      } catch {
+        this.fitToView();
+      }
+    } else {
+      this.fitToView();
+    }
 
     // Auto-connect real-time collaboration immediately without setup
     const params = new URLSearchParams(window.location.search);
@@ -521,8 +541,6 @@ export class MapEditor {
       } else if ((e.ctrlKey || e.metaKey) && (e.key === '1' || e.code === 'Digit1')) {
         this.setZoom(1.0);
         e.preventDefault();
-      } else if (e.shiftKey && (e.key === '!' || e.code === 'Digit1')) {
-        this.fitToView();
       } else if (e.key === 'b' || e.key === 'B') {
         this.setTool('brush');
       } else if (e.key === 'r' || e.key === 'R') {
@@ -686,6 +704,7 @@ export class MapEditor {
     this.zoom = clamped;
     const hudLabel = document.getElementById('me-hud-zoom-val');
     if (hudLabel) hudLabel.textContent = `${Math.round(this.zoom * 100)}%`;
+    this.saveViewState();
     this.draw();
   }
 
@@ -707,7 +726,20 @@ export class MapEditor {
 
     const hudLabel = document.getElementById('me-hud-zoom-val');
     if (hudLabel) hudLabel.textContent = `${Math.round(this.zoom * 100)}%`;
+    this.saveViewState();
     this.draw();
+  }
+
+  private saveViewState(): void {
+    try {
+      sessionStorage.setItem('emberdeep_map_view', JSON.stringify({
+        panX: this.panX,
+        panY: this.panY,
+        zoom: this.zoom,
+      }));
+    } catch {
+      // ignore
+    }
   }
 
   private resizeGrid(newCols: number, newRows: number): void {
@@ -798,7 +830,7 @@ export class MapEditor {
     if (this.collabClient) {
       const worldX = (sx - this.panX) / this.zoom;
       const worldY = (sy - this.panY) / this.zoom;
-      this.collabClient.sendCursor(col, row, worldX, worldY, this.activeTool);
+      this.collabClient.sendCursor(col, row, worldX, worldY, this.activeTool, this.brushSize);
     }
 
     if (this.isMouseDown) {
@@ -817,6 +849,7 @@ export class MapEditor {
   private onMouseUp(e: MouseEvent): void {
     if (this.isPanning) {
       this.isPanning = false;
+      this.saveViewState();
       this.updateCursorState();
       return;
     }
@@ -1234,17 +1267,28 @@ export class MapEditor {
       const now = Date.now();
 
       peers.forEach((peer) => {
-        if (now - peer.lastActive > 40000) return; // skip inactive
+        if (peer.peerId === this.collabClient?.peerId) return; // skip self
+        if (now - peer.lastActive > 25000) return; // skip inactive
 
-        // Highlight other user's selected grid cell
+        // Highlight other user's selected grid cell or brush area
         if (peer.col >= 0 && peer.col < cols && peer.row >= 0 && peer.row < rows) {
-          const phx = this.panX + peer.col * step;
-          const phy = this.panY + peer.row * step;
+          const pSize = peer.tool === 'brush' || peer.tool === 'eraser' ? (peer.brushSize || 1) : 1;
+          const half = Math.floor((pSize - 1) / 2);
+          const minC = Math.max(0, peer.col - half);
+          const minR = Math.max(0, peer.row - half);
+          const maxC = Math.min(cols - 1, peer.col - half + pSize - 1);
+          const maxR = Math.min(rows - 1, peer.row - half + pSize - 1);
+
+          const phx = this.panX + minC * step;
+          const phy = this.panY + minR * step;
+          const phw = (maxC - minC + 1) * step;
+          const phh = (maxR - minR + 1) * step;
+
           this.ctx.fillStyle = `${peer.color}22`;
-          this.ctx.fillRect(phx, phy, step, step);
+          this.ctx.fillRect(phx, phy, phw, phh);
           this.ctx.strokeStyle = peer.color;
           this.ctx.lineWidth = 1.5;
-          this.ctx.strokeRect(phx, phy, step, step);
+          this.ctx.strokeRect(phx, phy, phw, phh);
         }
 
         // Draw smooth Figma-style pointer

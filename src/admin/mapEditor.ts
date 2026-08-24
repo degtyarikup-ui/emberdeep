@@ -38,12 +38,14 @@ export class MapEditor {
   private panY = 40;
   private tileSize = 28;
 
-  private activeTool: 'brush' | 'rect' | 'eraser' | 'picker' | 'inspect' = 'brush';
+  private activeTool: 'brush' | 'rect' | 'eraser' | 'picker' | 'inspect' | 'hand' = 'brush';
   private activeCategory: 'tiles' | 'poi' | 'enemy' | 'pickup' | 'prop' | 'tree' = 'tiles';
   private activeItemId: string | number = EDITOR_TILE.FLOOR;
+  private searchQuery = '';
 
   private isMouseDown = false;
   private isPanning = false;
+  private isSpaceHeld = false;
   private panStartX = 0;
   private panStartY = 0;
   private rectStartCol = -1;
@@ -67,7 +69,7 @@ export class MapEditor {
     this.initEvents();
     this.renderPalette();
     this.updateStatus();
-    this.draw();
+    this.fitToView();
 
     // Preload actual in-game textures
     editorAssets.preloadAll(() => {
@@ -144,24 +146,21 @@ export class MapEditor {
 
           <div class="me-toolbar-group">
             <span class="me-divider"></span>
-            <button id="me-undo-btn" class="me-btn" title="Ctrl+Z">Отмена</button>
-            <button id="me-redo-btn" class="me-btn" title="Ctrl+Y">Повтор</button>
-            <button id="me-grid-toggle-btn" class="me-btn ${this.showGrid ? 'me-btn-primary' : ''}">Сетка</button>
-            <button id="me-zoom-out-btn" class="me-btn">-</button>
-            <span id="me-zoom-label" style="font-size:11px; color:var(--text-primary); min-width:36px; text-align:center;">100%</span>
-            <button id="me-zoom-in-btn" class="me-btn">+</button>
-            <button id="me-reset-view-btn" class="me-btn">Центр</button>
+            <button id="me-undo-btn" class="me-btn" title="Отмена (Ctrl+Z)">Отмена</button>
+            <button id="me-redo-btn" class="me-btn" title="Повтор (Ctrl+Y)">Повтор</button>
+            <button id="me-grid-toggle-btn" class="me-btn ${this.showGrid ? 'me-btn-primary' : ''}" title="Вкл/Выкл сетку">Сетка</button>
+            <button id="me-fit-btn" class="me-btn" title="Вместить всю карту (Shift+1 / Ctrl+0)">${ICONS.maximize} По размеру</button>
           </div>
 
           <div class="me-toolbar-group">
             <span class="me-divider"></span>
-            <button id="me-export-code-btn" class="me-btn me-btn-primary">
+            <button id="me-export-code-btn" class="me-btn me-btn-primary" title="Сгенерировать код level1.ts">
               ${ICONS.copy} Экспорт кода (TS)
             </button>
-            <button id="me-save-json-btn" class="me-btn">
+            <button id="me-save-json-btn" class="me-btn" title="Сохранить проект карты в файл .json">
               ${ICONS.save} Сохранить JSON
             </button>
-            <button id="me-load-json-btn" class="me-btn">
+            <button id="me-load-json-btn" class="me-btn" title="Открыть проект карты .json">
               ${ICONS.folder} Загрузить
             </button>
             <input type="file" id="me-file-input" style="display:none;" accept=".json">
@@ -173,35 +172,49 @@ export class MapEditor {
           <!-- Left Palette Sidebar -->
           <div class="me-sidebar">
             <div class="me-tools-bar">
-              <button class="me-tool-btn active" data-tool="brush" title="Рисование по 1 клетке">
+              <button class="me-tool-btn active" data-tool="brush" title="Кисть (B)">
                 ${ICONS.brush}
                 <span>Кисть</span>
+                <span class="me-tool-kbd">B</span>
               </button>
-              <button class="me-tool-btn" data-tool="rect" title="Заливка прямоугольника">
+              <button class="me-tool-btn" data-tool="rect" title="Область (R)">
                 ${ICONS.rect}
                 <span>Область</span>
+                <span class="me-tool-kbd">R</span>
               </button>
-              <button class="me-tool-btn" data-tool="eraser" title="Стереть объект / клетку">
+              <button class="me-tool-btn" data-tool="eraser" title="Ластик (E)">
                 ${ICONS.eraser}
                 <span>Ластик</span>
+                <span class="me-tool-kbd">E</span>
               </button>
-              <button class="me-tool-btn" data-tool="picker" title="Пипетка с карты">
+              <button class="me-tool-btn" data-tool="picker" title="Пипетка (I)">
                 ${ICONS.picker}
                 <span>Пипетка</span>
+                <span class="me-tool-kbd">I</span>
               </button>
-              <button class="me-tool-btn" data-tool="inspect" title="Информация о клетке">
+              <button class="me-tool-btn" data-tool="hand" title="Рука / Панорама (H или зажатый Пробел)">
+                ${ICONS.hand}
+                <span>Рука</span>
+                <span class="me-tool-kbd">H</span>
+              </button>
+              <button class="me-tool-btn" data-tool="inspect" title="Инфо">
                 ${ICONS.target}
                 <span>Инфо</span>
               </button>
             </div>
 
             <div class="me-category-tabs">
-              <button class="me-tab-btn active" data-cat="tiles">Тайлы</button>
-              <button class="me-tab-btn" data-cat="poi">Точки</button>
-              <button class="me-tab-btn" data-cat="enemy">Враги</button>
-              <button class="me-tab-btn" data-cat="pickup">Лут</button>
-              <button class="me-tab-btn" data-cat="prop">Пропсы</button>
-              <button class="me-tab-btn" data-cat="tree">Деревья</button>
+              <button class="me-tab-btn active" data-cat="tiles">Тайлы <kbd>1</kbd></button>
+              <button class="me-tab-btn" data-cat="poi">Точки <kbd>2</kbd></button>
+              <button class="me-tab-btn" data-cat="enemy">Враги <kbd>3</kbd></button>
+              <button class="me-tab-btn" data-cat="pickup">Лут <kbd>4</kbd></button>
+              <button class="me-tab-btn" data-cat="prop">Пропсы <kbd>5</kbd></button>
+              <button class="me-tab-btn" data-cat="tree">Деревья <kbd>6</kbd></button>
+            </div>
+
+            <div class="me-palette-search-box">
+              <span style="color:var(--text-tertiary); display:flex;">${ICONS.search}</span>
+              <input type="text" id="me-palette-search" class="me-palette-search-input" placeholder="Поиск элементов...">
             </div>
 
             <div id="me-palette-list" class="me-palette-list"></div>
@@ -210,19 +223,27 @@ export class MapEditor {
           <!-- Center Canvas Viewport -->
           <div id="me-canvas-viewport" class="me-canvas-viewport">
             <canvas id="me-canvas" class="me-canvas"></canvas>
+
+            <!-- Floating View Navigator (Bottom Right) -->
+            <div class="me-floating-hud">
+              <button id="me-hud-zoom-out" class="me-hud-btn" title="Уменьшить (-)">-</button>
+              <span id="me-hud-zoom-val" class="me-hud-zoom-text" title="Клик для сброса на 100%">100%</span>
+              <button id="me-hud-zoom-in" class="me-hud-btn" title="Увеличить (+)">+</button>
+              <button id="me-hud-fit" class="me-hud-btn" style="width:auto; padding:0 5px;" title="По размеру (Shift+1)">Fit</button>
+            </div>
           </div>
         </div>
 
         <!-- Bottom Status Bar -->
         <div class="me-statusbar">
           <div class="me-status-left">
-            <span id="me-coords-label">Клетка: [—, —]</span>
-            <span id="me-cell-info">Инструмент: Кисть</span>
+            <span id="me-coords-label" style="font-family:var(--font-mono, monospace);">Клетка: [—, —]</span>
+            <span id="me-cell-info">Инструмент: Кисть (B) · Перемещение: Пробел + ЛКМ</span>
             <span id="me-validation-badge" class="me-status-badge me-badge-valid">Проверка: OK</span>
           </div>
 
           <div class="me-status-right">
-            <span id="me-stats-summary">Врагов: 0 · Сундуков: 0 · Декора: 0</span>
+            <span id="me-stats-summary">Врагов: 0 · Сундуков: 0 · Деревьев: 0 · Декора: 0</span>
           </div>
         </div>
       </div>
@@ -264,16 +285,16 @@ export class MapEditor {
       (document.getElementById('me-cols-input') as HTMLInputElement).value = String(this.level.cols);
       (document.getElementById('me-rows-input') as HTMLInputElement).value = String(this.level.rows);
       (document.getElementById('me-biome-select') as HTMLSelectElement).value = this.level.biome.id;
-      this.resetView();
+      this.fitToView();
       this.pushHistory();
       this.updateStatus();
-      this.draw();
     });
 
     document.getElementById('me-biome-select')?.addEventListener('change', (e) => {
       const bId = (e.target as HTMLSelectElement).value as BiomeId;
       const depthMap: Record<BiomeId, number> = { forest: 1, ruins: 2, catacombs: 3, depths: 4, void: 5 };
       this.level.biome = getBiomeForDepth(depthMap[bId] || 1);
+      this.renderPalette();
       this.draw();
     });
 
@@ -294,9 +315,11 @@ export class MapEditor {
       this.draw();
     });
 
-    document.getElementById('me-zoom-in-btn')?.addEventListener('click', () => this.setZoom(this.zoom * 1.25));
-    document.getElementById('me-zoom-out-btn')?.addEventListener('click', () => this.setZoom(this.zoom / 1.25));
-    document.getElementById('me-reset-view-btn')?.addEventListener('click', () => this.resetView());
+    document.getElementById('me-fit-btn')?.addEventListener('click', () => this.fitToView());
+    document.getElementById('me-hud-fit')?.addEventListener('click', () => this.fitToView());
+    document.getElementById('me-hud-zoom-in')?.addEventListener('click', () => this.setZoom(this.zoom * 1.25));
+    document.getElementById('me-hud-zoom-out')?.addEventListener('click', () => this.setZoom(this.zoom / 1.25));
+    document.getElementById('me-hud-zoom-val')?.addEventListener('click', () => this.setZoom(1.0));
 
     document.getElementById('me-export-code-btn')?.addEventListener('click', () => this.showExportModal());
     document.getElementById('me-save-json-btn')?.addEventListener('click', () => this.downloadJson());
@@ -314,10 +337,9 @@ export class MapEditor {
             (document.getElementById('me-cols-input') as HTMLInputElement).value = String(this.level.cols);
             (document.getElementById('me-rows-input') as HTMLInputElement).value = String(this.level.rows);
             (document.getElementById('me-biome-select') as HTMLSelectElement).value = this.level.biome.id;
-            this.resetView();
+            this.fitToView();
             this.pushHistory();
             this.updateStatus();
-            this.draw();
           } catch (err) {
             alert(`Ошибка чтения файла: ${err instanceof Error ? err.message : String(err)}`);
           }
@@ -326,12 +348,19 @@ export class MapEditor {
       }
     });
 
+    // Palette Search
+    document.getElementById('me-palette-search')?.addEventListener('input', (e) => {
+      this.searchQuery = (e.target as HTMLInputElement).value.trim().toLowerCase();
+      this.renderPalette();
+    });
+
     // Tool switching
     document.querySelectorAll('.me-tool-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.me-tool-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this.activeTool = btn.getAttribute('data-tool') as typeof this.activeTool;
+        this.updateCursorState();
         this.updateStatus();
       });
     });
@@ -353,9 +382,18 @@ export class MapEditor {
     this.viewport.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     this.viewport.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // Keyboard shortcuts
+    // Spacebar and keyboard shortcut listeners
     window.addEventListener('keydown', (e) => {
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+
+      // Spacebar hold for Figma-style panning
+      if (e.code === 'Space' && !this.isSpaceHeld) {
+        e.preventDefault();
+        this.isSpaceHeld = true;
+        this.updateCursorState();
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         if (e.shiftKey) this.redo();
         else this.undo();
@@ -363,6 +401,14 @@ export class MapEditor {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         this.redo();
         e.preventDefault();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === '0' || e.code === 'Digit0')) {
+        this.fitToView();
+        e.preventDefault();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === '1' || e.code === 'Digit1')) {
+        this.setZoom(1.0);
+        e.preventDefault();
+      } else if (e.shiftKey && (e.key === '!' || e.code === 'Digit1')) {
+        this.fitToView();
       } else if (e.key === 'b' || e.key === 'B') {
         this.setTool('brush');
       } else if (e.key === 'r' || e.key === 'R') {
@@ -371,8 +417,53 @@ export class MapEditor {
         this.setTool('eraser');
       } else if (e.key === 'i' || e.key === 'I') {
         this.setTool('picker');
+      } else if (e.key === 'h' || e.key === 'H') {
+        this.setTool('hand');
+      } else if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+        const catMap: Record<string, typeof this.activeCategory> = {
+          '1': 'tiles',
+          '2': 'poi',
+          '3': 'enemy',
+          '4': 'pickup',
+          '5': 'prop',
+          '6': 'tree',
+        };
+        const targetCat = catMap[e.key];
+        if (targetCat) {
+          this.activeCategory = targetCat;
+          document.querySelectorAll('.me-tab-btn').forEach((t) => {
+            t.classList.toggle('active', t.getAttribute('data-cat') === targetCat);
+          });
+          this.renderPalette();
+        }
       }
     });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') {
+        this.isSpaceHeld = false;
+        this.updateCursorState();
+      }
+    });
+
+    window.addEventListener('blur', () => {
+      this.isSpaceHeld = false;
+      this.isPanning = false;
+      this.updateCursorState();
+    });
+  }
+
+  private updateCursorState(): void {
+    if (this.isPanning) {
+      this.viewport.classList.add('panning-active');
+      this.viewport.classList.remove('space-panning');
+    } else if (this.isSpaceHeld || this.activeTool === 'hand') {
+      this.viewport.classList.add('space-panning');
+      this.viewport.classList.remove('panning-active');
+    } else {
+      this.viewport.classList.remove('space-panning');
+      this.viewport.classList.remove('panning-active');
+    }
   }
 
   private setTool(tool: typeof this.activeTool): void {
@@ -380,6 +471,7 @@ export class MapEditor {
     document.querySelectorAll('.me-tool-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.getAttribute('data-tool') === tool);
     });
+    this.updateCursorState();
     this.updateStatus();
   }
 
@@ -389,7 +481,12 @@ export class MapEditor {
     listEl.innerHTML = '';
 
     if (this.activeCategory === 'tiles') {
-      Object.values(TILE_METAS).forEach((t) => {
+      let tiles = Object.values(TILE_METAS);
+      if (this.searchQuery) {
+        tiles = tiles.filter((t) => t.name.toLowerCase().includes(this.searchQuery));
+      }
+
+      tiles.forEach((t) => {
         const item = document.createElement('div');
         const isActive = this.activeItemId === t.id;
         item.className = `me-palette-item ${isActive ? 'active' : ''}`;
@@ -408,12 +505,18 @@ export class MapEditor {
         item.addEventListener('click', () => {
           this.activeItemId = t.id;
           this.renderPalette();
-          this.setTool('brush');
+          if (this.activeTool === 'hand' || this.activeTool === 'eraser' || this.activeTool === 'picker') {
+            this.setTool('brush');
+          }
         });
         listEl.appendChild(item);
       });
     } else {
-      const items = ENTITY_PALETTE.filter((e) => e.category === this.activeCategory);
+      let items = ENTITY_PALETTE.filter((e) => e.category === this.activeCategory);
+      if (this.searchQuery) {
+        items = items.filter((e) => e.name.toLowerCase().includes(this.searchQuery));
+      }
+
       items.forEach((ent) => {
         const item = document.createElement('div');
         const isActive = this.activeItemId === ent.id;
@@ -433,7 +536,9 @@ export class MapEditor {
         item.addEventListener('click', () => {
           this.activeItemId = ent.id;
           this.renderPalette();
-          this.setTool('brush');
+          if (this.activeTool === 'hand' || this.activeTool === 'eraser' || this.activeTool === 'picker') {
+            this.setTool('brush');
+          }
         });
         listEl.appendChild(item);
       });
@@ -441,7 +546,7 @@ export class MapEditor {
   }
 
   private setZoom(newZoom: number, originX?: number, originY?: number): void {
-    const clamped = Math.max(0.2, Math.min(3.5, newZoom));
+    const clamped = Math.max(0.15, Math.min(4.0, newZoom));
     if (originX !== undefined && originY !== undefined) {
       const worldX = (originX - this.panX) / this.zoom;
       const worldY = (originY - this.panY) / this.zoom;
@@ -449,16 +554,30 @@ export class MapEditor {
       this.panY = originY - worldY * clamped;
     }
     this.zoom = clamped;
-    const label = document.getElementById('me-zoom-label');
-    if (label) label.textContent = `${Math.round(this.zoom * 100)}%`;
+    const hudLabel = document.getElementById('me-hud-zoom-val');
+    if (hudLabel) hudLabel.textContent = `${Math.round(this.zoom * 100)}%`;
     this.draw();
   }
 
-  private resetView(): void {
-    this.panX = 30;
-    this.panY = 30;
-    this.zoom = 1.0;
-    this.setZoom(1.0);
+  public fitToView(): void {
+    if (!this.viewport) return;
+    const rect = this.viewport.getBoundingClientRect();
+    const mapPixelW = this.level.cols * this.tileSize;
+    const mapPixelH = this.level.rows * this.tileSize;
+
+    const pad = 40;
+    const availW = Math.max(100, rect.width - pad * 2);
+    const availH = Math.max(100, rect.height - pad * 2);
+
+    const fitZoom = Math.min(availW / mapPixelW, availH / mapPixelH, 1.2);
+    this.zoom = Math.max(0.15, Math.min(3.5, fitZoom));
+
+    this.panX = (rect.width - mapPixelW * this.zoom) / 2;
+    this.panY = (rect.height - mapPixelH * this.zoom) / 2;
+
+    const hudLabel = document.getElementById('me-hud-zoom-val');
+    if (hudLabel) hudLabel.textContent = `${Math.round(this.zoom * 100)}%`;
+    this.draw();
   }
 
   private resizeGrid(newCols: number, newRows: number): void {
@@ -506,12 +625,12 @@ export class MapEditor {
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
 
-    // Middle click or Space/Right-click = Pan
-    if (e.button === 1 || e.button === 2 || e.shiftKey) {
+    // Middle click, Right-click, Shift-click, Hand Tool, or Spacebar held = PAN
+    if (e.button === 1 || e.button === 2 || e.shiftKey || this.isSpaceHeld || this.activeTool === 'hand') {
       this.isPanning = true;
       this.panStartX = sx - this.panX;
       this.panStartY = sy - this.panY;
-      this.viewport.classList.add('panning');
+      this.updateCursorState();
       return;
     }
 
@@ -562,7 +681,7 @@ export class MapEditor {
   private onMouseUp(e: MouseEvent): void {
     if (this.isPanning) {
       this.isPanning = false;
-      this.viewport.classList.remove('panning');
+      this.updateCursorState();
       return;
     }
 
@@ -586,6 +705,8 @@ export class MapEditor {
     const rect = this.viewport.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
+
+    // Trackpad pinch or mouse wheel zoom centered at cursor position
     const factor = e.deltaY < 0 ? 1.15 : 0.85;
     this.setZoom(this.zoom * factor, sx, sy);
   }
@@ -882,7 +1003,7 @@ export class MapEditor {
       this.ctx.strokeStyle = '#ffffff';
       this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(rx, ry, rw, rh);
-    } else if (this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows) {
+    } else if (this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows && !this.isSpaceHeld && this.activeTool !== 'hand') {
       // Hover cell cursor
       const hx = this.panX + this.hoverCol * step;
       const hy = this.panY + this.hoverRow * step;

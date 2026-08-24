@@ -8,6 +8,7 @@ import { TEXTURE } from '../gfx/registry';
 import type { EnemyKind } from '../entities/Enemy';
 import { prand } from '../gfx/shapes';
 import { BiomeConfig, getBiomeForDepth } from './biomes';
+import { getBakedLevel1 } from './customLevelPreset';
 
 export const LEGACY_COLS = 60;
 export const LEGACY_ROWS = 38;
@@ -2345,6 +2346,8 @@ function buildAstralAbyssLevel(biome: BiomeConfig, depth: number): LevelData {
 export function buildLevel1(depth = 1): LevelData {
   const biome = getBiomeForDepth(depth);
   if (biome.id === 'forest') {
+    const baked = getBakedLevel1();
+    if (baked) return baked;
     return buildDarkForestLevel(biome, depth);
   } else if (biome.id === 'ruins') {
     return buildAncientRuinsLevel(biome, depth);

@@ -13,7 +13,7 @@ import {
   flipBrushHorizontal,
   flipBrushVertical,
   validateLevelData,
-  exportLevelToTypeScript,
+  exportLevelToPresetTypeScript,
   createEmptyLevel,
   serializeLevelToJson,
   deserializeLevelFromJson,
@@ -287,8 +287,11 @@ export class MapEditor {
 
           <div class="me-toolbar-group">
             <span class="me-divider"></span>
-            <button id="me-export-code-btn" class="me-btn me-btn-primary" title="Сгенерировать код level1.ts">
-              ${ICONS.copy} Экспорт кода (TS)
+            <button id="me-play-test-btn" class="me-btn" style="background:#16a34a; color:#ffffff; font-weight:700; border:1px solid #22c55e; box-shadow:0 1px 3px rgba(0,0,0,0.3);" title="Запустить и протестировать уровень прямо в игре">
+              ▶ Играть на карте
+            </button>
+            <button id="me-bake-prod-btn" class="me-btn" style="background:#4f46e5; color:#ffffff; font-weight:600; border:1px solid #6366f1;" title="Вшить созданную карту в релизную сборку игры">
+              ${ICONS.sparkles} Вшить в игру
             </button>
             <button id="me-save-json-btn" class="me-btn" title="Сохранить проект карты в файл .json">
               ${ICONS.save} Сохранить JSON
@@ -466,7 +469,8 @@ export class MapEditor {
     document.getElementById('me-reset-draft-btn')?.addEventListener('click', () => this.resetDraft());
     document.getElementById('me-collab-status')?.addEventListener('click', () => this.showCollabModal());
 
-    document.getElementById('me-export-code-btn')?.addEventListener('click', () => this.showExportModal());
+    document.getElementById('me-play-test-btn')?.addEventListener('click', () => this.playTestMap());
+    document.getElementById('me-bake-prod-btn')?.addEventListener('click', () => this.showBakeProdModal());
     document.getElementById('me-save-json-btn')?.addEventListener('click', () => this.downloadJson());
     document.getElementById('me-load-json-btn')?.addEventListener('click', () => {
       document.getElementById('me-file-input')?.click();
@@ -2115,26 +2119,79 @@ export class MapEditor {
     });
   }
 
-  private showExportModal(): void {
-    const code = exportLevelToTypeScript(this.level);
+  private playTestMap(): void {
+    const valResult = validateLevelData(this.level);
+    if (!valResult.valid) {
+      const confirmPlay = confirm(
+        `Внимание! Валидатор обнаружил ошибки:\n• ${valResult.errors.join('\n• ')}\n\nВсё равно запустить тест в игре?`
+      );
+      if (!confirmPlay) return;
+    }
+
+    try {
+      const json = serializeLevelToJson(this.level);
+      localStorage.setItem('emberdeep_map_editor_draft', json);
+      localStorage.setItem('emberdeep_custom_level_active', '1');
+
+      const baseUrl = import.meta.env.BASE_URL || '/';
+      window.location.href = `${baseUrl}index.html?testLevel=1`;
+    } catch (err) {
+      alert(`Ошибка при запуске игры: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private showBakeProdModal(): void {
+    const tsPresetCode = exportLevelToPresetTypeScript(this.level);
+    const jsonCode = serializeLevelToJson(this.level);
 
     const backdrop = document.createElement('div');
     backdrop.className = 'me-modal-backdrop';
     backdrop.innerHTML = `
-      <div class="me-modal-window">
+      <div class="me-modal-window" style="max-width: 680px;">
         <div class="me-modal-header">
-          <span>Экспорт карты в TypeScript</span>
+          <span style="display:flex; align-items:center; gap:8px;">
+            <span>Вшивание карты в релиз (Production)</span>
+          </span>
           <button id="me-modal-close" class="me-btn me-btn-danger">&times;</button>
         </div>
-        <div class="me-modal-body">
-          <p style="margin:0 0 8px 0; font-size:11px; color:var(--text-tertiary);">
-            Скопируйте этот код и вставьте в <code>src/world/level1.ts</code>:
-          </p>
-          <textarea id="me-code-output" class="me-code-block" readonly>${code}</textarea>
+        <div class="me-modal-body" style="display:flex; flex-direction:column; gap:12px;">
+          <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:6px; padding:12px; font-size:12px;">
+            <div style="font-weight:600; color:var(--text-primary); margin-bottom:4px;">Сводка по уровню:</div>
+            <div style="display:flex; flex-wrap:wrap; gap:12px; color:var(--text-secondary); font-size:11px;">
+              <span>Размер: <b>${this.level.cols}x${this.level.rows}</b></span>
+              <span>Биом: <b>${this.level.biome.name}</b></span>
+              <span>Деревьев: <b>${this.level.trees?.length || 0}</b></span>
+              <span>Врагов: <b>${this.level.enemies.length}</b></span>
+              <span>Сундуков: <b>${this.level.chests.length}</b></span>
+              <span>Святилищ: <b>${this.level.shrines.length}</b></span>
+            </div>
+          </div>
+
+          <div style="font-size:11px; color:var(--text-secondary); line-height:1.5;">
+            Чтобы эта карта стала <b>официальным 1-м этажом игры</b> для всех игроков на сайте и в Яндекс Играх:
+            <ol style="margin:6px 0 0 16px; padding:0;">
+              <li>Нажмите <b>«Скопировать код пресета»</b> ниже.</li>
+              <li>Вставьте его в файл <code>src/world/customLevelPreset.ts</code>.</li>
+              <li>Сделайте <code>git commit & push</code> — и карта автоматически окажется в проде!</li>
+            </ol>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button id="me-bake-copy-ts-btn" class="me-btn me-btn-primary" style="flex:1; padding:8px 12px; font-weight:600;">
+              ${ICONS.copy} Скопировать код для customLevelPreset.ts
+            </button>
+            <button id="me-bake-download-json-btn" class="me-btn" style="padding:8px 12px;">
+              ${ICONS.save} Скачать level1.json
+            </button>
+          </div>
+
+          <details style="font-size:11px; color:var(--text-tertiary);">
+            <summary style="cursor:pointer; user-select:none; font-weight:500;">Просмотр TypeScript-кода</summary>
+            <textarea class="me-code-block" style="height:140px; margin-top:8px;" readonly>${tsPresetCode}</textarea>
+          </details>
         </div>
         <div class="me-modal-footer">
-          <button id="me-copy-code-btn" class="me-btn me-btn-success">Скопировать в буфер</button>
-          <button id="me-modal-done" class="me-btn">Готово</button>
+          <button id="me-modal-done" class="me-btn">Закрыть</button>
         </div>
       </div>
     `;
@@ -2145,14 +2202,24 @@ export class MapEditor {
     backdrop.querySelector('#me-modal-close')?.addEventListener('click', close);
     backdrop.querySelector('#me-modal-done')?.addEventListener('click', close);
 
-    backdrop.querySelector('#me-copy-code-btn')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(code).then(() => {
-        const btn = backdrop.querySelector('#me-copy-code-btn') as HTMLElement;
-        if (btn) btn.textContent = 'Скопировано!';
+    backdrop.querySelector('#me-bake-copy-ts-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(tsPresetCode).then(() => {
+        const btn = backdrop.querySelector('#me-bake-copy-ts-btn') as HTMLElement;
+        if (btn) btn.textContent = '✓ Код скопирован в буфер!';
         setTimeout(() => {
-          if (btn) btn.textContent = 'Скопировать в буфер';
-        }, 2000);
+          if (btn) btn.innerHTML = `${ICONS.copy} Скопировать код для customLevelPreset.ts`;
+        }, 2500);
       });
+    });
+
+    backdrop.querySelector('#me-bake-download-json-btn')?.addEventListener('click', () => {
+      const blob = new Blob([jsonCode], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `level1_${this.level.biome.id}_${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
     });
   }
 

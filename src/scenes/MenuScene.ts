@@ -533,6 +533,33 @@ export class MenuScene extends Phaser.Scene {
       onClick: () => this.settingsModal.open('menu'),
     });
 
+    let hasDraft = false;
+    try {
+      hasDraft = !!localStorage.getItem('emberdeep_map_editor_draft');
+    } catch {}
+
+    if (hasDraft) {
+      const isCustomActive = localStorage.getItem('emberdeep_custom_level_active') === '1';
+      createMenuButton(
+        this,
+        width / 2,
+        height * 0.85,
+        280,
+        28,
+        isCustomActive ? '✦ Карта из редактора: [ВКЛ]' : '✦ Карта из редактора: [ВЫКЛ]',
+        {
+          theme: isCustomActive ? 'primary' : 'dark',
+          fontSize: '10px',
+          onClick: () => {
+            const nextVal = isCustomActive ? '0' : '1';
+            localStorage.setItem('emberdeep_custom_level_active', nextVal);
+            SoundFX.playMenuClick();
+            this.scene.restart();
+          },
+        }
+      );
+    }
+
     this.settingsModal = new SettingsModal(this, { mode: 'menu' });
 
     // =========================================================================
@@ -963,6 +990,17 @@ export class MenuScene extends Phaser.Scene {
         onClick: () => {
           modal.destroy();
           this.scene.start(SCENE.GAME, { depth: 1, heroClass: selectedHero, godMode: true });
+        },
+      },
+      {
+        label: `КАРТА ИЗ РЕДАКТОРА: ${localStorage.getItem('emberdeep_custom_level_active') === '1' ? 'ВКЛ' : 'ВЫКЛ'}`,
+        color: 0x38bdf8,
+        hex: '#7dd3fc',
+        onClick: () => {
+          const cur = localStorage.getItem('emberdeep_custom_level_active') === '1';
+          localStorage.setItem('emberdeep_custom_level_active', cur ? '0' : '1');
+          modal.destroy();
+          this.scene.restart();
         },
       },
       {

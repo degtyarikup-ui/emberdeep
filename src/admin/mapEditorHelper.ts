@@ -829,6 +829,31 @@ export function exportLevelToTypeScript(level: LevelData, functionName = 'buildC
 }
 
 /**
+ * Exports LevelData as a complete ready-to-use TypeScript file for `src/world/customLevelPreset.ts`.
+ */
+export function exportLevelToPresetTypeScript(level: LevelData): string {
+  const json = JSON.stringify(level, null, 2);
+  return `import type { LevelData } from './level1';
+
+/**
+ * Baked Level 1 preset for Emberdeep production build.
+ * When this is non-null, the game will use this exact level data
+ * as the official Depth 1 map instead of procedural generation.
+ */
+export const BAKED_LEVEL_1: LevelData | null = ${json};
+
+export function hasBakedLevel1(): boolean {
+  return BAKED_LEVEL_1 !== null;
+}
+
+export function getBakedLevel1(): LevelData | null {
+  if (!BAKED_LEVEL_1) return null;
+  return JSON.parse(JSON.stringify(BAKED_LEVEL_1)) as LevelData;
+}
+`;
+}
+
+/**
  * Creates an empty default level for a given biome and size.
  */
 export function createEmptyLevel(biomeId: BiomeId = 'forest', cols = 60, rows = 38): LevelData {

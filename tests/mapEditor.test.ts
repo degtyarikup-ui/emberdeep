@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   validateLevelData,
   exportLevelToTypeScript,
+  exportLevelToPresetTypeScript,
   createEmptyLevel,
   serializeLevelToJson,
   deserializeLevelFromJson,
@@ -10,6 +11,7 @@ import {
   applyBrushShapeMask,
 } from '../src/admin/mapEditorHelper';
 import { buildLevel1 } from '../src/world/level1';
+import { getBakedLevel1, hasBakedLevel1 } from '../src/world/customLevelPreset';
 
 describe('mapEditorHelper: createEmptyLevel', () => {
   it('creates an empty level for forest biome with proper border walls', () => {
@@ -286,5 +288,36 @@ describe('autotileHelper: Smart Autotiling Rules', () => {
     expect(calculateAutotileCell(waterGrid, 1, 1, 'water')).toBe(TILE_INDEX.WATER_DEEP);
   });
 });
+
+describe('mapEditor: Baking & Custom Level Integration', () => {
+  it('generates a valid TypeScript preset file content via exportLevelToPresetTypeScript', () => {
+    const level = createEmptyLevel('forest', 40, 30);
+    const tsCode = exportLevelToPresetTypeScript(level);
+    expect(tsCode).toContain("import type { LevelData } from './level1';");
+    expect(tsCode).toContain('export const BAKED_LEVEL_1: LevelData | null =');
+    expect(tsCode).toContain('export function getBakedLevel1(): LevelData | null');
+    expect(tsCode).toContain('export function hasBakedLevel1(): boolean');
+  });
+
+  it('correctly reports baked level state', () => {
+    expect(hasBakedLevel1()).toBe(false);
+    expect(getBakedLevel1()).toBeNull();
+  });
+
+  it('serializes and deserializes level without data corruption', () => {
+    const original = createEmptyLevel('forest', 40, 30);
+    original.trees = [{ col: 10, row: 10, kind: 'oak' }];
+    original.decorations = [{ col: 12, row: 12, key: 'rock_large', solid: true }];
+
+    const jsonStr = serializeLevelToJson(original);
+    const restored = deserializeLevelFromJson(jsonStr);
+
+    expect(restored.cols).toBe(40);
+    expect(restored.rows).toBe(30);
+    expect(restored.trees).toEqual([{ col: 10, row: 10, kind: 'oak' }]);
+    expect(restored.decorations).toEqual([{ col: 12, row: 12, key: 'rock_large', solid: true }]);
+  });
+});
+
 
 

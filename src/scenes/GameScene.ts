@@ -3,7 +3,8 @@ import { SCENE } from './keys';
 import { TEXTURE, ANIM, DEPTH, FONT } from '../gfx/registry';
 import { FLOOR_INDICES, TILE_MARGIN, TILE_SPACING } from '../gfx/tiles';
 import { PROP, PropKey } from '../gfx/props';
-import { buildLevel1, TILE_SIZE } from '../world/level1';
+import { buildLevel1, TILE_SIZE, type LevelData } from '../world/level1';
+import { deserializeLevelFromJson } from '../admin/mapEditorHelper';
 import { HeroClass, Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { BossEnemy } from '../entities/BossEnemy';
@@ -291,7 +292,35 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    const level = buildLevel1(this.depth);
+    let level: LevelData;
+    let isCustomTest = false;
+
+    if (this.depth === 1 && typeof localStorage !== 'undefined') {
+      const isCustomActive = localStorage.getItem('emberdeep_custom_level_active') === '1';
+      let isParamTest = false;
+      try {
+        isParamTest = new URLSearchParams(window.location.search).get('testLevel') === '1';
+      } catch {}
+
+      if (isCustomActive || isParamTest) {
+        const draft = localStorage.getItem('emberdeep_map_editor_draft');
+        if (draft) {
+          try {
+            level = deserializeLevelFromJson(draft);
+            isCustomTest = true;
+          } catch {
+            level = buildLevel1(this.depth);
+          }
+        } else {
+          level = buildLevel1(this.depth);
+        }
+      } else {
+        level = buildLevel1(this.depth);
+      }
+    } else {
+      level = buildLevel1(this.depth);
+    }
+
     this.levelData = level;
     const world = this.add.layer();
     this.worldLayer = world;
@@ -926,6 +955,21 @@ export class GameScene extends Phaser.Scene {
       .setDepth(DEPTH.UI);
     this.worldCam.ignore(this.hint);
     this.tweens.add({ targets: this.hint, alpha: 0, delay: 3600, duration: 900 });
+
+    if (isCustomTest) {
+      const testBadge = this.add
+        .text(this.scale.width / 2, 28, '✦ ТЕСТ КАРТЫ ИЗ РЕДАКТОРА ✦', {
+          fontFamily: FONT.UI,
+          fontSize: '11px',
+          color: '#4ade80',
+          backgroundColor: '#052e16ee',
+          padding: { x: 8, y: 4 },
+        })
+        .setOrigin(0.5, 0)
+        .setScrollFactor(0)
+        .setDepth(DEPTH.UI + 5);
+      this.worldCam.ignore(testBadge);
+    }
 
     this.input.keyboard!.on('keydown-ESC', () => {
       if (this.statsModal?.isOpen) {

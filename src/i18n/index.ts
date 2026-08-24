@@ -90,13 +90,25 @@ export interface TranslationDict {
   objectiveExit: string;
   distanceMeter: string;
 
-  // Settings
   settingsBtn: string;
   settingsTitle: string;
   musicVolume: string;
   sfxVolume: string;
   closeBtn: string;
   footerControlsHint: string;
+
+  // End and transition screens
+  gameOverTitle: string;
+  gameOverSubtitle: string;
+  levelClearedTitle: string;
+  levelClearedSubtitle: string;
+  statEnemiesKilled: string;
+  statEmbersGained: string;
+  statGoldEarned: string;
+  statDepthReached: string;
+  playAgainBtn: string;
+  nextFloorBtn: string;
+  toMenuUpgradesBtn: string;
 }
 
 const RU: TranslationDict = {
@@ -194,6 +206,18 @@ const RU: TranslationDict = {
   sfxVolume: 'Громкость звуков',
   closeBtn: 'ЗАКРЫТЬ',
   footerControlsHint: 'WASD — Передвижение  |  ЛКМ / Пробел — Атака  |  ПКМ / Shift — Навык  |  E — Взаимодействие  |  Tab — Инвентарь',
+
+  gameOverTitle: 'ВЫ ПОГИБЛИ',
+  gameOverSubtitle: 'Тьма подземелья поглотила героя...',
+  levelClearedTitle: 'ЭТАЖ ЗАЧИЩЕН',
+  levelClearedSubtitle: 'Путь в неизведанные глубины открыт!',
+  statEnemiesKilled: 'УБИТО ВРАГОВ',
+  statEmbersGained: 'ПОЛУЧЕНО УГЛЕЙ',
+  statGoldEarned: 'ЗОЛОТО',
+  statDepthReached: 'ГЛУБИНА',
+  playAgainBtn: 'ИГРАТЬ СНОВА',
+  nextFloorBtn: 'СПУСТИТЬСЯ ГЛУБЖЕ',
+  toMenuUpgradesBtn: 'В ГЛАВНОЕ МЕНЮ (ПРОКАЧКА)',
 };
 
 const EN: TranslationDict = {
@@ -291,6 +315,18 @@ const EN: TranslationDict = {
   sfxVolume: 'Sound Effects',
   closeBtn: 'CLOSE',
   footerControlsHint: 'WASD — Movement  |  LMB / Space — Attack  |  RMB / Shift — Skill  |  E — Interact  |  Tab — Inventory',
+
+  gameOverTitle: 'YOU DIED',
+  gameOverSubtitle: 'The dungeon darkness consumed the hero...',
+  levelClearedTitle: 'FLOOR CLEARED',
+  levelClearedSubtitle: 'The path into the depths is open!',
+  statEnemiesKilled: 'ENEMIES SLAIN',
+  statEmbersGained: 'EMBERS GAINED',
+  statGoldEarned: 'GOLD',
+  statDepthReached: 'DEPTH',
+  playAgainBtn: 'PLAY AGAIN',
+  nextFloorBtn: 'DESCEND DEEPER',
+  toMenuUpgradesBtn: 'MAIN MENU (UPGRADES)',
 };
 
 const STORAGE_KEY = 'emberdeep_lang';

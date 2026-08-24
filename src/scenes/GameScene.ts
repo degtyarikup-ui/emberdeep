@@ -34,7 +34,8 @@ import { StatsModal } from '../ui/StatsModal';
 import { SettingsModal } from '../ui/SettingsModal';
 import { Tooltip } from '../ui/Tooltip';
 import { ObjectiveMarker } from '../ui/ObjectiveMarker';
-import { PixelUI } from '../gfx/PixelUI';
+import { PixelUI, PIXEL_UI_TEXTURE, PIXEL_ICON } from '../gfx/PixelUI';
+import { t } from '../i18n';
 import {
   ElementType,
   ELEMENT_COLORS,
@@ -2780,16 +2781,20 @@ export class GameScene extends Phaser.Scene {
     MetaManager.get().addEmbers(embersEarned);
 
     this.showEndScreen({
-      title: 'ВЫ ПОГИБЛИ',
-      titleColor: '#c94f3d',
-      stats: `Повержено врагов: ${this.killCount}   ·   Получено Углей: +${embersEarned}`,
+      type: 'death',
+      title: t().gameOverTitle,
+      subtitle: t().gameOverSubtitle,
+      titleColor: '#ef4444',
       embersEarned,
-      buttonText: 'ИГРАТЬ СНОВА',
+      enemiesKilled: this.killCount,
+      goldEarned: this.myPlayer.gold,
+      depthReached: this.depth,
+      buttonText: t().playAgainBtn,
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'gameover', nextDepth: 1 });
         this.scene.restart({ depth: 1, net: this.net, heroClass: this.heroClass, playerHealth: {}, elapsedRunTime: 0 });
       },
-      secondaryText: 'В ГЛАВНОЕ МЕНЮ (ПРОКАЧКА)',
+      secondaryText: t().toMenuUpgradesBtn,
       onSecondaryConfirm: () => {
         void this.net?.room.leave();
         this.scene.start(SCENE.MENU);
@@ -2811,11 +2816,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.showEndScreen({
-      title: 'ПОДЗЕМЕЛЬЕ ПРОЙДЕНО',
-      titleColor: '#9ee08a',
-      stats: `Повержено врагов: ${this.killCount}   ·   Глубина: ${this.depth}   ·   Угли: +${embersEarned}`,
+      type: 'victory',
+      title: t().levelClearedTitle,
+      subtitle: t().levelClearedSubtitle,
+      titleColor: '#4ade80',
       embersEarned,
-      buttonText: 'СПУСТИТЬСЯ ГЛУБЖЕ',
+      enemiesKilled: this.killCount,
+      goldEarned: this.myPlayer.gold,
+      depthReached: this.depth,
+      buttonText: t().nextFloorBtn,
       onConfirm: () => {
         this.net?.room.sendTransition({ kind: 'levelcomplete', nextDepth: this.depth + 1, playerHealth: nextHealth });
         this.scene.restart({
@@ -2829,14 +2838,23 @@ export class GameScene extends Phaser.Scene {
           fullBright: this.fullBright,
         });
       },
+      secondaryText: t().toMenuUpgradesBtn,
+      onSecondaryConfirm: () => {
+        void this.net?.room.leave();
+        this.scene.start(SCENE.MENU);
+      },
     });
   }
 
   private showEndScreen(opts: {
+    type: 'death' | 'victory';
     title: string;
+    subtitle: string;
     titleColor: string;
-    stats: string;
-    embersEarned?: number;
+    embersEarned: number;
+    enemiesKilled: number;
+    goldEarned: number;
+    depthReached: number;
     buttonText: string;
     onConfirm: () => void;
     secondaryText?: string;
@@ -2844,83 +2862,202 @@ export class GameScene extends Phaser.Scene {
   }): void {
     const w = this.scale.width;
     const h = this.scale.height;
-    const container = this.add.container(0, 0).setDepth(DEPTH.UI + 100);
+    const cx = w / 2;
+    const cy = h / 2;
+
+    const container = this.add.container(0, 0).setDepth(DEPTH.UI + 500);
     this.worldCam.ignore(container);
 
-    const backdrop = this.add.rectangle(w / 2, h / 2, w, h, 0x07050c, 0).setDepth(0);
+    const isDeath = opts.type === 'death';
+    const cardW = Math.min(w * 0.94, 500);
+    const cardH = opts.secondaryText ? 330 : 280;
+
+    // Fullscreen dark backdrop
+    const backdrop = this.add.rectangle(cx, cy, w, h, 0x05030a, 0).setDepth(0);
+    backdrop.setInteractive();
+
+    // Modal frame panel
+    const panelBg = this.add.rectangle(cx, cy, cardW, cardH, 0x0e0a18, 0.98);
+    panelBg.setStrokeStyle(2, isDeath ? 0x991b1b : 0x166534);
+
+    const innerBorder = this.add.rectangle(cx, cy, cardW - 8, cardH - 8, 0x000000, 0);
+    innerBorder.setStrokeStyle(1, isDeath ? 0xef4444 : 0x4ade80, 0.25);
+
+    // Title
+    const titleY = cy - cardH / 2 + 32;
     const title = this.add
-      .text(w / 2, h / 2 - 50, opts.title, {
+      .text(cx, titleY, opts.title, {
         fontFamily: FONT.TITLE,
-        fontSize: '34px',
+        fontSize: '25px',
         fontStyle: '700',
         color: opts.titleColor,
       })
       .setOrigin(0.5)
-      .setAlpha(0)
-      .setStroke('#0d0a10', 6);
-    const stats = this.add
-      .text(w / 2, h / 2 - 10, opts.stats, {
+      .setStroke('#000000', 5);
+
+    // Subtitle
+    const subY = titleY + 25;
+    const subtitle = this.add
+      .text(cx, subY, opts.subtitle, {
         fontFamily: FONT.UI,
-        fontSize: '13px',
-        color: '#cfc6dd',
+        fontSize: '11px',
+        color: '#94a3b8',
       })
-      .setOrigin(0.5)
-      .setAlpha(0);
+      .setOrigin(0.5);
 
-    const elements: Phaser.GameObjects.GameObject[] = [backdrop, title, stats];
+    // Separator line
+    const sepY = subY + 16;
+    const sepLine = this.add.rectangle(cx, sepY, cardW - 48, 1, isDeath ? 0x451a1a : 0x1a3826, 0.8);
 
-    const confirmBg = this.add.rectangle(w / 2, h / 2 + 35, 230, 36, 0x166534, 0.95);
+    // Stats Grid (2x2)
+    const statCards: Phaser.GameObjects.GameObject[] = [];
+    const statItems = [
+      {
+        iconFrame: PIXEL_ICON.SWORDS,
+        label: t().statEnemiesKilled,
+        value: `${opts.enemiesKilled}`,
+        color: '#f87171',
+      },
+      {
+        iconFrame: PIXEL_ICON.EMBER,
+        label: t().statEmbersGained,
+        value: `+${opts.embersEarned}`,
+        color: '#fbbf24',
+      },
+      {
+        iconFrame: PIXEL_ICON.COIN,
+        label: t().statGoldEarned,
+        value: `${opts.goldEarned}`,
+        color: '#facc15',
+      },
+      {
+        iconFrame: PIXEL_ICON.BOOT,
+        label: t().statDepthReached,
+        value: `${opts.depthReached}`,
+        color: '#a78bfa',
+      },
+    ];
+
+    const chipW = (cardW - 56) / 2;
+    const chipH = 46;
+    const startStatsY = sepY + 34;
+
+    statItems.forEach((item, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      const chipX = cx - cardW / 4 + col * (cardW / 2 - 4) + (col === 0 ? 4 : -4);
+      const chipY = startStatsY + row * (chipH + 8);
+
+      const chipBg = this.add.rectangle(chipX, chipY, chipW, chipH, 0x161026, 0.95);
+      chipBg.setStrokeStyle(1, 0x33254c);
+
+      const iconBox = this.add.rectangle(chipX - chipW / 2 + 22, chipY, 30, 30, 0x090514, 0.9);
+      iconBox.setStrokeStyle(1, 0x4a376e);
+
+      const iconSpr = this.add.sprite(chipX - chipW / 2 + 22, chipY, PIXEL_UI_TEXTURE.ICONS_SHEET, item.iconFrame);
+      iconSpr.setScale(1.25);
+
+      const label = this.add
+        .text(chipX - chipW / 2 + 42, chipY - 8, item.label, {
+          fontFamily: FONT.UI,
+          fontSize: '9px',
+          fontStyle: '700',
+          color: '#94a3b8',
+        })
+        .setOrigin(0, 0.5);
+
+      const val = this.add
+        .text(chipX - chipW / 2 + 42, chipY + 9, item.value, {
+          fontFamily: FONT.TITLE,
+          fontSize: '14px',
+          fontStyle: '700',
+          color: item.color,
+        })
+        .setOrigin(0, 0.5);
+
+      statCards.push(chipBg, iconBox, iconSpr, label, val);
+    });
+
+    // Primary CTA Button
+    const btnW = cardW - 56;
+    const btnH = 38;
+    const btnY = cy + cardH / 2 - (opts.secondaryText ? 66 : 32);
+
+    const confirmBg = this.add.rectangle(cx, btnY, btnW, btnH, isDeath ? 0x15803d : 0x166534, 0.95);
     confirmBg.setStrokeStyle(2, 0x4ade80);
     confirmBg.setInteractive({ useHandCursor: true });
-    confirmBg.setAlpha(0);
 
-    const confirm = this.add
-      .text(w / 2, h / 2 + 35, opts.buttonText, {
+    const confirmText = this.add
+      .text(cx, btnY, opts.buttonText, {
         fontFamily: FONT.UI,
-        fontSize: '14px',
+        fontSize: '13px',
         fontStyle: '700',
-        color: '#f0e2b8',
+        color: '#ffffff',
       })
-      .setOrigin(0.5)
-      .setAlpha(0);
+      .setOrigin(0.5);
+    confirmText.setStroke('#000000', 3);
 
     const triggerConfirm = () => {
       opts.onConfirm();
     };
 
     confirmBg.on('pointerover', () => {
-      confirmBg.setFillStyle(0x15803d, 1);
-      confirm.setColor('#ffffff');
+      confirmBg.setFillStyle(0x16a34a, 1);
+      confirmBg.setStrokeStyle(2, 0x86efac);
+      confirmText.setScale(1.03);
     });
     confirmBg.on('pointerout', () => {
-      confirmBg.setFillStyle(0x166534, 0.95);
-      confirm.setColor('#f0e2b8');
+      confirmBg.setFillStyle(isDeath ? 0x15803d : 0x166534, 0.95);
+      confirmBg.setStrokeStyle(2, 0x4ade80);
+      confirmText.setScale(1.0);
     });
     confirmBg.on('pointerdown', triggerConfirm);
 
-    elements.push(confirmBg, confirm);
+    const allElements: Phaser.GameObjects.GameObject[] = [
+      backdrop,
+      panelBg,
+      innerBorder,
+      title,
+      subtitle,
+      sepLine,
+      ...statCards,
+      confirmBg,
+      confirmText,
+    ];
 
     if (opts.secondaryText && opts.onSecondaryConfirm) {
+      const secY = cy + cardH / 2 - 22;
       const secBtn = this.add
-        .text(w / 2, h / 2 + 80, opts.secondaryText, {
+        .text(cx, secY, opts.secondaryText, {
           fontFamily: FONT.UI,
-          fontSize: '12px',
+          fontSize: '11px',
+          fontStyle: '700',
           color: '#94a3b8',
         })
         .setOrigin(0.5)
         .setPadding(10, 6, 10, 6)
-        .setAlpha(0)
         .setInteractive({ useHandCursor: true });
+      secBtn.setStroke('#000000', 2);
+
       secBtn.on('pointerover', () => secBtn.setColor('#f97316'));
       secBtn.on('pointerout', () => secBtn.setColor('#94a3b8'));
       secBtn.on('pointerdown', opts.onSecondaryConfirm);
-      elements.push(secBtn);
+      allElements.push(secBtn);
     }
 
-    container.add(elements);
+    allElements.forEach((el) => {
+      if (el !== backdrop) (el as unknown as Phaser.GameObjects.Components.Alpha).setAlpha(0);
+    });
 
-    this.tweens.add({ targets: backdrop, fillAlpha: 0.85, duration: 400 });
-    this.tweens.add({ targets: elements.filter((e) => e !== backdrop), alpha: 1, duration: 400, delay: 200 });
+    container.add(allElements);
+
+    this.tweens.add({ targets: backdrop, fillAlpha: 0.88, duration: 400 });
+    this.tweens.add({
+      targets: allElements.filter((e) => e !== backdrop),
+      alpha: 1,
+      duration: 350,
+      delay: 150,
+    });
 
     this.input.keyboard!.once('keydown-SPACE', triggerConfirm);
     this.input.keyboard!.once('keydown-ENTER', triggerConfirm);

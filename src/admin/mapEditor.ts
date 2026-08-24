@@ -470,7 +470,7 @@ export class MapEditor {
     document.getElementById('me-collab-status')?.addEventListener('click', () => this.showCollabModal());
 
     document.getElementById('me-play-test-btn')?.addEventListener('click', () => this.playTestMap());
-    document.getElementById('me-bake-prod-btn')?.addEventListener('click', () => this.showBakeProdModal());
+    document.getElementById('me-bake-prod-btn')?.addEventListener('click', () => this.bakeToGame());
     document.getElementById('me-save-json-btn')?.addEventListener('click', () => this.downloadJson());
     document.getElementById('me-load-json-btn')?.addEventListener('click', () => {
       document.getElementById('me-file-input')?.click();
@@ -2138,6 +2138,75 @@ export class MapEditor {
     } catch (err) {
       alert(`Ошибка при запуске игры: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  private async bakeToGame(): Promise<void> {
+    const btn = document.getElementById('me-bake-prod-btn') as HTMLElement | null;
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = `${ICONS.sparkles} Вшивание...`;
+
+    try {
+      const res = await fetch('/api/bake-level', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: this.level }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          if (btn) {
+            btn.style.background = '#15803d';
+            btn.innerHTML = `✓ Вшито в игру!`;
+          }
+          this.showToast('✓ Уровень моментально вшит в src/world/customLevelPreset.ts! Теперь он официальный 1-й этаж игры.');
+          setTimeout(() => {
+            if (btn) {
+              btn.style.background = '#4f46e5';
+              btn.innerHTML = originalText;
+            }
+          }, 3500);
+          return;
+        }
+      }
+    } catch {
+      // Dev server API not reachable (e.g. running on static web host) -> open modal
+    }
+
+    if (btn) btn.innerHTML = originalText;
+    this.showBakeProdModal();
+  }
+
+  private showToast(message: string, isSuccess = true): void {
+    const existing = document.getElementById('me-toast-notification');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'me-toast-notification';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: ${isSuccess ? '#052e16' : '#450a0a'};
+      color: ${isSuccess ? '#4ade80' : '#fca5a5'};
+      border: 1px solid ${isSuccess ? '#22c55e' : '#ef4444'};
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 99999;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 350);
+    }, 4000);
   }
 
   private showBakeProdModal(): void {

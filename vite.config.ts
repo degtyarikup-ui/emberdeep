@@ -26,9 +26,82 @@ function buildStamp(): { sha: string; time: string } {
 
 const stamp = buildStamp();
 
+import { writeFileSync } from 'node:fs';
+import type { Plugin } from 'vite';
+
+/**
+ * Dev server plugin allowing one-click baking of levels from the map editor
+ * directly into src/world/customLevelPreset.ts.
+ */
+function bakeLevelPlugin(): Plugin {
+  return {
+    name: 'emberdeep-bake-level-plugin',
+    configureServer(server) {
+      server.middlewares.use('/api/bake-level', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk) => {
+          body += chunk;
+        });
+
+        req.on('end', () => {
+          try {
+            const parsed = JSON.parse(body);
+            const level = parsed.level;
+            if (!level || !level.cols || !level.rows || !level.data) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Invalid level data' }));
+              return;
+            }
+
+            const json = JSON.stringify(level, null, 2);
+            const tsCode = `import type { LevelData } from './level1';
+
+/**
+ * Baked Level 1 preset for Emberdeep production build.
+ * When this is non-null, the game will use this exact level data
+ * as the official Depth 1 map instead of procedural generation.
+ */
+export const BAKED_LEVEL_1: LevelData | null = ${json};
+
+export function hasBakedLevel1(): boolean {
+  return BAKED_LEVEL_1 !== null;
+}
+
+export function getBakedLevel1(): LevelData | null {
+  if (!BAKED_LEVEL_1) return null;
+  return JSON.parse(JSON.stringify(BAKED_LEVEL_1)) as LevelData;
+}
+`;
+
+            const targetPath = resolve(__dirname, 'src/world/customLevelPreset.ts');
+            writeFileSync(targetPath, tsCode, 'utf8');
+
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true, message: 'Уровень успешно вшит в src/world/customLevelPreset.ts' }));
+          } catch (err) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
+          }
+        });
+      });
+    },
+  };
+}
+
 // Use relative base ('./') so the build works in any environment:
 // Yandex Games ZIP archive, local previews, GitHub Pages, or custom CDN paths.
 export default defineConfig({
+  plugins: [bakeLevelPlugin()],
   base: './',
   define: {
     __BUILD_SHA__: JSON.stringify(stamp.sha),

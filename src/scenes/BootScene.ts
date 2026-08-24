@@ -279,7 +279,16 @@ export class BootScene extends Phaser.Scene {
       // fonts failed to load — Phaser will fall back to a default font
     }
 
-    this.scene.start(SCENE.MENU);
+    let isTestLevel = false;
+    try {
+      isTestLevel = new URLSearchParams(window.location.search).get('testLevel') === '1';
+    } catch {}
+
+    if (isTestLevel) {
+      this.scene.start(SCENE.GAME, { depth: 1, heroClass: 'knight', isMapEditorTest: true });
+    } else {
+      this.scene.start(SCENE.MENU);
+    }
   }
 
   private buildParticleTexture(): void {

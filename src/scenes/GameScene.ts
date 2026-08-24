@@ -260,6 +260,7 @@ export class GameScene extends Phaser.Scene {
   private fpsHudContainer?: Phaser.GameObjects.Container;
   private fpsHudText?: Phaser.GameObjects.Text;
   private fpsUpdateTimer = 0;
+  private isMapEditorTest = false;
 
   public levelData?: ReturnType<typeof buildLevel1>;
 
@@ -276,6 +277,7 @@ export class GameScene extends Phaser.Scene {
     godMode?: boolean;
     speedHack?: boolean;
     fullBright?: boolean;
+    isMapEditorTest?: boolean;
   }): void {
     this.depth = data?.depth ?? 1;
     this.net = data?.net;
@@ -283,6 +285,13 @@ export class GameScene extends Phaser.Scene {
     this.playerHealth = data?.playerHealth ?? {};
     this.elapsedRunTime = data?.elapsedRunTime ?? 0;
     this.heroClass = data?.heroClass ?? 'knight';
+    if (data?.isMapEditorTest !== undefined) {
+      this.isMapEditorTest = data.isMapEditorTest;
+    } else {
+      try {
+        this.isMapEditorTest = new URLSearchParams(window.location.search).get('testLevel') === '1';
+      } catch {}
+    }
     if (data?.godMode !== undefined) this.godMode = data.godMode;
     if (data?.speedHack !== undefined) this.speedHack = data.speedHack;
     if (data?.fullBright !== undefined) this.fullBright = data.fullBright;
@@ -945,8 +954,12 @@ export class GameScene extends Phaser.Scene {
     this.threatContainer.add([this.threatBadgeBg, this.threatBadgeText]);
     this.topHeaderContainer.add(this.threatContainer);
 
+    const hintText = (this.isMapEditorTest || isCustomTest)
+      ? 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ЛКМ/ПРОБЕЛ — АТАКА   ПКМ/Q — НАВЫК   E — ДЕЙСТВИЕ   ESC — В РЕДАКТОР'
+      : 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ЛКМ/ПРОБЕЛ — АТАКА   ПКМ/Q — НАВЫК   E — ДЕЙСТВИЕ   ESC — МЕНЮ';
+
     this.hint = this.add
-      .text(this.scale.width / 2, this.scale.height - 20, 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ЛКМ/ПРОБЕЛ — АТАКА   ПКМ/Q — НАВЫК   E — ДЕЙСТВИЕ   ESC — МЕНЮ', {
+      .text(this.scale.width / 2, this.scale.height - 20, hintText, {
         fontFamily: FONT.UI,
         fontSize: '11px',
         color: '#cfc6dd',
@@ -956,9 +969,9 @@ export class GameScene extends Phaser.Scene {
     this.worldCam.ignore(this.hint);
     this.tweens.add({ targets: this.hint, alpha: 0, delay: 3600, duration: 900 });
 
-    if (isCustomTest) {
+    if (this.isMapEditorTest || isCustomTest) {
       const testBadge = this.add
-        .text(this.scale.width / 2, 28, '✦ ТЕСТ КАРТЫ ИЗ РЕДАКТОРА ✦', {
+        .text(this.scale.width / 2, 28, '✦ ТЕСТ КАРТЫ [ESC: ВЕРНУТЬСЯ В РЕДАКТОР] ✦', {
           fontFamily: FONT.UI,
           fontSize: '11px',
           color: '#4ade80',
@@ -972,6 +985,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.input.keyboard!.on('keydown-ESC', () => {
+      if (this.isMapEditorTest) {
+        const baseUrl = import.meta.env.BASE_URL || '/';
+        window.location.href = `${baseUrl}admin.html`;
+        return;
+      }
       if (this.statsModal?.isOpen) {
         this.statsModal.close();
       } else if (this.settingsModal?.isOpen()) {

@@ -271,6 +271,20 @@ describe('autotileHelper: Smart Autotiling Rules', () => {
     expect(grid[3][2]).toBe(TILE_INDEX.PATH_BL);
     expect(grid[3][3]).toBe(TILE_INDEX.PATH_BR);
   });
+
+  it('calculates inner corner for path and water turns', () => {
+    // 3x3 path with missing top-left corner (0,0)
+    const grid = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => TILE_INDEX.DIRT_1));
+    grid[0][0] = TILE_INDEX.GRASS_1;
+
+    // (1,1) has T, B, L, R all path, but TL is grass -> PATH_INNER_TL
+    expect(calculateAutotileCell(grid, 1, 1, 'path')).toBe(TILE_INDEX.PATH_INNER_TL);
+
+    // Same for water
+    const waterGrid = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => TILE_INDEX.WATER_DEEP));
+    waterGrid[0][0] = TILE_INDEX.GRASS_1;
+    expect(calculateAutotileCell(waterGrid, 1, 1, 'water')).toBe(TILE_INDEX.WATER_SHORE_TL);
+  });
 });
 
 

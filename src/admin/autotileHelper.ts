@@ -180,47 +180,74 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
   const L = isMatch(r, c - 1);
   const R = isMatch(r, c + 1);
 
+  const TL = isMatch(r - 1, c - 1);
+  const TR = isMatch(r - 1, c + 1);
+  const BL = isMatch(r + 1, c - 1);
+  const BR = isMatch(r + 1, c + 1);
+
   switch (family) {
     case 'path': {
-      // Outer 4 Corners
+      // 1. Outer 4 Corners
       if (!T && !L) return TILE_INDEX.PATH_TL;
       if (!T && !R) return TILE_INDEX.PATH_TR;
       if (!B && !L) return TILE_INDEX.PATH_BL;
       if (!B && !R) return TILE_INDEX.PATH_BR;
 
-      // Straight Borders
+      // 2. Straight Borders
       if (!T) return TILE_INDEX.PATH_T;
       if (!B) return TILE_INDEX.PATH_B;
       if (!L) return TILE_INDEX.PATH_L;
       if (!R) return TILE_INDEX.PATH_R;
 
+      // 3. Inner Corners (when adjacent orthogonals are path, but diagonal corner is grass)
+      if (T && L && !TL) return TILE_INDEX.PATH_INNER_TL;
+      if (T && R && !TR) return TILE_INDEX.PATH_INNER_TR;
+      if (B && L && !BL) return TILE_INDEX.PATH_INNER_BL;
+      if (B && R && !BR) return TILE_INDEX.PATH_INNER_BR;
+
       return TILE_INDEX.DIRT_1;
     }
 
     case 'water': {
+      // 1. Outer 4 Corners
       if (!T && !L) return TILE_INDEX.WATER_SHORE_TL;
       if (!T && !R) return TILE_INDEX.WATER_SHORE_TR;
       if (!B && !L) return TILE_INDEX.WATER_SHORE_BL;
       if (!B && !R) return TILE_INDEX.WATER_SHORE_BR;
 
+      // 2. Straight Borders
       if (!T) return TILE_INDEX.WATER_SHORE_T;
       if (!B) return TILE_INDEX.WATER_SHORE_B;
       if (!L) return TILE_INDEX.WATER_SHORE_L;
       if (!R) return TILE_INDEX.WATER_SHORE_R;
 
+      // 3. Inner Shore Corners
+      if (T && L && !TL) return TILE_INDEX.WATER_SHORE_TL;
+      if (T && R && !TR) return TILE_INDEX.WATER_SHORE_TR;
+      if (B && L && !BL) return TILE_INDEX.WATER_SHORE_BL;
+      if (B && R && !BR) return TILE_INDEX.WATER_SHORE_BR;
+
       return TILE_INDEX.WATER_DEEP;
     }
 
     case 'cobble': {
+      // 1. Outer 4 Corners
       if (!T && !L) return TILE_INDEX.COBBLE_TL;
       if (!T && !R) return TILE_INDEX.COBBLE_TR;
       if (!B && !L) return TILE_INDEX.COBBLE_BL;
       if (!B && !R) return TILE_INDEX.COBBLE_BR;
 
+      // 2. Straight Borders
       if (!T) return TILE_INDEX.COBBLE_T;
       if (!B) return TILE_INDEX.COBBLE_B;
       if (!L) return TILE_INDEX.COBBLE_L;
       if (!R) return TILE_INDEX.COBBLE_R;
+
+      // 3. Inner Corners
+      if (T && L && !TL) return TILE_INDEX.COBBLE_INNER_TL;
+      if (T && R && !TR) return TILE_INDEX.COBBLE_INNER_TR;
+      if (B && L && !BL) return TILE_INDEX.COBBLE_INNER_BL;
+      if (B && R && !BR) return TILE_INDEX.COBBLE_INNER_BR;
 
       return TILE_INDEX.RUIN_STONE;
     }
@@ -236,6 +263,9 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
 
       if (!L) return TILE_INDEX.CLIFF_MID_L;
       if (!R) return TILE_INDEX.CLIFF_MID_R;
+
+      if (T && L && !TL) return TILE_INDEX.CLIFF_INNER_TL;
+      if (T && R && !TR) return TILE_INDEX.CLIFF_INNER_TR;
 
       return TILE_INDEX.CLIFF_MID_M;
     }

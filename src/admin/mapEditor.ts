@@ -72,6 +72,8 @@ export class MapEditor {
   private panStartY = 0;
   private rectStartCol = -1;
   private rectStartRow = -1;
+  private lastPaintCol = -1;
+  private lastPaintRow = -1;
   private hoverCol = -1;
   private hoverRow = -1;
   private showGrid = true;
@@ -1032,6 +1034,8 @@ export class MapEditor {
           this.rectStartCol = col;
           this.rectStartRow = row;
         } else {
+          this.lastPaintCol = col;
+          this.lastPaintRow = row;
           this.applyToolAt(col, row);
         }
       }
@@ -1062,9 +1066,35 @@ export class MapEditor {
     }
 
     if (this.isMouseDown) {
-      if ((this.activeTool === 'brush' && this.activeCategory === 'tiles') || this.activeTool === 'eraser' || this.activeTool === 'custom_brush') {
+      if (this.activeTool === 'brush' || this.activeTool === 'eraser' || this.activeTool === 'custom_brush') {
         if (col >= 0 && col < this.level.cols && row >= 0 && row < this.level.rows) {
-          this.applyToolAt(col, row);
+          if (this.lastPaintCol >= 0 && this.lastPaintRow >= 0 && (this.lastPaintCol !== col || this.lastPaintRow !== row)) {
+            // Smooth continuous stroke interpolation
+            const dx = Math.abs(col - this.lastPaintCol);
+            const dy = Math.abs(row - this.lastPaintRow);
+            const sx_step = this.lastPaintCol < col ? 1 : -1;
+            const sy_step = this.lastPaintRow < row ? 1 : -1;
+            let err = dx - dy;
+            let curC = this.lastPaintCol;
+            let curR = this.lastPaintRow;
+
+            while (curC !== col || curR !== row) {
+              const e2 = 2 * err;
+              if (e2 > -dy) {
+                err -= dy;
+                curC += sx_step;
+              }
+              if (e2 < dx) {
+                err += dx;
+                curR += sy_step;
+              }
+              this.applyToolAt(curC, curR);
+            }
+          } else {
+            this.applyToolAt(col, row);
+          }
+          this.lastPaintCol = col;
+          this.lastPaintRow = row;
         }
       } else if (this.activeTool === 'rect') {
         this.draw(); // preview rect
@@ -1084,6 +1114,8 @@ export class MapEditor {
 
     if (this.isMouseDown) {
       this.isMouseDown = false;
+      this.lastPaintCol = -1;
+      this.lastPaintRow = -1;
       if (this.activeTool === 'rect' && this.rectStartCol >= 0 && this.rectStartRow >= 0) {
         const rect = this.viewport.getBoundingClientRect();
         const { col, row } = this.screenToGrid(e.clientX - rect.left, e.clientY - rect.top);

@@ -90,6 +90,7 @@ export class BootScene extends Phaser.Scene {
     preloadActor(this, ACTORS.DIREWOLF);
     preloadActor(this, ACTORS.ORC_WARRIOR);
     preloadActor(this, ACTORS.MASKED_ORC);
+    preloadActor(this, ACTORS.ORC_GRUNT);
   }
 
   create(): void {
@@ -256,8 +257,10 @@ export class BootScene extends Phaser.Scene {
     createActorAnims(this, ACTORS.ORC);
     createActorAnims(this, ACTORS.SKELETON);
     createActorAnims(this, ACTORS.WOLF);
+    createActorAnims(this, ACTORS.DIREWOLF);
     createActorAnims(this, ACTORS.ORC_WARRIOR);
     createActorAnims(this, ACTORS.MASKED_ORC);
+    createActorAnims(this, ACTORS.ORC_GRUNT);
 
     void this.loadFontsThenStart();
   }

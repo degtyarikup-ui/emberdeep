@@ -32,7 +32,6 @@ import {
   getFamilyForTile,
   getBaseTileForFamily,
   calculateAutotileCell,
-  autotileNeighborhood,
 } from './autotileHelper';
 
 interface DrawableEntity {
@@ -1140,6 +1139,23 @@ export class MapEditor {
     this.setZoom(this.zoom * factor, sx, sy);
   }
 
+  private broadcastEntities(): void {
+    if (!this.collabClient) return;
+    this.collabClient.sendEntitiesSync({
+      trees: this.level.trees,
+      decorations: this.level.decorations,
+      enemies: this.level.enemies,
+      chests: this.level.chests,
+      shrines: this.level.shrines,
+      flasks: this.level.flasks,
+      torches: this.level.torches,
+      bonfires: this.level.bonfires,
+      spawn: this.level.spawn,
+      altar: this.level.altar,
+      exit: this.level.exit,
+    });
+  }
+
   private eraseCellAt(col: number, row: number): boolean {
     if (col < 0 || col >= this.level.cols || row < 0 || row >= this.level.rows) return false;
     let removed = false;
@@ -1207,11 +1223,13 @@ export class MapEditor {
       const minR = Math.max(0, row - half);
       const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
 
+      let anyRemoved = false;
       for (let r = minR; r <= maxR; r++) {
         for (let c = minC; c <= maxC; c++) {
-          this.eraseCellAt(c, r);
+          if (this.eraseCellAt(c, r)) anyRemoved = true;
         }
       }
+      if (anyRemoved) this.broadcastEntities();
       this.draw();
       return;
     }
@@ -1225,7 +1243,7 @@ export class MapEditor {
 
         for (let r = 0; r < brush.height; r++) {
           for (let c = 0; c < brush.width; c++) {
-            const cell = brush.grid[r][c];
+            const cell = brush.grid[r]?.[c];
             if (cell && cell.tileId >= 0) {
               const targetR = row - halfH + r;
               const targetC = col - halfW + c;
@@ -1248,7 +1266,7 @@ export class MapEditor {
       if (this.activeCategory === 'smart_brush') {
         const smartDef = SMART_BRUSHES.find((b) => b.id === this.activeItemId) || SMART_BRUSHES[0];
         const family = smartDef.family;
-        const baseTile = getBaseTileForFamily(family);
+        const baseVal = getBaseTileForFamily(family);
 
         const half = Math.floor((this.brushSize - 1) / 2);
         const minC = Math.max(0, col - half);
@@ -1256,21 +1274,24 @@ export class MapEditor {
         const minR = Math.max(0, row - half);
         const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
 
-        const updates: TileUpdate[] = [];
         for (let r = minR; r <= maxR; r++) {
           for (let c = minC; c <= maxC; c++) {
-            this.level.data[r][c] = baseTile;
-            updates.push({ col: c, row: r, val: baseTile });
+            this.level.data[r][c] = baseVal;
           }
         }
 
-        // Recalculate neighborhood autotiling in real-time
-        const autoUpdates = autotileNeighborhood(this.level.data, row, col, Math.max(2, this.brushSize + 1));
-        autoUpdates.forEach((u) => {
-          const idx = updates.findIndex((up) => up.col === u.col && up.row === u.row);
-          if (idx >= 0) updates[idx].val = u.val;
-          else updates.push({ col: u.col, row: u.row, val: u.val });
-        });
+        const updates: TileUpdate[] = [];
+        for (let r = Math.max(0, minR - 1); r <= Math.min(this.level.rows - 1, maxR + 1); r++) {
+          for (let c = Math.max(0, minC - 1); c <= Math.min(this.level.cols - 1, maxC + 1); c++) {
+            const cur = this.level.data[r][c];
+            const fam = getFamilyForTile(cur);
+            if (fam) {
+              const computed = calculateAutotileCell(this.level.data, r, c, fam);
+              this.level.data[r][c] = computed;
+              updates.push({ col: c, row: r, val: computed });
+            }
+          }
+        }
 
         if (this.collabClient && updates.length > 0) {
           this.collabClient.sendTileUpdates(updates);
@@ -1303,11 +1324,11 @@ export class MapEditor {
           this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
           this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
         }
-        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+        this.broadcastEntities();
       } else if (this.activeCategory === 'npc') {
         this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
         this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
-        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+        this.broadcastEntities();
       } else if (this.activeCategory === 'enemy') {
         const standardEnemies: string[] = ['wolf', 'direwolf', 'skeleton', 'imp', 'orc_grunt', 'orc_shield', 'orc_archer', 'bandit_assassin'];
         if (standardEnemies.includes(String(this.activeItemId))) {
@@ -1317,7 +1338,7 @@ export class MapEditor {
           this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
           this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
         }
-        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+        this.broadcastEntities();
       } else if (this.activeCategory === 'pickup') {
         if (this.activeItemId === 'chest') {
           this.level.chests = this.level.chests.filter((c) => c.col !== col || c.row !== row);
@@ -1338,7 +1359,7 @@ export class MapEditor {
           this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
           this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: false });
         }
-        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+        this.broadcastEntities();
       } else if (this.activeCategory === 'prop') {
         const half = Math.floor((this.brushSize - 1) / 2);
         const minC = Math.max(0, col - half);
@@ -1361,7 +1382,7 @@ export class MapEditor {
             }
           }
         }
-        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+        this.broadcastEntities();
       } else if (this.activeCategory === 'tree') {
         if (!this.level.trees) this.level.trees = [];
         const half = Math.floor((this.brushSize - 1) / 2);
@@ -1384,7 +1405,7 @@ export class MapEditor {
             }
           }
         }
-        if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+        this.broadcastEntities();
       }
       this.draw();
     }
@@ -1405,14 +1426,20 @@ export class MapEditor {
           this.level.data[r][c] = baseVal;
         }
       }
+      const updates: TileUpdate[] = [];
       for (let r = Math.max(0, minR - 1); r <= Math.min(this.level.rows - 1, maxR + 1); r++) {
         for (let c = Math.max(0, minC - 1); c <= Math.min(this.level.cols - 1, maxC + 1); c++) {
           const cur = this.level.data[r][c];
           const fam = getFamilyForTile(cur);
           if (fam) {
-            this.level.data[r][c] = calculateAutotileCell(this.level.data, r, c, fam);
+            const computed = calculateAutotileCell(this.level.data, r, c, fam);
+            this.level.data[r][c] = computed;
+            updates.push({ col: c, row: r, val: computed });
           }
         }
+      }
+      if (this.collabClient && updates.length > 0) {
+        this.collabClient.sendTileUpdates(updates);
       }
     } else if (this.activeCategory === 'tree') {
       if (!this.level.trees) this.level.trees = [];
@@ -1430,7 +1457,7 @@ export class MapEditor {
           }
         }
       }
-      if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+      this.broadcastEntities();
     } else if (this.activeCategory === 'prop') {
       for (let r = minR; r <= maxR; r++) {
         for (let c = minC; c <= maxC; c++) {
@@ -1447,13 +1474,18 @@ export class MapEditor {
           }
         }
       }
-      if (this.collabClient) this.collabClient.sendLevelSync(this.level);
+      this.broadcastEntities();
     } else {
       const tileVal = this.activeCategory === 'tiles' ? Number(this.activeItemId) : EDITOR_TILE.FLOOR;
+      const updates: TileUpdate[] = [];
       for (let r = minR; r <= maxR; r++) {
         for (let c = minC; c <= maxC; c++) {
           this.level.data[r][c] = tileVal;
+          updates.push({ col: c, row: r, val: tileVal });
         }
+      }
+      if (this.collabClient && updates.length > 0) {
+        this.collabClient.sendTileUpdates(updates);
       }
     }
   }
@@ -1819,6 +1851,35 @@ export class MapEditor {
           this.level.data[u.row][u.col] = u.val;
         }
       });
+      this.scheduleAutoSave();
+      this.draw();
+    });
+
+    client.onEntitiesSync((entities) => {
+      if (entities.trees !== undefined) {
+        this.level.trees = entities.trees.map((t) => ({
+          col: t.col,
+          row: t.row,
+          kind: t.kind === 'pine' ? 'pine' : 'oak',
+        }));
+      }
+      if (entities.decorations !== undefined) {
+        this.level.decorations = entities.decorations.map((d) => ({
+          col: d.col,
+          row: d.row,
+          key: d.key as PropKey,
+          solid: d.solid ?? false,
+        }));
+      }
+      if (entities.enemies !== undefined) this.level.enemies = entities.enemies;
+      if (entities.chests !== undefined) this.level.chests = entities.chests;
+      if (entities.shrines !== undefined) this.level.shrines = entities.shrines;
+      if (entities.flasks !== undefined) this.level.flasks = entities.flasks;
+      if (entities.torches !== undefined) this.level.torches = entities.torches;
+      if (entities.bonfires !== undefined) this.level.bonfires = entities.bonfires;
+      if (entities.spawn !== undefined) this.level.spawn = entities.spawn;
+      if (entities.altar !== undefined) this.level.altar = entities.altar;
+      if (entities.exit !== undefined) this.level.exit = entities.exit;
       this.scheduleAutoSave();
       this.draw();
     });

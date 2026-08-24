@@ -280,10 +280,10 @@ describe('autotileHelper: Smart Autotiling Rules', () => {
     // (1,1) has T, B, L, R all path, but TL is grass -> PATH_INNER_TL
     expect(calculateAutotileCell(grid, 1, 1, 'path')).toBe(TILE_INDEX.PATH_INNER_TL);
 
-    // Same for water
+    // For water: (1,1) surrounded by water on all 4 sides stays WATER_DEEP
     const waterGrid = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => TILE_INDEX.WATER_DEEP));
     waterGrid[0][0] = TILE_INDEX.GRASS_1;
-    expect(calculateAutotileCell(waterGrid, 1, 1, 'water')).toBe(TILE_INDEX.WATER_SHORE_TL);
+    expect(calculateAutotileCell(waterGrid, 1, 1, 'water')).toBe(TILE_INDEX.WATER_DEEP);
   });
 });
 

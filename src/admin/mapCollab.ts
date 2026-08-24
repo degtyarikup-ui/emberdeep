@@ -1,6 +1,8 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../net/supabase';
+import type { EnemyKind } from '../entities/Enemy';
 import type { LevelData } from '../world/level1';
+import type { PropKey } from '../gfx/propKeys';
 import type { CustomBrush } from './mapEditorHelper';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -34,6 +36,20 @@ export interface TileUpdate {
   val: number;
 }
 
+export interface EntitiesSyncPayload {
+  trees?: Array<{ col: number; row: number; kind: 'pine' | 'oak' | string }>;
+  decorations?: Array<{ col: number; row: number; key: string; solid?: boolean }>;
+  enemies?: Array<{ col: number; row: number; kind: EnemyKind }>;
+  chests?: Array<{ col: number; row: number }>;
+  shrines?: Array<{ col: number; row: number; kind: 'blood' | 'chance' }>;
+  flasks?: Array<{ col: number; row: number; key: PropKey }>;
+  torches?: Array<{ col: number; row: number }>;
+  bonfires?: Array<{ col: number; row: number }>;
+  spawn?: { col: number; row: number };
+  altar?: { col: number; row: number };
+  exit?: { col: number; row: number };
+}
+
 export type CollabStatus = 'connecting' | 'connected' | 'offline' | 'error';
 
 export class MapCollabClient {
@@ -49,6 +65,7 @@ export class MapCollabClient {
   private onStatusChangeCb?: (status: CollabStatus, errorMsg?: string) => void;
   private onPeersChangeCb?: (peers: CollabPeer[]) => void;
   private onTileUpdatesCb?: (updates: TileUpdate[]) => void;
+  private onEntitiesSyncCb?: (entities: EntitiesSyncPayload) => void;
   private onCellErasedCb?: (col: number, row: number) => void;
   private onLevelSyncCb?: (level: LevelData) => void;
   private onRequestSyncCb?: (fromPeerId: string) => void;
@@ -189,6 +206,12 @@ export class MapCollabClient {
         if (!payload || payload.peerId === this.peerId) return;
         this.onTileUpdatesCb?.(payload.updates || []);
       })
+      .on('broadcast', { event: 'entities_sync' }, ({ payload }) => {
+        if (!payload || payload.peerId === this.peerId) return;
+        if (payload.entities) {
+          this.onEntitiesSyncCb?.(payload.entities);
+        }
+      })
       .on('broadcast', { event: 'cell_erased' }, ({ payload }) => {
         if (!payload || payload.peerId === this.peerId) return;
         this.onCellErasedCb?.(payload.col, payload.row);
@@ -268,6 +291,10 @@ export class MapCollabClient {
     this.onTileUpdatesCb = cb;
   }
 
+  public onEntitiesSync(cb: (entities: EntitiesSyncPayload) => void): void {
+    this.onEntitiesSyncCb = cb;
+  }
+
   public onCellErased(cb: (col: number, row: number) => void): void {
     this.onCellErasedCb = cb;
   }
@@ -290,6 +317,14 @@ export class MapCollabClient {
       type: 'broadcast',
       event: 'brushes_sync',
       payload: { peerId: this.peerId, brushes },
+    });
+  }
+
+  public sendEntitiesSync(entities: EntitiesSyncPayload): void {
+    void this.channel.send({
+      type: 'broadcast',
+      event: 'entities_sync',
+      payload: { peerId: this.peerId, entities },
     });
   }
 

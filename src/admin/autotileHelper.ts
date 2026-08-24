@@ -221,12 +221,6 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
       if (!L) return TILE_INDEX.WATER_SHORE_L;
       if (!R) return TILE_INDEX.WATER_SHORE_R;
 
-      // 3. Inner Shore Corners
-      if (T && L && !TL) return TILE_INDEX.WATER_SHORE_TL;
-      if (T && R && !TR) return TILE_INDEX.WATER_SHORE_TR;
-      if (B && L && !BL) return TILE_INDEX.WATER_SHORE_BL;
-      if (B && R && !BR) return TILE_INDEX.WATER_SHORE_BR;
-
       return TILE_INDEX.WATER_DEEP;
     }
 

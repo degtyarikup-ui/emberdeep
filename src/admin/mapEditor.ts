@@ -87,12 +87,38 @@ export class MapEditor {
     this.updateStatus();
     this.fitToView();
 
-    // Check if URL contains ?mapRoom= to auto-join
+    // Auto-connect real-time collaboration immediately without setup
     const params = new URLSearchParams(window.location.search);
-    const roomCode = params.get('mapRoom');
-    if (roomCode) {
-      void this.connectCollab(roomCode);
-    }
+    const roomCode = params.get('mapRoom') || 'LIVE';
+    void this.connectCollab(roomCode);
+
+    // Precaution against abrupt reloads / tab close / crashes
+    window.addEventListener('beforeunload', (e) => {
+      try {
+        const draft = serializeLevelToJson(this.level);
+        localStorage.setItem('emberdeep_map_editor_draft', draft);
+        localStorage.setItem('emberdeep_map_editor_backup', draft);
+      } catch {
+        // ignore
+      }
+      if (this.historyIndex > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    // Auto-save on visibility change (switching tabs or backgrounding)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        try {
+          const draft = serializeLevelToJson(this.level);
+          localStorage.setItem('emberdeep_map_editor_draft', draft);
+          localStorage.setItem('emberdeep_map_editor_backup', draft);
+        } catch {
+          // ignore
+        }
+      }
+    });
 
     // Preload actual in-game textures
     editorAssets.preloadAll(() => {
@@ -215,7 +241,6 @@ export class MapEditor {
             <button id="me-undo-btn" class="me-btn" title="Отмена (Ctrl+Z)">Отмена</button>
             <button id="me-redo-btn" class="me-btn" title="Повтор (Ctrl+Y)">Повтор</button>
             <button id="me-grid-toggle-btn" class="me-btn ${this.showGrid ? 'me-btn-primary' : ''}" title="Вкл/Выкл сетку">Сетка</button>
-            <button id="me-fit-btn" class="me-btn" title="Вместить всю карту (Shift+1 / Ctrl+0)">${ICONS.maximize} По размеру</button>
           </div>
 
           <div class="me-toolbar-group">
@@ -234,10 +259,10 @@ export class MapEditor {
 
           <div class="me-toolbar-group me-collab-group">
             <span class="me-divider"></span>
-            <button id="me-collab-btn" class="me-btn me-btn-collab" title="Совместное редактирование в реальном времени (Figma-style)">
-              ${ICONS.users} <span id="me-collab-btn-text">Мультиплеер</span>
-            </button>
-            <div id="me-collab-peers" class="me-collab-peer-list" style="display:none;"></div>
+            <div id="me-collab-status" class="me-live-badge" title="Синхронизация в реальном времени включена (Figma-style)">
+              <span class="me-live-dot"></span> <span id="me-collab-count">Онлайн</span>
+            </div>
+            <div id="me-collab-peers" class="me-collab-peer-list"></div>
           </div>
         </div>
 
@@ -387,14 +412,13 @@ export class MapEditor {
       this.draw();
     });
 
-    document.getElementById('me-fit-btn')?.addEventListener('click', () => this.fitToView());
     document.getElementById('me-hud-fit')?.addEventListener('click', () => this.fitToView());
     document.getElementById('me-hud-zoom-in')?.addEventListener('click', () => this.setZoom(this.zoom * 1.25));
     document.getElementById('me-hud-zoom-out')?.addEventListener('click', () => this.setZoom(this.zoom / 1.25));
     document.getElementById('me-hud-zoom-val')?.addEventListener('click', () => this.setZoom(1.0));
 
     document.getElementById('me-reset-draft-btn')?.addEventListener('click', () => this.resetDraft());
-    document.getElementById('me-collab-btn')?.addEventListener('click', () => this.showCollabModal());
+    document.getElementById('me-collab-status')?.addEventListener('click', () => this.showCollabModal());
 
     document.getElementById('me-export-code-btn')?.addEventListener('click', () => this.showExportModal());
     document.getElementById('me-save-json-btn')?.addEventListener('click', () => this.downloadJson());
@@ -1326,16 +1350,18 @@ export class MapEditor {
   }
 
   private updateCollabUI(): void {
-    const btn = document.getElementById('me-collab-btn');
-    const textSpan = document.getElementById('me-collab-btn-text');
+    const statusText = document.getElementById('me-collab-count');
     const peerList = document.getElementById('me-collab-peers');
 
-    if (!btn || !textSpan || !peerList) return;
+    if (!peerList) return;
 
     if (this.collabClient) {
-      btn.classList.add('connected');
-      textSpan.textContent = `Комната: ${this.collabClient.roomCode}`;
-      peerList.style.display = 'flex';
+      const peers = this.collabClient.getConnectedPeers();
+      const totalCount = peers.length + 1;
+      if (statusText) {
+        statusText.textContent = totalCount > 1 ? `Онлайн (${totalCount})` : 'Онлайн (Вы)';
+      }
+
       peerList.innerHTML = '';
 
       // Add self avatar
@@ -1347,19 +1373,16 @@ export class MapEditor {
       peerList.appendChild(selfAvatar);
 
       // Add peers avatars
-      const peers = this.collabClient.getConnectedPeers();
       peers.forEach((p) => {
         const pAvatar = document.createElement('div');
         pAvatar.className = 'me-peer-avatar';
         pAvatar.style.backgroundColor = p.color;
         pAvatar.textContent = p.name.slice(0, 1).toUpperCase();
-        pAvatar.title = p.name;
+        pAvatar.title = `${p.name} (в сети)`;
         peerList.appendChild(pAvatar);
       });
     } else {
-      btn.classList.remove('connected');
-      textSpan.textContent = 'Мультиплеер';
-      peerList.style.display = 'none';
+      if (statusText) statusText.textContent = 'Офлайн';
       peerList.innerHTML = '';
     }
   }

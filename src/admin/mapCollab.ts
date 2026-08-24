@@ -49,8 +49,8 @@ export class MapCollabClient {
 
   private lastCursorSend = 0;
 
-  constructor(roomCode: string, name?: string) {
-    this.roomCode = roomCode.toUpperCase().trim();
+  constructor(roomCode = 'LIVE', name?: string) {
+    this.roomCode = (roomCode || 'LIVE').toUpperCase().trim();
     this.name = name?.trim() || `Игрок_${this.peerId.slice(0, 4)}`;
     const colorIndex = Math.abs(this.hashCode(this.peerId)) % PEER_COLORS.length;
     this.color = PEER_COLORS[colorIndex];

@@ -173,58 +173,42 @@ export class MapEditor {
           <!-- Left Palette Sidebar -->
           <div class="me-sidebar">
             <div class="me-tools-bar">
+              <button class="me-tool-btn" data-tool="hand" title="Рука / Панорамирование (H или Пробел)">
+                ${ICONS.hand}
+              </button>
               <button class="me-tool-btn active" data-tool="brush" title="Кисть (B)">
                 ${ICONS.brush}
-                <span>Кисть</span>
-                <span class="me-tool-kbd">B</span>
               </button>
               <button class="me-tool-btn" data-tool="rect" title="Область (R)">
                 ${ICONS.rect}
-                <span>Область</span>
-                <span class="me-tool-kbd">R</span>
               </button>
               <button class="me-tool-btn" data-tool="eraser" title="Ластик (E)">
                 ${ICONS.eraser}
-                <span>Ластик</span>
-                <span class="me-tool-kbd">E</span>
               </button>
               <button class="me-tool-btn" data-tool="picker" title="Пипетка (I)">
                 ${ICONS.picker}
-                <span>Пипетка</span>
-                <span class="me-tool-kbd">I</span>
               </button>
-              <button class="me-tool-btn" data-tool="hand" title="Рука / Панорама (H или зажатый Пробел)">
-                ${ICONS.hand}
-                <span>Рука</span>
-                <span class="me-tool-kbd">H</span>
-              </button>
-              <button class="me-tool-btn" data-tool="inspect" title="Инфо">
+              <button class="me-tool-btn" data-tool="inspect" title="Инфо о клетке">
                 ${ICONS.target}
-                <span>Инфо</span>
               </button>
             </div>
 
-            <div class="me-brush-size-bar">
-              <span style="font-size:10px; color:var(--text-tertiary); display:flex; align-items:center; gap:4px;">
-                Кисть: <kbd style="font-family:monospace; font-size:9px; background:rgba(255,255,255,0.06); padding:1px 3px; border-radius:2px;">[ / ]</kbd>
-              </span>
-              <div class="me-brush-size-pills">
-                <button class="me-size-btn active" data-size="1" title="1x1 клетка">1</button>
-                <button class="me-size-btn" data-size="2" title="2x2 клетки">2</button>
-                <button class="me-size-btn" data-size="3" title="3x3 клетки">3</button>
-                <button class="me-size-btn" data-size="4" title="4x4 клетки">4</button>
-                <button class="me-size-btn" data-size="5" title="5x5 клеток">5</button>
+            <div class="me-brush-slider-box">
+              <div class="me-brush-slider-header">
+                <span class="me-brush-slider-title">Размер кисти</span>
+                <span id="me-brush-size-val" class="me-brush-slider-badge">${this.brushSize}x${this.brushSize}</span>
               </div>
+              <input type="range" id="me-brush-slider" min="1" max="6" step="1" value="${this.brushSize}" class="me-range-slider" title="Регулировка размера кисти ([ / ])">
             </div>
 
             <div class="me-category-tabs">
-              <button class="me-tab-btn active" data-cat="tiles">Тайлы <kbd>1</kbd></button>
-              <button class="me-tab-btn" data-cat="poi">Точки <kbd>2</kbd></button>
-              <button class="me-tab-btn" data-cat="npc">NPC <kbd>3</kbd></button>
-              <button class="me-tab-btn" data-cat="enemy">Враги <kbd>4</kbd></button>
-              <button class="me-tab-btn" data-cat="pickup">Лут <kbd>5</kbd></button>
-              <button class="me-tab-btn" data-cat="prop">Пропсы <kbd>6</kbd></button>
-              <button class="me-tab-btn" data-cat="tree">Деревья <kbd>7</kbd></button>
+              <button class="me-tab-btn active" data-cat="tiles" title="Тайлы (клавиша 1)">Тайлы</button>
+              <button class="me-tab-btn" data-cat="poi" title="Точки (клавиша 2)">Точки</button>
+              <button class="me-tab-btn" data-cat="npc" title="NPC (клавиша 3)">NPC</button>
+              <button class="me-tab-btn" data-cat="enemy" title="Враги (клавиша 4)">Враги</button>
+              <button class="me-tab-btn" data-cat="pickup" title="Лут (клавиша 5)">Лут</button>
+              <button class="me-tab-btn" data-cat="prop" title="Пропсы (клавиша 6)">Пропсы</button>
+              <button class="me-tab-btn" data-cat="tree" title="Деревья (клавиша 7)">Деревья</button>
             </div>
 
             <div class="me-palette-search-box">
@@ -369,6 +353,13 @@ export class MapEditor {
         const size = Number(btn.getAttribute('data-size')) || 1;
         this.setBrushSize(size);
       });
+    });
+
+    // Brush size slider
+    const slider = document.getElementById('me-brush-slider') as HTMLInputElement | null;
+    slider?.addEventListener('input', (e) => {
+      const size = Number((e.target as HTMLInputElement).value) || 1;
+      this.setBrushSize(size);
     });
 
     // Palette Search
@@ -574,10 +565,13 @@ export class MapEditor {
   }
 
   private setBrushSize(size: number): void {
-    this.brushSize = Math.max(1, Math.min(5, size));
-    document.querySelectorAll('.me-size-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.getAttribute('data-size') === String(this.brushSize));
-    });
+    this.brushSize = Math.max(1, Math.min(6, size));
+    const badge = document.getElementById('me-brush-size-val');
+    if (badge) badge.textContent = `${this.brushSize}x${this.brushSize}`;
+    const slider = document.getElementById('me-brush-slider') as HTMLInputElement | null;
+    if (slider && Number(slider.value) !== this.brushSize) {
+      slider.value = String(this.brushSize);
+    }
     this.draw();
   }
 
@@ -949,7 +943,6 @@ export class MapEditor {
     const step = this.tileSize * this.zoom;
     const cols = this.level.cols;
     const rows = this.level.rows;
-    const biomeId = this.level.biome.id;
 
     // 1. Draw Tiles (using actual tilesheet sprites)
     for (let r = 0; r < rows; r++) {
@@ -960,7 +953,7 @@ export class MapEditor {
         if (x + step < 0 || x > this.canvas.width || y + step < 0 || y > this.canvas.height) continue;
 
         const tileType = (this.level.data[r]?.[c] ?? 0) as EditorTileType;
-        editorAssets.drawTile(this.ctx, tileType, x, y, step, biomeId);
+        editorAssets.drawTile(this.ctx, tileType, x, y, step);
       }
     }
 

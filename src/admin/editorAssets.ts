@@ -1,6 +1,6 @@
 import { asset } from '../gfx/pack';
 import { TEXTURE } from '../gfx/registry';
-import { EDITOR_TILE } from './mapEditorHelper';
+import { TOTAL_TILES } from '../gfx/tiles';
 
 export interface SpriteDefinition {
   url: string;
@@ -204,33 +204,6 @@ class EditorAssetManager {
     const tilesBiomeImg = this.images.get(asset('tiles-biome.png'));
     if (!tilesBiomeImg || !tilesBiomeImg.complete) return undefined;
 
-    let tileIndex = tileType;
-    if (tileType <= 12) {
-      if (tileType === EDITOR_TILE.FLOOR) {
-        tileIndex = biomeId === 'catacombs' || biomeId === 'depths' ? 6 : biomeId === 'ruins' ? 5 : 0;
-      } else if (tileType === EDITOR_TILE.WALL) {
-        tileIndex = biomeId === 'forest' ? 64 : biomeId === 'ruins' ? 13 : 12;
-      } else if (tileType === EDITOR_TILE.PATH) {
-        tileIndex = 3;
-      } else if (tileType === EDITOR_TILE.RUIN_FLOOR) {
-        tileIndex = 5;
-      } else if (tileType === EDITOR_TILE.WATER_DEEP) {
-        tileIndex = 19;
-      } else if (tileType === EDITOR_TILE.BRIDGE) {
-        tileIndex = 21;
-      } else if (tileType === EDITOR_TILE.SNOW) {
-        tileIndex = 14;
-      } else if (tileType === EDITOR_TILE.ICE) {
-        tileIndex = 19;
-      } else if (tileType === EDITOR_TILE.CANYON_DIRT) {
-        tileIndex = 10;
-      } else if (tileType === EDITOR_TILE.RAIL) {
-        tileIndex = 23;
-      } else if (tileType === EDITOR_TILE.GRATE) {
-        tileIndex = 22;
-      }
-    }
-
     const canvas = document.createElement('canvas');
     canvas.width = 32;
     canvas.height = 32;
@@ -238,7 +211,7 @@ class EditorAssetManager {
     if (!ctx) return undefined;
 
     ctx.imageSmoothingEnabled = false;
-    const sx = tileIndex * 32;
+    const sx = Math.max(0, Math.min(TOTAL_TILES - 1, tileType)) * 32;
     if (sx + 32 <= tilesBiomeImg.naturalWidth) {
       ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, 0, 0, 32, 32);
       const url = canvas.toDataURL();
@@ -314,44 +287,13 @@ class EditorAssetManager {
     tileVal: number,
     x: number,
     y: number,
-    size: number,
-    biomeId = 'forest'
+    size: number
   ): void {
     const tilesBiomeImg = this.images.get(asset('tiles-biome.png'));
 
     if (tilesBiomeImg && tilesBiomeImg.complete && tilesBiomeImg.naturalWidth > 0) {
       ctx.imageSmoothingEnabled = false;
-
-      let tileIndex = tileVal;
-
-      // If tileVal is in semantic 0..12 space rather than finalized autotile index
-      if (tileVal <= 12) {
-        if (tileVal === EDITOR_TILE.FLOOR) {
-          tileIndex = biomeId === 'catacombs' || biomeId === 'depths' ? 6 : biomeId === 'ruins' ? 5 : 0;
-        } else if (tileVal === EDITOR_TILE.WALL) {
-          tileIndex = biomeId === 'forest' ? 64 : biomeId === 'ruins' ? 13 : 12;
-        } else if (tileVal === EDITOR_TILE.PATH) {
-          tileIndex = 3;
-        } else if (tileVal === EDITOR_TILE.RUIN_FLOOR) {
-          tileIndex = 5;
-        } else if (tileVal === EDITOR_TILE.WATER_DEEP) {
-          tileIndex = 19;
-        } else if (tileVal === EDITOR_TILE.BRIDGE) {
-          tileIndex = 21;
-        } else if (tileVal === EDITOR_TILE.SNOW) {
-          tileIndex = 14;
-        } else if (tileVal === EDITOR_TILE.ICE) {
-          tileIndex = 19;
-        } else if (tileVal === EDITOR_TILE.CANYON_DIRT) {
-          tileIndex = 10;
-        } else if (tileVal === EDITOR_TILE.RAIL) {
-          tileIndex = 23;
-        } else if (tileVal === EDITOR_TILE.GRATE) {
-          tileIndex = 22;
-        }
-      }
-
-      // Draw 32x32 tile from tiles-biome.png
+      const tileIndex = Math.max(0, Math.min(TOTAL_TILES - 1, tileVal));
       const sx = tileIndex * 32;
       if (sx + 32 <= tilesBiomeImg.naturalWidth) {
         ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, x, y, size, size);
@@ -360,20 +302,7 @@ class EditorAssetManager {
     }
 
     // Fallback tint
-    const colorMap: Record<number, string> = {
-      [EDITOR_TILE.FLOOR]: biomeId === 'catacombs' ? '#1f2937' : '#14532d',
-      [EDITOR_TILE.WALL]: '#1e293b',
-      [EDITOR_TILE.PATH]: '#78350f',
-      [EDITOR_TILE.RUIN_FLOOR]: '#334155',
-      [EDITOR_TILE.WATER_DEEP]: '#1e3a8a',
-      [EDITOR_TILE.BRIDGE]: '#854d0e',
-      [EDITOR_TILE.SNOW]: '#94a3b8',
-      [EDITOR_TILE.ICE]: '#38bdf8',
-      [EDITOR_TILE.CANYON_DIRT]: '#57534e',
-      [EDITOR_TILE.RAIL]: '#52525b',
-      [EDITOR_TILE.GRATE]: '#27272a',
-    };
-    ctx.fillStyle = colorMap[tileVal] || '#14532d';
+    ctx.fillStyle = '#14532d';
     ctx.fillRect(x, y, size, size);
   }
 }

@@ -143,97 +143,119 @@
   z-index: 5;
 }
 
-/* Native Tools Bar */
+/* Figma-Style Tools Bar */
 .me-tools-bar {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  padding: 6px;
-  gap: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
   background: var(--bg-app, #0c0c0e);
   border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  gap: 4px;
 }
 
 .me-tool-btn {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 5px 2px;
+  width: 36px;
+  height: 32px;
   background: transparent;
-  color: var(--text-tertiary, #71717a);
+  color: var(--text-tertiary, #a1a1aa);
   border: 1px solid transparent;
-  border-radius: 5px;
-  font-size: 10px;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
-  transition: all 0.15s ease;
-  position: relative;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .me-tool-btn:hover {
-  color: var(--text-primary, #f4f4f5);
-  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary, #ffffff);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
 }
 
 .me-tool-btn.active {
   background: #27272a;
-  color: #fafafa;
+  color: #38bdf8;
   border-color: #3f3f46;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-.me-tool-kbd {
-  font-size: 8px;
-  color: var(--text-tertiary, #71717a);
-  font-family: var(--font-mono, monospace);
-  line-height: 1;
+.me-tool-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
-.me-tool-btn.active .me-tool-kbd {
-  color: #a1a1aa;
+/* Brush Size Range Slider Box */
+.me-brush-slider-box {
+  padding: 8px 12px 6px 12px;
+  background: var(--bg-app, #0c0c0e);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
-/* Brush Size Selector Bar */
-.me-brush-size-bar {
+.me-brush-slider-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px;
-  background: var(--bg-app, #0c0c0e);
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
 }
 
-.me-brush-size-pills {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.me-size-btn {
-  padding: 2px 6px;
-  background: transparent;
+.me-brush-slider-title {
+  font-size: 10px;
+  font-weight: 500;
   color: var(--text-tertiary, #71717a);
-  border: 1px solid transparent;
-  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.me-brush-slider-badge {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
   font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.12s ease;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
 }
 
-.me-size-btn:hover {
-  color: var(--text-primary, #f4f4f5);
-  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
-}
-
-.me-size-btn.active {
+.me-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
   background: #27272a;
-  color: #fafafa;
-  border-color: #3f3f46;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  outline: none;
+  cursor: pointer;
+}
+
+.me-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+
+.me-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.me-range-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  border: none;
 }
 
 /* Category Tabs */

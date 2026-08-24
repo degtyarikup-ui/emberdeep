@@ -5,16 +5,16 @@ import { FLOOR_INDICES, TILE_INDEX } from '../gfx/tileIndex';
 
 export const EDITOR_TILE = {
   FLOOR: 0,
-  WALL: 1,
-  PATH: 2,
-  RUIN_FLOOR: 3,
-  WATER_DEEP: 5,
-  BRIDGE: 7,
-  SNOW: 8,
-  ICE: 9,
+  WALL: 64,
+  PATH: 3,
+  RUIN_FLOOR: 5,
+  WATER_DEEP: 19,
+  BRIDGE: 21,
+  SNOW: 14,
+  ICE: 19,
   CANYON_DIRT: 10,
-  RAIL: 11,
-  GRATE: 12,
+  RAIL: 23,
+  GRATE: 22,
 } as const;
 
 export type EditorTileType = (typeof EDITOR_TILE)[keyof typeof EDITOR_TILE];
@@ -35,7 +35,6 @@ export const TILE_METAS: Record<EditorTileType, TileMeta> = {
   [EDITOR_TILE.WATER_DEEP]: { id: EDITOR_TILE.WATER_DEEP, name: 'Глубокая вода', color: '#1e3a8a', solid: true, walkable: false },
   [EDITOR_TILE.BRIDGE]: { id: EDITOR_TILE.BRIDGE, name: 'Деревянный мост', color: '#92400e', solid: false, walkable: true },
   [EDITOR_TILE.SNOW]: { id: EDITOR_TILE.SNOW, name: 'Снег', color: '#94a3b8', solid: false, walkable: true },
-  [EDITOR_TILE.ICE]: { id: EDITOR_TILE.ICE, name: 'Лед', color: '#38bdf8', solid: true, walkable: false },
   [EDITOR_TILE.CANYON_DIRT]: { id: EDITOR_TILE.CANYON_DIRT, name: 'Земля каньона', color: '#57534e', solid: false, walkable: true },
   [EDITOR_TILE.RAIL]: { id: EDITOR_TILE.RAIL, name: 'Рельсы', color: '#71717a', solid: false, walkable: true },
   [EDITOR_TILE.GRATE]: { id: EDITOR_TILE.GRATE, name: 'Решетка канализации', color: '#27272a', solid: false, walkable: true },

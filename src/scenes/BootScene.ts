@@ -9,6 +9,7 @@ import { PACK, LEGACY_PACK, asset } from '../gfx/pack';
 import { ANIM, TEXTURE } from '../gfx/registry';
 import { UIAtlas } from '../gfx/UIAtlas';
 import { PixelUI } from '../gfx/PixelUI';
+import { SoundFX } from '../audio/SoundFX';
 import { SCENE } from './keys';
 
 export class BootScene extends Phaser.Scene {
@@ -101,6 +102,7 @@ export class BootScene extends Phaser.Scene {
     buildHudAtlas(this, TEXTURE.HUD_ICONS);
     UIAtlas.buildAtlas(this);
     PixelUI.buildTextures(this);
+    SoundFX.preloadAllClips();
     this.buildParticleTexture();
     this.buildBloodParticleTexture();
     this.buildBoneParticleTexture();

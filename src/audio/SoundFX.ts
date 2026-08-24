@@ -1,8 +1,11 @@
 /**
- * Hybrid Audio Engine for Emberdeep:
- * 1. Procedural Web Audio API sound synthesizer with 2D Positional Audio for SFX.
- * 2. High-fidelity dynamic music streaming & crossfading engine for soundtrack & stingers.
- * 3. Dual volume control (Music & SFX) with localStorage persistence.
+ * Hybrid High-Fidelity Audio Engine for Emberdeep:
+ * 1. Sample-based Polyphonic Web Audio Engine with pre-decoded AudioBuffers.
+ * 2. Overlapping voice allocation with pitch variation (cascading coin pickups, organic combat hits).
+ * 3. 2D Positional / Spatial Audio with distance attenuation & stereo panning.
+ * 4. High-fidelity dynamic music streaming & crossfading engine for soundtrack & stingers.
+ * 5. Dual volume control (Music & SFX) with localStorage persistence.
+ * 6. Full procedural Web Audio fallback synthesizer.
  */
 
 import { asset } from '../gfx/pack';
@@ -35,6 +38,54 @@ const MUSIC_TRACKS: Record<MusicTrack, string> = {
   victory: 'audio/track_victory.mp3',
 };
 
+export const SFX_CLIP = {
+  SWORD_SWING: 'audio/sfx/sword_swing.mp3',
+  SHIELD_BLOCK: 'audio/sfx/shield_block.mp3',
+  ARROW_SHOOT: 'audio/sfx/arrow_shoot.mp3',
+  ARROW_HIT: 'audio/sfx/arrow_hit.mp3',
+  STAFF_CAST: 'audio/sfx/staff_cast.mp3',
+  ENERGY_HIT: 'audio/sfx/energy_hit.mp3',
+  SUPERNOVA: 'audio/sfx/supernova.mp3',
+  DASH: 'audio/sfx/dash.mp3',
+  FOOTSTEP_1: 'audio/sfx/footstep_1.mp3',
+  FOOTSTEP_2: 'audio/sfx/footstep_2.mp3',
+  ENEMY_HIT: 'audio/sfx/enemy_hit.mp3',
+  CRIT_HIT: 'audio/sfx/crit_hit.mp3',
+  PLAYER_HURT: 'audio/sfx/player_hurt.mp3',
+  ENEMY_DEATH: 'audio/sfx/enemy_death.mp3',
+  PLAYER_DEATH: 'audio/sfx/player_death.mp3',
+  WOLF_SNARL: 'audio/sfx/wolf_snarl.mp3',
+  WOLF_HOWL: 'audio/sfx/wolf_howl.mp3',
+  BONE_CLEAVE: 'audio/sfx/bone_cleave.mp3',
+  SKELETON_DEATH: 'audio/sfx/skeleton_death.mp3',
+  ENEMY_FIREBALL_CHARGE: 'audio/sfx/enemy_fireball_charge.mp3',
+  ENEMY_FIREBALL: 'audio/sfx/enemy_fireball.mp3',
+  CLEAVE_WINDUP: 'audio/sfx/cleave_windup.mp3',
+  ORC_ROAR: 'audio/sfx/orc_roar.mp3',
+  GROUND_SLAM: 'audio/sfx/ground_slam.mp3',
+  BOSS_ROAR: 'audio/sfx/boss_roar.mp3',
+  BOSS_SPAWN: 'audio/sfx/boss_spawn.mp3',
+  SHOCKWAVE: 'audio/sfx/shockwave.mp3',
+  PROJECTILE_LAUNCH: 'audio/sfx/projectile_launch.mp3',
+  BOSS_DEATH: 'audio/sfx/boss_death.mp3',
+  FIRE_EXPLOSION: 'audio/sfx/fire_explosion.mp3',
+  ICE_SHATTER: 'audio/sfx/ice_shatter.mp3',
+  LIGHTNING_ZAP: 'audio/sfx/lightning_zap.mp3',
+  SPIKE_THRUST: 'audio/sfx/spike_thrust.mp3',
+  WOOD_BREAK: 'audio/sfx/wood_break.mp3',
+  CHEST_OPEN: 'audio/sfx/chest_open.mp3',
+  COIN_PICKUP_1: 'audio/sfx/coin_pickup_1.mp3',
+  COIN_PICKUP_2: 'audio/sfx/coin_pickup_2.mp3',
+  FLASK_PICKUP_1: 'audio/sfx/flask_pickup_1.mp3',
+  FLASK_PICKUP_2: 'audio/sfx/flask_pickup_2.mp3',
+  ITEM_ACQUIRED: 'audio/sfx/item_acquired.mp3',
+  THREAT_LEVEL_UP: 'audio/sfx/threat_level_up.mp3',
+  BUTTON_HOVER: 'audio/sfx/button_hover.mp3',
+  MENU_CLICK: 'audio/sfx/menu_click.mp3',
+  MODAL_OPEN: 'audio/sfx/modal_open.mp3',
+  ACHIEVEMENT_UNLOCK: 'audio/sfx/achievement_unlock.mp3',
+} as const;
+
 class SoundFXManager {
   private ctx?: AudioContext;
   private masterGain?: GainNode;
@@ -42,6 +93,17 @@ class SoundFXManager {
   private sfxGain?: GainNode;
   private spatialGain?: GainNode;
   private initialized = false;
+
+  // Buffer Cache for instant polyphonic playback
+  private bufferCache = new Map<string, AudioBuffer>();
+  private loadingPromises = new Map<string, Promise<AudioBuffer | null>>();
+
+  // Contextual Dynamic State
+  private coinPitchIndex = 0;
+  private lastCoinPickupTime = 0;
+  private coinComboCount = 0;
+  private footstepIndex = 0;
+  private flaskIndex = 0;
 
   // Volume channels (0.0 to 1.0)
   private musicVolume = 0.7;
@@ -61,8 +123,6 @@ class SoundFXManager {
   private currentBiomeDepth = 0;
   private ambientSource?: AudioBufferSourceNode;
   private ambientFilter?: BiquadFilterNode;
-  private ambientOsc?: OscillatorNode;
-  private ambientOscGain?: GainNode;
   private ambientTimer = 0;
 
   constructor() {
@@ -153,6 +213,9 @@ class SoundFXManager {
       this.ambientGain.connect(this.masterGain);
 
       this.initialized = true;
+
+      // Preload clips
+      this.preloadAllClips();
     } catch {
       // Web Audio unsupported or blocked
     }
@@ -176,6 +239,129 @@ class SoundFXManager {
       void this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  // ==========================================
+  // SAMPLE BUFFER LOADING & POLYPHONIC PLAYBACK
+  // ==========================================
+
+  public async loadAudioBuffer(clipPath: string): Promise<AudioBuffer | null> {
+    const cached = this.bufferCache.get(clipPath);
+    if (cached) return cached;
+
+    if (this.loadingPromises.has(clipPath)) {
+      return this.loadingPromises.get(clipPath)!;
+    }
+
+    const promise = (async () => {
+      try {
+        const ctx = this.ensureContext();
+        if (!ctx) return null;
+        const url = asset(clipPath);
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const arrayBuffer = await res.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        this.bufferCache.set(clipPath, audioBuffer);
+        return audioBuffer;
+      } catch {
+        return null;
+      } finally {
+        this.loadingPromises.delete(clipPath);
+      }
+    })();
+
+    this.loadingPromises.set(clipPath, promise);
+    return promise;
+  }
+
+  public preloadAllClips(): void {
+    if (typeof window === 'undefined') return;
+    Object.values(SFX_CLIP).forEach((clip) => {
+      void this.loadAudioBuffer(clip);
+    });
+  }
+
+  /**
+   * Plays a pre-decoded audio clip with zero-latency polyphony, optional pitch variation, and 2D spatial positioning.
+   */
+  public playClip(
+    clipPath: string,
+    opts?: {
+      volume?: number;
+      pitch?: number;
+      pitchVariance?: number;
+      spatial?: { x: number; y: number; listenerX?: number; listenerY?: number; maxDist?: number };
+      fallbackFn?: () => void;
+    }
+  ): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) {
+      opts?.fallbackFn?.();
+      return;
+    }
+
+    const volume = opts?.volume ?? 1.0;
+    const variance = opts?.pitchVariance ?? 0;
+    const basePitch = opts?.pitch ?? 1.0;
+    const pitch = Math.max(0.2, basePitch + (variance > 0 ? (Math.random() * 2 - 1) * variance : 0));
+
+    const playBuffer = (buffer: AudioBuffer) => {
+      try {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.playbackRate.setValueAtTime(pitch, ctx.currentTime);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(volume, ctx.currentTime);
+
+        if (opts?.spatial && typeof opts.spatial.x === 'number' && typeof opts.spatial.y === 'number') {
+          const lx = opts.spatial.listenerX ?? opts.spatial.x;
+          const ly = opts.spatial.listenerY ?? opts.spatial.y;
+          const dx = opts.spatial.x - lx;
+          const dy = opts.spatial.y - ly;
+          const dist = Math.hypot(dx, dy);
+          const maxDist = opts.spatial.maxDist ?? 480;
+
+          if (dist >= maxDist) return; // Beyond audible range
+
+          const spatialVol = Math.pow(Math.max(0, 1 - dist / maxDist), 1.5);
+          gain.gain.setValueAtTime(volume * spatialVol, ctx.currentTime);
+
+          if (ctx.createStereoPanner) {
+            const panner = ctx.createStereoPanner();
+            const pan = Math.max(-1, Math.min(1, dx / (maxDist * 0.7)));
+            panner.pan.setValueAtTime(pan, ctx.currentTime);
+            source.connect(gain);
+            gain.connect(panner);
+            panner.connect(this.spatialGain ?? this.sfxGain!);
+            source.start(0);
+            return;
+          }
+        }
+
+        source.connect(gain);
+        gain.connect(this.sfxGain!);
+        source.start(0);
+      } catch {
+        opts?.fallbackFn?.();
+      }
+    };
+
+    const cached = this.bufferCache.get(clipPath);
+    if (cached) {
+      playBuffer(cached);
+      return;
+    }
+
+    // Lazy load & trigger immediately
+    this.loadAudioBuffer(clipPath).then((buffer) => {
+      if (buffer) {
+        playBuffer(buffer);
+      } else {
+        opts?.fallbackFn?.();
+      }
+    });
   }
 
   // ==========================================
@@ -207,7 +393,6 @@ class SoundFXManager {
         .play()
         .then(() => {
           this.currentAudio = nextAudio;
-          // Fade in next audio, fade out previous audio
           const steps = 20;
           const stepTime = (fadeDuration * 1000) / steps;
           let currentStep = 0;
@@ -233,7 +418,6 @@ class SoundFXManager {
           }, stepTime);
         })
         .catch(() => {
-          // Autoplay blocked: remember track and play upon next user gesture
           this.pendingTrack = { track, loop };
         });
     };
@@ -324,7 +508,6 @@ class SoundFXManager {
     const t = ctx.currentTime;
 
     if (emitter.type === 'bonfire' || emitter.type === 'torch') {
-      // Pink/Brownian fire rumble buffer
       const bufferSize = ctx.sampleRate * 2;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = noiseBuffer.getChannelData(0);
@@ -351,7 +534,6 @@ class SoundFXManager {
       emitter.noiseSource = noise;
       emitter.filterNode = filter;
     } else if (emitter.type === 'shrine_blood') {
-      // 55Hz pulsing dark drone
       const osc = ctx.createOscillator();
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(55, t);
@@ -367,7 +549,6 @@ class SoundFXManager {
       emitter.oscSource = osc;
       emitter.filterNode = filter;
     } else if (emitter.type === 'shrine_chance') {
-      // Harmonic pure chime drone
       const osc = ctx.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(440, t);
@@ -376,7 +557,6 @@ class SoundFXManager {
       osc.start(t);
       emitter.oscSource = osc;
     } else if (emitter.type === 'altar') {
-      // Deep 42Hz void sub-bass
       const osc = ctx.createOscillator();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(42, t);
@@ -438,91 +618,41 @@ class SoundFXManager {
         continue;
       }
 
-      // Smooth inverse quadratic attenuation
       const normalized = 1 - dist / emitter.maxDist;
       const gainVal = Math.pow(normalized, 1.8) * emitter.baseVolume;
       emitter.currentGain.gain.setTargetAtTime(gainVal, t, 0.05);
 
-      // Stereo Panning (-1 = left, +1 = right)
       if (emitter.panner) {
         const panVal = Math.max(-1, Math.min(1, dx / (emitter.maxDist * 0.75)));
         emitter.panner.pan.setTargetAtTime(panVal, t, 0.05);
       }
-
-      // Procedural Fire Pop / Wood Crackle when close to campfire
-      if (emitter.type === 'bonfire' && shouldPop && dist < 180 && Math.random() < 0.45) {
-        this.playPopcornCrackle(emitter.x, emitter.y, listenerX, listenerY);
-      }
     }
-
-    // Biome Ambient One-Shot Triggers
-    this.updateAmbientOneShots(delta);
-  }
-
-  private playPopcornCrackle(emitX: number, emitY: number, listX: number, listY: number): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.spatialGain) return;
-
-    const dist = Math.hypot(emitX - listX, emitY - listY);
-    if (dist > 220) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-
-    osc.type = 'triangle';
-    const pitch = 1200 + Math.random() * 2400;
-    osc.frequency.setValueAtTime(pitch, t);
-    osc.frequency.exponentialRampToValueAtTime(180, t + 0.025);
-
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(pitch, t);
-    filter.Q.setValueAtTime(4, t);
-
-    const norm = 1 - dist / 220;
-    const popVol = Math.pow(norm, 2) * (0.08 + Math.random() * 0.12);
-
-    gain.gain.setValueAtTime(popVol, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.spatialGain);
-
-    osc.start(t);
-    osc.stop(t + 0.025);
   }
 
   // ==========================================
-  // BIOME AMBIENT SOUNDSCAPES
+  // BIOME AMBIENT DRONE
   // ==========================================
 
   setBiome(depth: number): void {
     if (this.currentBiomeDepth === depth) return;
     this.currentBiomeDepth = depth;
-    this.stopAmbient();
-
     const ctx = this.ensureContext();
     if (!ctx || !this.ambientGain) return;
 
-    const t = ctx.currentTime;
+    this.stopBiomeAmbient();
 
-    // Pink noise wind / draft loop
-    const bufferSize = ctx.sampleRate * 4;
+    const t = ctx.currentTime;
+    const bufferSize = ctx.sampleRate * 3;
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = noiseBuffer.getChannelData(0);
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    let b0 = 0, b1 = 0, b2 = 0;
+
     for (let i = 0; i < bufferSize; i++) {
       const white = Math.random() * 2 - 1;
       b0 = 0.99886 * b0 + white * 0.0555179;
       b1 = 0.99332 * b1 + white * 0.0750759;
       b2 = 0.96900 * b2 + white * 0.1538520;
-      b3 = 0.86650 * b3 + white * 0.3104856;
-      b4 = 0.55000 * b4 + white * 0.5329522;
-      b5 = -0.7616 * b5 - white * 0.0168980;
-      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
-      b6 = white * 0.115926;
+      data[i] = (b0 + b1 + b2 + white * 0.5362) * 0.11;
     }
 
     const noise = ctx.createBufferSource();
@@ -530,36 +660,8 @@ class SoundFXManager {
     noise.loop = true;
 
     const filter = ctx.createBiquadFilter();
-
-    if (depth === 1) {
-      // Forest: Gentle nocturnal forest wind & leafy rustling
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(320, t);
-      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.28, t);
-    } else if (depth === 2) {
-      // Ruins: Cold wind howling through ancient crumbling stone arches
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(280, t);
-      filter.Q.setValueAtTime(2.0, t);
-      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.3, t);
-    } else if (depth === 3) {
-      // Catacombs: Cold resonant underground air draft
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(220, t);
-      filter.Q.setValueAtTime(2.5, t);
-      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.32, t);
-    } else if (depth === 4) {
-      // Depths: Heavy subterranean ore rumble
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(140, t);
-      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.38, t);
-    } else {
-      // Abyss / Void: Hollow eerie cosmic ether
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(360, t);
-      filter.Q.setValueAtTime(4.0, t);
-      this.ambientGain.gain.setValueAtTime(this.musicVolume * 0.35, t);
-    }
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(depth === 1 ? 300 : depth === 2 ? 220 : 180, t);
 
     noise.connect(filter);
     filter.connect(this.ambientGain);
@@ -569,1665 +671,1117 @@ class SoundFXManager {
     this.ambientFilter = filter;
   }
 
-  stopAmbient(): void {
+    private stopBiomeAmbient(): void {
     try {
       this.ambientSource?.stop();
       this.ambientSource?.disconnect();
+    } catch {}
+    try {
       this.ambientFilter?.disconnect();
-      this.ambientOsc?.stop();
-      this.ambientOsc?.disconnect();
-      this.ambientOscGain?.disconnect();
     } catch {}
     this.ambientSource = undefined;
     this.ambientFilter = undefined;
-    this.ambientOsc = undefined;
-    this.ambientOscGain = undefined;
   }
 
-  private updateAmbientOneShots(delta: number): void {
+  public stopAmbient(): void {
+    this.stopBiomeAmbient();
+  }
+
+  updateAmbient(delta: number): void {
     this.ambientTimer += delta;
-    if (this.ambientTimer < 6000) return;
-    this.ambientTimer = 0;
-
-    const ctx = this.ensureContext();
-    if (!ctx || !this.ambientGain) return;
-
-    if (this.currentBiomeDepth === 1) {
-      if (Math.random() < 0.6) this.playDistantWindGust();
-    } else if (this.currentBiomeDepth === 2) {
-      if (Math.random() < 0.75) this.playCaveWaterDrip();
-    } else if (this.currentBiomeDepth === 3) {
-      if (Math.random() < 0.7) this.playLavaBubble();
-    }
-  }
-
-  private playDistantWindGust(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.ambientGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(110, t);
-    osc.frequency.exponentialRampToValueAtTime(180, t + 1.2);
-    osc.frequency.exponentialRampToValueAtTime(80, t + 2.5);
-
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(280, t);
-
-    gain.gain.setValueAtTime(0.001, t);
-    gain.gain.linearRampToValueAtTime(0.08, t + 1.0);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.ambientGain);
-
-    osc.start(t);
-    osc.stop(t + 2.5);
-  }
-
-  private playCaveWaterDrip(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.ambientGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    const pitch = 900 + Math.random() * 600;
-    osc.frequency.setValueAtTime(pitch, t);
-    osc.frequency.exponentialRampToValueAtTime(pitch * 1.5, t + 0.04);
-    osc.frequency.exponentialRampToValueAtTime(pitch * 0.4, t + 0.14);
-
-    gain.gain.setValueAtTime(0.12, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-
-    osc.connect(gain);
-    gain.connect(this.ambientGain);
-
-    osc.start(t);
-    osc.stop(t + 0.25);
-  }
-
-  private playLavaBubble(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.ambientGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(140, t);
-    osc.frequency.exponentialRampToValueAtTime(320, t + 0.06);
-    osc.frequency.exponentialRampToValueAtTime(90, t + 0.16);
-
-    gain.gain.setValueAtTime(0.15, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-
-    osc.connect(gain);
-    gain.connect(this.ambientGain);
-
-    osc.start(t);
-    osc.stop(t + 0.16);
-  }
-
-  // ==========================================
-  // FOLEY & DYNAMIC FOOTSTEPS
-  // ==========================================
-
-  playFootstep(surface: SurfaceType, isSprinting = false): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const jitter = 0.9 + Math.random() * 0.2;
-    const vol = (isSprinting ? 0.18 : 0.12) * jitter;
-
-    if (surface === 'grass') {
-      const bufferSize = Math.floor(ctx.sampleRate * 0.06);
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(450 * jitter, t);
-      filter.Q.setValueAtTime(1.8, t);
-
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(vol * 0.7, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.sfxGain);
-
-      noise.start(t);
-      noise.stop(t + 0.06);
-    } else if (surface === 'dirt') {
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-
-      const bufferSize = Math.floor(ctx.sampleRate * 0.05);
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1100 * jitter, t);
-      filter.Q.setValueAtTime(2.2, t);
-
-      gain.gain.setValueAtTime(vol * 0.9, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.sfxGain);
-
-      noise.start(t);
-      noise.stop(t + 0.05);
-    } else {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(320 * jitter, t);
-      osc.frequency.exponentialRampToValueAtTime(90, t + 0.04);
-
-      gain.gain.setValueAtTime(vol, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain);
-
-      osc.start(t);
-      osc.stop(t + 0.04);
+    if (this.ambientTimer > 8000 && this.ambientFilter && this.ctx) {
+      this.ambientTimer = 0;
+      const targetFreq = 160 + Math.random() * 200;
+      this.ambientFilter.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 2.5);
     }
   }
 
   // ==========================================
-  // WEAPONS, ENVIRONMENT & COMBAT SOUNDS
+  // GAMEPLAY SOUND METHODS (Polyphonic Sample & Spatial)
   // ==========================================
 
-  /** Rich slicing blade swoosh with resonant steel ring */
-  playSwordSwing(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
+  // --- Hero Combat & Abilities ---
 
-    const t = ctx.currentTime;
-    const jitter = 0.92 + Math.random() * 0.16;
-
-    // Cutting air whoosh
-    const bufferSize = Math.floor(ctx.sampleRate * 0.14);
-    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(500 * jitter, t);
-    filter.frequency.exponentialRampToValueAtTime(1600 * jitter, t + 0.05);
-    filter.frequency.exponentialRampToValueAtTime(350 * jitter, t + 0.14);
-    filter.Q.setValueAtTime(3.5, t);
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.01, t);
-    gain.gain.linearRampToValueAtTime(0.4, t + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.sfxGain);
-
-    noise.start(t);
-    noise.stop(t + 0.14);
-
-    // Metallic blade edge ping
-    const ring = ctx.createOscillator();
-    const ringGain = ctx.createGain();
-    ring.type = 'sine';
-    ring.frequency.setValueAtTime(980 * jitter, t);
-    ring.frequency.exponentialRampToValueAtTime(490 * jitter, t + 0.09);
-
-    ringGain.gain.setValueAtTime(0.12, t);
-    ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
-
-    ring.connect(ringGain);
-    ringGain.connect(this.sfxGain);
-    ring.start(t);
-    ring.stop(t + 0.09);
+  public playSwordSwing(): void {
+    this.playClip(SFX_CLIP.SWORD_SWING, { volume: 0.9, pitchVariance: 0.06, fallbackFn: () => this.synthSwordSwing() });
   }
 
-  /** Whistling arrow release from bow */
-  playArrowShoot(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const twang = ctx.createOscillator();
-    const twangGain = ctx.createGain();
-    twang.type = 'triangle';
-    twang.frequency.setValueAtTime(520, t);
-    twang.frequency.exponentialRampToValueAtTime(140, t + 0.1);
-
-    twangGain.gain.setValueAtTime(0.38, t);
-    twangGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-
-    twang.connect(twangGain);
-    twangGain.connect(this.sfxGain);
-    twang.start(t);
-    twang.stop(t + 0.1);
-
-    // Whistling arrow zip
-    const whoosh = ctx.createOscillator();
-    const whooshGain = ctx.createGain();
-    whoosh.type = 'sine';
-    whoosh.frequency.setValueAtTime(1000, t);
-    whoosh.frequency.exponentialRampToValueAtTime(2000, t + 0.04);
-    whoosh.frequency.exponentialRampToValueAtTime(600, t + 0.16);
-
-    whooshGain.gain.setValueAtTime(0.24, t);
-    whooshGain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-
-    whoosh.connect(whooshGain);
-    whooshGain.connect(this.sfxGain);
-    whoosh.start(t);
-    whoosh.stop(t + 0.16);
-  }
-
-  /** Arrow impact thump */
-  playArrowHit(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(580, t);
-    osc.frequency.exponentialRampToValueAtTime(85, t + 0.09);
-
-    gain.gain.setValueAtTime(0.42, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.09);
-  }
-
-  /** Resonant mystical staff energy cast */
-  playStaffCast(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-
-    // Harmonic singing crystal/arcane chime
-    const chime = ctx.createOscillator();
-    const chimeGain = ctx.createGain();
-    chime.type = 'sine';
-    chime.frequency.setValueAtTime(660, t);
-    chime.frequency.exponentialRampToValueAtTime(1500, t + 0.06);
-    chime.frequency.exponentialRampToValueAtTime(920, t + 0.18);
-
-    chimeGain.gain.setValueAtTime(0.3, t);
-    chimeGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-
-    chime.connect(chimeGain);
-    chimeGain.connect(this.sfxGain);
-    chime.start(t);
-    chime.stop(t + 0.18);
-
-    // Deep mana surge resonance
-    const surge = ctx.createOscillator();
-    const surgeGain = ctx.createGain();
-    surge.type = 'triangle';
-    surge.frequency.setValueAtTime(240, t);
-    surge.frequency.exponentialRampToValueAtTime(110, t + 0.14);
-
-    surgeGain.gain.setValueAtTime(0.35, t);
-    surgeGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-
-    surge.connect(surgeGain);
-    surgeGain.connect(this.sfxGain);
-    surge.start(t);
-    surge.stop(t + 0.14);
-  }
-
-  /** Arcane energy blast detonation */
-  playEnergyHit(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-
-    // Crisp high-frequency glass/energy shatter
-    const spark = ctx.createOscillator();
-    const sparkGain = ctx.createGain();
-    spark.type = 'sine';
-    spark.frequency.setValueAtTime(1300, t);
-    spark.frequency.exponentialRampToValueAtTime(340, t + 0.12);
-
-    sparkGain.gain.setValueAtTime(0.38, t);
-    sparkGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-    spark.connect(sparkGain);
-    sparkGain.connect(this.sfxGain);
-    spark.start(t);
-    spark.stop(t + 0.12);
-
-    // Low sub-bass pop
-    const sub = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    sub.type = 'triangle';
-    sub.frequency.setValueAtTime(260, t);
-    sub.frequency.exponentialRampToValueAtTime(45, t + 0.14);
-
-    subGain.gain.setValueAtTime(0.45, t);
-    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-
-    sub.connect(subGain);
-    subGain.connect(this.sfxGain);
-    sub.start(t);
-    sub.stop(t + 0.14);
-  }
-
-  /** Arcane Supernova cosmic release burst */
-  playSupernova(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const freqs = [330, 440, 660, 880, 1174];
-    freqs.forEach((f, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
-      osc.frequency.setValueAtTime(f, t);
-      osc.frequency.exponentialRampToValueAtTime(f * 2.2, t + 0.12);
-      osc.frequency.exponentialRampToValueAtTime(f * 0.7, t + 0.45);
-
-      gain.gain.setValueAtTime(0.22, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(t);
-      osc.stop(t + 0.45);
+  public playShieldBlock(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.SHIELD_BLOCK, {
+      volume: 1.0,
+      pitchVariance: 0.04,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthShieldBlock(),
     });
   }
 
-  /** Tree chop axe/blade thud */
-  playTreeChop(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(260 + Math.random() * 40, t);
-    osc.frequency.exponentialRampToValueAtTime(60, t + 0.08);
-
-    gain.gain.setValueAtTime(0.45, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.08);
-
-    this.playWoodBreak();
+  public playArrowShoot(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.ARROW_SHOOT, {
+      volume: 0.95,
+      pitchVariance: 0.05,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 400 } : undefined,
+      fallbackFn: () => this.synthArrowShoot(),
+    });
   }
 
-  /** Tree toppling over with wood fracture */
-  playTreeFall(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(140, t);
-    osc.frequency.exponentialRampToValueAtTime(45, t + 0.4);
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(220, t);
-
-    gain.gain.setValueAtTime(0.4, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.sfxGain);
-
-    osc.start(t);
-    osc.stop(t + 0.4);
+  public playArrowHit(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.ARROW_HIT, {
+      volume: 0.95,
+      pitchVariance: 0.06,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthArrowHit(),
+    });
   }
 
-  /** Heavy chest open with latch chime */
-  playChestOpen(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
+  public playStaffCast(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.STAFF_CAST, {
+      volume: 0.9,
+      pitchVariance: 0.05,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 400 } : undefined,
+      fallbackFn: () => this.synthStaffCast(),
+    });
+  }
 
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+  public playEnergyHit(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.ENERGY_HIT, {
+      volume: 0.9,
+      pitchVariance: 0.05,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthEnergyHit(),
+    });
+  }
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(180, t);
-    osc.frequency.linearRampToValueAtTime(320, t + 0.15);
-    osc.frequency.exponentialRampToValueAtTime(90, t + 0.28);
+  public playSupernova(): void {
+    this.playClip(SFX_CLIP.SUPERNOVA, { volume: 1.1, fallbackFn: () => this.synthSupernova() });
+  }
 
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(420, t);
+  public playDash(): void {
+    this.playClip(SFX_CLIP.DASH, { volume: 0.85, pitchVariance: 0.04, fallbackFn: () => this.synthDash() });
+  }
 
-    gain.gain.setValueAtTime(0.28, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+  public playFootstep(surface: SurfaceType = 'stone', isSprinting = false, x?: number, y?: number, lx?: number, ly?: number): void {
+    this.footstepIndex = (this.footstepIndex + 1) % 2;
+    const clip = this.footstepIndex === 0 ? SFX_CLIP.FOOTSTEP_1 : SFX_CLIP.FOOTSTEP_2;
+    const speedMult = isSprinting ? 1.15 : 1.0;
+    const basePitch = (surface === 'grass' ? 0.9 : surface === 'dirt' ? 0.95 : 1.0) * speedMult;
 
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.sfxGain);
+    this.playClip(clip, {
+      volume: isSprinting ? 0.45 : 0.35,
+      pitch: basePitch,
+      pitchVariance: 0.06,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 350 } : undefined,
+      fallbackFn: () => this.synthFootstep(surface, isSprinting),
+    });
+  }
 
-    osc.start(t);
-    osc.stop(t + 0.28);
+  // --- Impacts, Damage & Deaths ---
 
+    public playEnemyHit(kind?: string | number, x?: number, y?: number, lx?: number, ly?: number): void {
+    const posX = typeof kind === 'number' ? kind : x;
+    const posY = typeof kind === 'number' ? x : y;
+    const listX = typeof kind === 'number' ? y : lx;
+    const listY = typeof kind === 'number' ? lx : ly;
+
+    const clip = kind === 'skeleton' ? SFX_CLIP.BONE_CLEAVE : SFX_CLIP.ENEMY_HIT;
+
+    this.playClip(clip, {
+      volume: 1.0,
+      pitchVariance: 0.07,
+      spatial: (typeof posX === 'number' && typeof posY === 'number') ? { x: posX, y: posY, listenerX: listX, listenerY: listY, maxDist: 500 } : undefined,
+      fallbackFn: () => this.synthEnemyHit(),
+    });
+  }
+
+  public playCritHit(kind?: string | number, x?: number, y?: number, lx?: number, ly?: number): void {
+    const posX = typeof kind === 'number' ? kind : x;
+    const posY = typeof kind === 'number' ? x : y;
+    const listX = typeof kind === 'number' ? y : lx;
+    const listY = typeof kind === 'number' ? lx : ly;
+
+    this.playClip(SFX_CLIP.CRIT_HIT, {
+      volume: 1.15,
+      pitchVariance: 0.04,
+      spatial: (typeof posX === 'number' && typeof posY === 'number') ? { x: posX, y: posY, listenerX: listX, listenerY: listY, maxDist: 550 } : undefined,
+      fallbackFn: () => this.synthCritHit(),
+    });
+  }
+
+  public playEnemyDeath(kind?: string | number, x?: number, y?: number, lx?: number, ly?: number): void {
+    const posX = typeof kind === 'number' ? kind : x;
+    const posY = typeof kind === 'number' ? x : y;
+    const listX = typeof kind === 'number' ? y : lx;
+    const listY = typeof kind === 'number' ? lx : ly;
+
+    const clip = kind === 'skeleton' ? SFX_CLIP.SKELETON_DEATH : SFX_CLIP.ENEMY_DEATH;
+
+    this.playClip(clip, {
+      volume: 0.95,
+      pitchVariance: 0.05,
+      spatial: (typeof posX === 'number' && typeof posY === 'number') ? { x: posX, y: posY, listenerX: listX, listenerY: listY, maxDist: 480 } : undefined,
+      fallbackFn: () => this.synthEnemyDeath(),
+    });
+  }
+
+  public playPlayerHurt(): void {
+    this.playClip(SFX_CLIP.PLAYER_HURT, { volume: 1.0, pitchVariance: 0.04, fallbackFn: () => this.synthPlayerHurt() });
+  }
+
+  public playPlayerDeath(): void {
+    this.playClip(SFX_CLIP.PLAYER_DEATH, { volume: 1.1, fallbackFn: () => this.synthPlayerDeath() });
+  }
+
+  // --- Monsters & Beasts ---
+
+  public playWolfSnarl(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.WOLF_SNARL, {
+      volume: 1.0,
+      pitchVariance: 0.04,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthWolfSnarl(),
+    });
+  }
+
+  public playWolfHowl(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.WOLF_HOWL, {
+      volume: 1.0,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 600 } : undefined,
+      fallbackFn: () => this.synthWolfHowl(),
+    });
+  }
+
+  public playWolfFrenzyRally(): void {
+    this.playWolfHowl();
+  }
+
+  public playBoneCleave(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.BONE_CLEAVE, {
+      volume: 0.9,
+      pitchVariance: 0.05,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthBoneCleave(),
+    });
+  }
+
+  public playSkeletonDeath(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.SKELETON_DEATH, {
+      volume: 0.95,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthEnemyDeath(),
+    });
+  }
+
+  public playEnemyFireballCharge(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.ENEMY_FIREBALL_CHARGE, {
+      volume: 0.9,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthEnemyFireballCharge(),
+    });
+  }
+
+  public playEnemyFireball(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.ENEMY_FIREBALL, {
+      volume: 0.95,
+      pitchVariance: 0.04,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthEnemyFireball(),
+    });
+  }
+
+  public playCleaveWindup(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.CLEAVE_WINDUP, {
+      volume: 0.9,
+      pitchVariance: 0.03,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthCleaveWindup(),
+    });
+  }
+
+  public playCleaveImpact(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playEnemyHit(x, y, lx, ly);
+  }
+
+  public playBossCleaveSlash(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.GROUND_SLAM, {
+      volume: 1.15,
+      pitch: 1.2,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 550 } : undefined,
+      fallbackFn: () => this.synthGroundSlam(),
+    });
+  }
+
+  public playOrcRoar(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.ORC_ROAR, {
+      volume: 1.15,
+      pitchVariance: 0.04,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 600 } : undefined,
+      fallbackFn: () => this.synthOrcRoar(),
+    });
+  }
+
+  public playOrcCharge(): void {
+    this.playOrcRoar();
+  }
+
+  public playGroundSlam(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.GROUND_SLAM, {
+      volume: 1.15,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 550 } : undefined,
+      fallbackFn: () => this.synthGroundSlam(),
+    });
+  }
+
+  // --- Archdemon Boss ---
+
+  public playBossRoar(): void {
+    this.playClip(SFX_CLIP.BOSS_ROAR, { volume: 1.2, fallbackFn: () => this.synthBossRoar() });
+  }
+
+  public playBossSpawn(): void {
+    this.playClip(SFX_CLIP.BOSS_SPAWN, { volume: 1.2, fallbackFn: () => this.synthBossRoar() });
+  }
+
+  public playShockwave(): void {
+    this.playClip(SFX_CLIP.SHOCKWAVE, { volume: 1.15, fallbackFn: () => this.synthShockwave() });
+  }
+
+  public playProjectileLaunch(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.PROJECTILE_LAUNCH, {
+      volume: 1.0,
+      pitchVariance: 0.04,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 500 } : undefined,
+      fallbackFn: () => this.synthProjectileLaunch(),
+    });
+  }
+
+  public playBossDeath(): void {
+    this.playClip(SFX_CLIP.BOSS_DEATH, { volume: 1.2, fallbackFn: () => this.synthBossDeath() });
+  }
+
+  // --- Elemental Combos ---
+
+  public playFireExplosion(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.FIRE_EXPLOSION, {
+      volume: 1.05,
+      pitchVariance: 0.04,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 550 } : undefined,
+      fallbackFn: () => this.synthFireExplosion(),
+    });
+  }
+
+  public playFireballImpact(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playFireExplosion(x, y, lx, ly);
+  }
+
+  public playIceShatter(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.ICE_SHATTER, {
+      volume: 1.0,
+      pitchVariance: 0.04,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 550 } : undefined,
+      fallbackFn: () => this.synthIceShatter(),
+    });
+  }
+
+  public playLightningZap(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.LIGHTNING_ZAP, {
+      volume: 0.95,
+      pitchVariance: 0.05,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 500 } : undefined,
+      fallbackFn: () => this.synthLightningZap(),
+    });
+  }
+
+  // --- Environment & Loot ---
+
+  public playSpikeTrigger(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.SPIKE_THRUST, {
+      volume: 0.95,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 400 } : undefined,
+      fallbackFn: () => this.synthSpikeTrigger(),
+    });
+  }
+
+  public playSpikeThrust(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playSpikeTrigger(x, y, lx, ly);
+  }
+
+  public playWoodBreak(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.WOOD_BREAK, {
+      volume: 1.0,
+      pitchVariance: 0.05,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      fallbackFn: () => this.synthWoodBreak(),
+    });
+  }
+
+  public playChestOpen(x?: number, y?: number, lx?: number, ly?: number): void {
+    this.playClip(SFX_CLIP.CHEST_OPEN, {
+      volume: 1.0,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 500 } : undefined,
+      fallbackFn: () => this.synthChestOpen(),
+    });
+  }
+
+  /**
+   * Polyphonic Coin Pickup with dynamic cascading musical scale pitch-up for rapid coin clusters!
+   */
+  public playCoinPickup(x?: number, y?: number, lx?: number, ly?: number): void {
+    const now = Date.now();
+    if (now - this.lastCoinPickupTime < 450) {
+      this.coinComboCount = Math.min(10, this.coinComboCount + 1);
+    } else {
+      this.coinComboCount = 0;
+    }
+    this.lastCoinPickupTime = now;
+
+    // Musical scale rise on chain pickups (0% -> +35% pitch)
+    const pitch = 1.0 + this.coinComboCount * 0.035 + (Math.random() * 0.04 - 0.02);
+
+    this.coinPitchIndex = (this.coinPitchIndex + 1) % 2;
+    const clip = this.coinPitchIndex === 0 ? SFX_CLIP.COIN_PICKUP_1 : SFX_CLIP.COIN_PICKUP_2;
+
+    this.playClip(clip, {
+      volume: 0.85,
+      pitch,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 400 } : undefined,
+      fallbackFn: () => this.synthCoinPickup(),
+    });
+  }
+
+  public playFlaskPickup(): void {
+    this.flaskIndex = (this.flaskIndex + 1) % 2;
+    const clip = this.flaskIndex === 0 ? SFX_CLIP.FLASK_PICKUP_1 : SFX_CLIP.FLASK_PICKUP_2;
+    this.playClip(clip, { volume: 0.9, pitchVariance: 0.03, fallbackFn: () => this.synthFlaskPickup() });
+  }
+
+  public playItemAcquired(): void {
+    this.playClip(SFX_CLIP.ITEM_ACQUIRED, { volume: 1.05, fallbackFn: () => this.synthItemAcquired() });
+  }
+
+  public playPowerUp(): void {
     this.playItemAcquired();
   }
 
-  /** Impact sound when hit an enemy */
-  playEnemyHit(kind: string): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const jitter = 0.88 + Math.random() * 0.24;
-
-    if (kind === 'wolf') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(420 * jitter, t);
-      osc.frequency.exponentialRampToValueAtTime(140 * jitter, t + 0.07);
-
-      gain.gain.setValueAtTime(0.35, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain);
-      osc.start(t);
-      osc.stop(t + 0.07);
-    } else if (kind === 'skeleton') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(740 * jitter, t);
-      osc.frequency.exponentialRampToValueAtTime(190 * jitter, t + 0.06);
-
-      gain.gain.setValueAtTime(0.32, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain);
-      osc.start(t);
-      osc.stop(t + 0.06);
-    } else {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(260 * jitter, t);
-      osc.frequency.exponentialRampToValueAtTime(75 * jitter, t + 0.08);
-
-      gain.gain.setValueAtTime(0.38, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain);
-      osc.start(t);
-      osc.stop(t + 0.08);
-    }
+  public playThreatLevelUp(): void {
+    this.playClip(SFX_CLIP.THREAT_LEVEL_UP, { volume: 1.1, fallbackFn: () => this.synthThreatLevelUp() });
   }
 
-  /** Critical hit heavy slash */
-  playCritHit(): void {
+  // --- UI & Menu ---
+
+  public playButtonHover(): void {
+    this.playClip(SFX_CLIP.BUTTON_HOVER, { volume: 0.45, fallbackFn: () => this.synthButtonHover() });
+  }
+
+  public playMenuClick(): void {
+    this.playClip(SFX_CLIP.MENU_CLICK, { volume: 0.7, fallbackFn: () => this.synthMenuClick() });
+  }
+
+  public playSliderTick(): void {
+    this.playMenuClick();
+  }
+
+  public playModalOpen(): void {
+    this.playClip(SFX_CLIP.MODAL_OPEN, { volume: 0.8, fallbackFn: () => this.synthModalOpen() });
+  }
+
+  public playModalClose(): void {
+    this.playModalOpen();
+  }
+
+  public playAchievementUnlocked(): void {
+    this.playClip(SFX_CLIP.ACHIEVEMENT_UNLOCK, { volume: 1.05, fallbackFn: () => this.synthAchievementUnlocked() });
+  }
+
+  // ==========================================
+  // PROCEDURAL WEB AUDIO SYNTHESIZER FALLBACKS
+  // ==========================================
+
+  private synthSwordSwing(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(560, t);
-    osc.frequency.exponentialRampToValueAtTime(110, t + 0.18);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(450, t);
+    osc.frequency.exponentialRampToValueAtTime(90, t + 0.12);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.12);
+  }
 
-    gain.gain.setValueAtTime(0.5, t);
+  private synthShieldBlock(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.18);
+    gain.gain.setValueAtTime(0.6, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.18);
   }
 
-  /** Enemy death sound */
-  playEnemyDeath(kind: string): void {
+  private synthArrowShoot(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    if (kind === 'wolf') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(520, t);
-      osc.frequency.linearRampToValueAtTime(680, t + 0.08);
-      osc.frequency.exponentialRampToValueAtTime(90, t + 0.32);
-      gain.gain.setValueAtTime(0.40, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
-      osc.connect(gain);
-      gain.connect(this.sfxGain);
-      osc.start(t);
-      osc.stop(t + 0.32);
-      return;
-    }
-
-    if (kind === 'skeleton') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(440, t);
-      osc.frequency.exponentialRampToValueAtTime(60, t + 0.22);
-    } else {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(280, t);
-      osc.frequency.exponentialRampToValueAtTime(45, t + 0.26);
-    }
-
-    gain.gain.setValueAtTime(0.38, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.26);
-  }
-
-  /** Player hurt sound */
-  playPlayerHurt(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(190, t);
-    osc.frequency.exponentialRampToValueAtTime(65, t + 0.12);
-
-    gain.gain.setValueAtTime(0.42, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.12);
-  }
-
-  /** Player death stinger */
-  playPlayerDeath(): void {
-    this.playMusic('gameover', false, 0.2);
-  }
-
-  /** Item acquired chime */
-  playItemAcquired(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, i) => {
-      const t = ctx.currentTime + i * 0.06;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t);
-
-      gain.gain.setValueAtTime(0.28, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(t);
-      osc.stop(t + 0.28);
-    });
-  }
-
-  /** Gold coin pickup */
-  playCoinPickup(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    const pitch = 987.77 + Math.random() * 80;
-    osc.frequency.setValueAtTime(pitch, t);
-    osc.frequency.setValueAtTime(pitch * 1.33, t + 0.04);
-
-    gain.gain.setValueAtTime(0.22, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
+    osc.frequency.setValueAtTime(620, t);
+    osc.frequency.exponentialRampToValueAtTime(140, t + 0.14);
+    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.12);
+    osc.stop(t + 0.14);
   }
 
-  /** Health flask pickup */
-  playHealthPickup(): void {
+  private synthArrowHit(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
-    const notes = [440, 554.37, 659.25];
-    notes.forEach((freq, i) => {
-      const t = ctx.currentTime + i * 0.05;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t);
-
-      gain.gain.setValueAtTime(0.28, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(t);
-      osc.stop(t + 0.2);
-    });
-  }
-
-  /** Wood crate / barrel smash */
-  playWoodBreak(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(220, t);
-    osc.frequency.exponentialRampToValueAtTime(45, t + 0.08);
-
-    gain.gain.setValueAtTime(0.38, t);
+    osc.frequency.exponentialRampToValueAtTime(50, t + 0.08);
+    gain.gain.setValueAtTime(0.5, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.08);
   }
 
-  /** Floor spike trap trigger mechanism (plate click) */
-  playSpikeTrigger(): void {
+  private synthStaffCast(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(880, t);
-    osc.frequency.exponentialRampToValueAtTime(320, t + 0.04);
-
-    gain.gain.setValueAtTime(0.25, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.04);
-  }
-
-  /** Floor spike trap thrust (metallic blade snap) */
-  playSpikeThrust(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(620, t);
-    osc.frequency.exponentialRampToValueAtTime(90, t + 0.12);
-
-    gain.gain.setValueAtTime(0.42, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.12);
-  }
-
-  /** Imp fireball telegraph charging sizzle */
-  playEnemyFireballCharge(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    // Rising sizzle oscillator
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(180, t);
-    osc.frequency.exponentialRampToValueAtTime(540, t + 0.35);
-
-    gain.gain.setValueAtTime(0.01, t);
-    gain.gain.linearRampToValueAtTime(0.22, t + 0.28);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.35);
-
-    // Crackling white noise sizzle burst
-    const bufSize = Math.floor(ctx.sampleRate * 0.35);
-    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) {
-      d[i] = (Math.random() * 2 - 1) * (Math.random() < 0.2 ? 0.9 : 0.2);
-    }
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(600, t);
-    filter.frequency.exponentialRampToValueAtTime(1800, t + 0.35);
-    filter.Q.setValueAtTime(3.0, t);
-
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.05, t);
-    noiseGain.gain.linearRampToValueAtTime(0.25, t + 0.3);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-
-    noise.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(this.sfxGain);
-    noise.start(t);
-    noise.stop(t + 0.35);
-  }
-
-  /** Imp fireball spit combustion launch */
-  playEnemyFireball(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    // Tonal flaming pitch drop
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(520, t);
-    osc.frequency.exponentialRampToValueAtTime(110, t + 0.22);
-
-    gain.gain.setValueAtTime(0.38, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.22);
-
-    // Explosive flame puff noise
-    const bufSize = Math.floor(ctx.sampleRate * 0.2);
-    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, t);
-    filter.frequency.exponentialRampToValueAtTime(200, t + 0.2);
-
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.35, t);
-    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-
-    noise.connect(filter);
-    filter.connect(nGain);
-    nGain.connect(this.sfxGain);
-    noise.start(t);
-    noise.stop(t + 0.2);
-  }
-
-  /** Fireball projectile detonation / impact */
-  playFireballImpact(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    // Sub-bass thud
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(130, t);
-    osc.frequency.exponentialRampToValueAtTime(35, t + 0.22);
-
-    gain.gain.setValueAtTime(0.45, t);
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.linearRampToValueAtTime(840, t + 0.15);
+    gain.gain.setValueAtTime(0.4, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.22);
-
-    // Crackling fiery blast
-    const bufSize = Math.floor(ctx.sampleRate * 0.25);
-    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(1100, t);
-    filter.frequency.exponentialRampToValueAtTime(300, t + 0.25);
-
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.40, t);
-    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-
-    noise.connect(filter);
-    filter.connect(nGain);
-    nGain.connect(this.sfxGain);
-    noise.start(t);
-    noise.stop(t + 0.25);
   }
 
-  /** Skeleton bone cleave telegraph (sinister blade scrape) */
-  playCleaveWindup(): void {
+  private synthEnergyHit(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(190, t);
-    osc.frequency.linearRampToValueAtTime(340, t + 0.3);
-
-    gain.gain.setValueAtTime(0.18, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.32);
-  }
-
-  /** Skeleton heavy bone cleave swing (deep razor-sharp whoosh) */
-  playBoneCleave(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    // Heavy tonal sweep
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(340, t);
-    osc.frequency.exponentialRampToValueAtTime(55, t + 0.24);
-
-    gain.gain.setValueAtTime(0.55, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.24);
-
-    // Cleaving air turbulence noise
-    const bufSize = Math.floor(ctx.sampleRate * 0.22);
-    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(950, t);
-    filter.frequency.exponentialRampToValueAtTime(180, t + 0.22);
-
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.35, t);
-    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-
-    noise.connect(filter);
-    filter.connect(nGain);
-    nGain.connect(this.sfxGain);
-    noise.start(t);
-    noise.stop(t + 0.22);
-  }
-
-  /** Heavy bone cleave impact strike */
-  playCleaveImpact(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(220, t);
-    osc.frequency.exponentialRampToValueAtTime(40, t + 0.15);
-
-    gain.gain.setValueAtTime(0.5, t);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(750, t);
+    osc.frequency.exponentialRampToValueAtTime(120, t + 0.15);
+    gain.gain.setValueAtTime(0.45, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.15);
   }
 
-  /** Wolf menacing snarl windup */
-  playWolfSnarl(): void {
+  private synthSupernova(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    const gain = ctx.createGain();
-
-    lfo.frequency.setValueAtTime(24, t); // rapid growl modulation
-    lfoGain.gain.setValueAtTime(40, t);
-    lfo.connect(osc.frequency);
-
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(130, t);
-    osc.frequency.linearRampToValueAtTime(180, t + 0.25);
-
-    gain.gain.setValueAtTime(0.28, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-
-    lfo.start(t);
-    osc.start(t);
-    lfo.stop(t + 0.28);
-    osc.stop(t + 0.28);
-  }
-
-  /** Wolf multi-harmonic pack rally howl */
-  playWolfHowl(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    // Lead howling voice
-    const lead = ctx.createOscillator();
-    const leadGain = ctx.createGain();
-    lead.type = 'sawtooth';
-    lead.frequency.setValueAtTime(240, t);
-    lead.frequency.linearRampToValueAtTime(540, t + 0.26);
-    lead.frequency.exponentialRampToValueAtTime(260, t + 0.75);
-
-    leadGain.gain.setValueAtTime(0.01, t);
-    leadGain.gain.linearRampToValueAtTime(0.35, t + 0.15);
-    leadGain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
-
-    // Chorus harmony voice for eerie pack depth
-    const chorus = ctx.createOscillator();
-    const chorusGain = ctx.createGain();
-    chorus.type = 'triangle';
-    chorus.frequency.setValueAtTime(236, t);
-    chorus.frequency.linearRampToValueAtTime(532, t + 0.26);
-    chorus.frequency.exponentialRampToValueAtTime(255, t + 0.75);
-
-    chorusGain.gain.setValueAtTime(0.01, t);
-    chorusGain.gain.linearRampToValueAtTime(0.28, t + 0.18);
-    chorusGain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
-
-    // Resonant vocal formant filter
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(620, t);
-    filter.Q.setValueAtTime(2.2, t);
-
-    lead.connect(leadGain);
-    chorus.connect(chorusGain);
-    leadGain.connect(filter);
-    chorusGain.connect(filter);
-    filter.connect(this.sfxGain);
-
-    lead.start(t);
-    chorus.start(t);
-    lead.stop(t + 0.75);
-    chorus.stop(t + 0.75);
-  }
-
-  /** Wolf pack rally frenzy surge */
-  playWolfFrenzyRally(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(320, t);
-    osc.frequency.exponentialRampToValueAtTime(680, t + 0.16);
-
-    gain.gain.setValueAtTime(0.26, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.16);
-  }
-
-  /** Knight active shield block clank */
-  playShieldBlock(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(740, t);
-    osc.frequency.exponentialRampToValueAtTime(180, t + 0.08);
-
-    gain.gain.setValueAtTime(0.40, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.08);
-  }
-
-  /** Orc Warchief intimidating roar / warcry */
-  playOrcRoar(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    const gain = ctx.createGain();
-
-    lfo.frequency.setValueAtTime(18, t);
-    lfoGain.gain.setValueAtTime(45, t);
-    lfo.connect(osc.frequency);
-
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(90, t);
-    osc.frequency.linearRampToValueAtTime(155, t + 0.35);
-    osc.frequency.exponentialRampToValueAtTime(65, t + 0.8);
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(550, t);
-    filter.Q.setValueAtTime(3.0, t);
-
-    gain.gain.setValueAtTime(0.01, t);
-    gain.gain.linearRampToValueAtTime(0.42, t + 0.15);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.sfxGain);
-
-    lfo.start(t);
-    osc.start(t);
-    lfo.stop(t + 0.8);
-    osc.stop(t + 0.8);
-  }
-
-  /** Orc Warchief Ground Slam shockwave & impact */
-  playGroundSlam(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    // Sub-bass seismic boom
-    const boom = ctx.createOscillator();
-    const boomGain = ctx.createGain();
-    boom.type = 'sine';
-    boom.frequency.setValueAtTime(120, t);
-    boom.frequency.exponentialRampToValueAtTime(25, t + 0.45);
-
-    boomGain.gain.setValueAtTime(0.65, t);
-    boomGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-
-    boom.connect(boomGain);
-    boomGain.connect(this.sfxGain);
-    boom.start(t);
-    boom.stop(t + 0.45);
-
-    // Crashing stone debris noise
-    const bufSize = Math.floor(ctx.sampleRate * 0.35);
-    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(650, t);
-    filter.frequency.exponentialRampToValueAtTime(90, t + 0.35);
-
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.45, t);
-    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-
-    noise.connect(filter);
-    filter.connect(nGain);
-    nGain.connect(this.sfxGain);
-    noise.start(t);
-    noise.stop(t + 0.35);
-  }
-
-  /** Orc Warchief Berserk Charge rush */
-  playOrcCharge(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(110, t);
-    osc.frequency.exponentialRampToValueAtTime(240, t + 0.4);
-
-    gain.gain.setValueAtTime(0.35, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.45);
-  }
-
-  /** Orc Warchief Heavy Cleave Arc slash sound */
-  playBossCleaveSlash(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    // Heavy blade whoosh
-    const whoosh = ctx.createOscillator();
-    const wGain = ctx.createGain();
-    whoosh.type = 'sawtooth';
-    whoosh.frequency.setValueAtTime(80, t);
-    whoosh.frequency.exponentialRampToValueAtTime(320, t + 0.12);
-    whoosh.frequency.exponentialRampToValueAtTime(50, t + 0.28);
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(900, t);
-    filter.frequency.exponentialRampToValueAtTime(200, t + 0.28);
-
-    wGain.gain.setValueAtTime(0.01, t);
-    wGain.gain.linearRampToValueAtTime(0.55, t + 0.08);
-    wGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
-
-    whoosh.connect(filter);
-    filter.connect(wGain);
-    wGain.connect(this.sfxGain);
-    whoosh.start(t);
-    whoosh.stop(t + 0.28);
-
-    // Sharp metal edge noise
-    const bufSize = Math.floor(ctx.sampleRate * 0.22);
-    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuf;
-
-    const nFilter = ctx.createBiquadFilter();
-    nFilter.type = 'bandpass';
-    nFilter.frequency.setValueAtTime(1400, t);
-    nFilter.Q.setValueAtTime(2.2, t);
-
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.38, t);
-    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-
-    noise.connect(nFilter);
-    nFilter.connect(nGain);
-    nGain.connect(this.sfxGain);
-    noise.start(t);
-    noise.stop(t + 0.22);
-  }
-
-  /** Stairs descent */
-  playStairsDescent(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const notes = [587.33, 493.88, 440, 329.63, 220];
-    notes.forEach((freq, i) => {
-      const t = ctx.currentTime + i * 0.07;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, t);
-
-      gain.gain.setValueAtTime(0.3, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(t);
-      osc.stop(t + 0.22);
-    });
-  }
-
-  /** Altar activation shockwave */
-  playAltarActivate(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(80, t);
-    osc.frequency.exponentialRampToValueAtTime(320, t + 0.3);
-    osc.frequency.exponentialRampToValueAtTime(50, t + 0.8);
-
-    gain.gain.setValueAtTime(0.5, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.8);
-  }
-
-  /** Demon Boss spawn roar */
-  playBossSpawn(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(120, t);
-    osc.frequency.exponentialRampToValueAtTime(400, t + 0.2);
-    osc.frequency.exponentialRampToValueAtTime(45, t + 1.1);
-
-    gain.gain.setValueAtTime(0.55, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 1.1);
-  }
-
-  /** Repel Shockwave */
-  playShockwave(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(280, t);
-    osc.frequency.exponentialRampToValueAtTime(40, t + 0.25);
-
-    gain.gain.setValueAtTime(0.48, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.25);
-  }
-
-  /** Knight Whirlwind */
-  playWhirlwind(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(150, t);
-    osc.frequency.exponentialRampToValueAtTime(450, t + 0.15);
-    osc.frequency.exponentialRampToValueAtTime(70, t + 0.35);
-
-    gain.gain.setValueAtTime(0.45, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-
+    osc.frequency.linearRampToValueAtTime(950, t + 0.35);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.7);
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.35);
+    osc.stop(t + 0.7);
   }
 
-  /** Ranger Volley */
-  playVolley(): void {
-    for (let i = 0; i < 4; i++) {
-      setTimeout(() => this.playArrowShoot(), i * 35);
-    }
-  }
-
-  /** Shift Dash */
-  playDash(): void {
+  private synthDash(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(420, t);
-    osc.frequency.exponentialRampToValueAtTime(110, t + 0.15);
-
-    gain.gain.setValueAtTime(0.35, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.15);
-  }
-
-  /** Achievement Unlocked fanfare */
-  playAchievementUnlocked(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const notes = [440, 554.37, 659.25, 880, 1108.73];
-    notes.forEach((freq, i) => {
-      const t = ctx.currentTime + i * 0.07;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, t);
-
-      gain.gain.setValueAtTime(0.38, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(t);
-      osc.stop(t + 0.35);
-    });
-  }
-
-  /** Threat Level Up warning chord */
-  playThreatLevelUp(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(220, t);
-    osc.frequency.exponentialRampToValueAtTime(110, t + 0.4);
-
+    osc.frequency.setValueAtTime(240, t);
+    osc.frequency.exponentialRampToValueAtTime(70, t + 0.14);
     gain.gain.setValueAtTime(0.4, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.4);
+    osc.stop(t + 0.14);
   }
 
-  // ==========================================
-  // UI SOUNDS
-  // ==========================================
-
-  /** Menu click */
-  playMenuClick(): void {
+  private synthFootstep(surface: SurfaceType, isSprinting: boolean): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(640, t);
-    osc.frequency.exponentialRampToValueAtTime(320, t + 0.04);
-
-    gain.gain.setValueAtTime(0.28, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.04);
-  }
-
-  /** Slider tick feedback */
-  playSliderTick(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(800 + Math.random() * 100, t);
-    osc.frequency.exponentialRampToValueAtTime(300, t + 0.02);
-
-    gain.gain.setValueAtTime(0.18, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
-
+    const baseFreq = surface === 'stone' ? 120 : surface === 'dirt' ? 80 : 160;
+    osc.frequency.setValueAtTime(baseFreq * (isSprinting ? 1.2 : 1.0), t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.06);
+    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.02);
+    osc.stop(t + 0.06);
   }
 
-  /** Button hover */
-  playButtonHover(): void {
+  private synthEnemyHit(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(480, t);
-
-    gain.gain.setValueAtTime(0.08, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.03);
-  }
-
-  /** Modal open whoosh */
-  playModalOpen(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(220, t);
-    osc.frequency.exponentialRampToValueAtTime(540, t + 0.1);
-
-    gain.gain.setValueAtTime(0.25, t);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.1);
+    gain.gain.setValueAtTime(0.5, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.1);
   }
 
-  /** Modal close */
-  playModalClose(): void {
+  private synthCritHit(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(440, t);
-    osc.frequency.exponentialRampToValueAtTime(180, t + 0.08);
-
-    gain.gain.setValueAtTime(0.22, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.08);
-  }
-
-  // ==========================================
-  // ELEMENTAL SOUNDS
-  // ==========================================
-
-  playBossRoar(): void {
-    this.playBossSpawn();
-  }
-
-  playProjectileLaunch(): void {
-    this.playArrowShoot();
-  }
-
-  playBossDeath(): void {
-    this.playEnemyDeath('demon');
-    this.playMusic('victory', false, 0.4);
-  }
-
-  playFlaskPickup(): void {
-    this.playHealthPickup();
-  }
-
-  playFireExplosion(): void {
-    this.playAltarActivate();
-  }
-
-  playLightningZap(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(920, t);
-    osc.frequency.exponentialRampToValueAtTime(110, t + 0.12);
-
-    gain.gain.setValueAtTime(0.38, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.12);
-  }
-
-  playPowerUp(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
-
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(320, t);
-    osc.frequency.exponentialRampToValueAtTime(880, t + 0.22);
-
-    gain.gain.setValueAtTime(0.32, t);
+    osc.frequency.setValueAtTime(350, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.22);
+    gain.gain.setValueAtTime(0.7, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.22);
   }
 
-  playIceShatter(): void {
+  private synthPlayerHurt(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
-
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(1400, t);
-    osc.frequency.exponentialRampToValueAtTime(320, t + 0.16);
-
-    gain.gain.setValueAtTime(0.35, t);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(130, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.16);
+    gain.gain.setValueAtTime(0.55, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.16);
   }
 
-  playToxicBurst(): void {
+  private synthEnemyDeath(): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.exponentialRampToValueAtTime(20, t + 0.25);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  }
 
+  private synthPlayerDeath(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(220, t);
-    osc.frequency.exponentialRampToValueAtTime(600, t + 0.08);
-    osc.frequency.exponentialRampToValueAtTime(80, t + 0.22);
-
-    gain.gain.setValueAtTime(0.35, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-
+    osc.frequency.exponentialRampToValueAtTime(25, t + 0.8);
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.22);
+    osc.stop(t + 0.8);
+  }
+
+  private synthWolfSnarl(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.linearRampToValueAtTime(95, t + 0.2);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  private synthWolfHowl(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.linearRampToValueAtTime(440, t + 0.3);
+    osc.frequency.exponentialRampToValueAtTime(180, t + 0.7);
+    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.7);
+  }
+
+  private synthBoneCleave(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(280, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.12);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.12);
+  }
+
+  private synthEnemyFireballCharge(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.linearRampToValueAtTime(320, t + 0.3);
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.3);
+  }
+
+  private synthEnemyFireball(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(380, t);
+    osc.frequency.exponentialRampToValueAtTime(70, t + 0.18);
+    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.18);
+  }
+
+  private synthCleaveWindup(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(60, t);
+    osc.frequency.linearRampToValueAtTime(180, t + 0.25);
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  }
+
+  private synthOrcRoar(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.linearRampToValueAtTime(140, t + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.5);
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.5);
+  }
+
+  private synthGroundSlam(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.exponentialRampToValueAtTime(25, t + 0.4);
+    gain.gain.setValueAtTime(0.7, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.4);
+  }
+
+  private synthBossRoar(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(75, t);
+    osc.frequency.linearRampToValueAtTime(110, t + 0.3);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.9);
+    gain.gain.setValueAtTime(0.75, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.9);
+  }
+
+  private synthShockwave(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(110, t);
+    osc.frequency.exponentialRampToValueAtTime(25, t + 0.45);
+    gain.gain.setValueAtTime(0.65, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.45);
+  }
+
+  private synthProjectileLaunch(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(240, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.2);
+    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  private synthBossDeath(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, t);
+    osc.frequency.exponentialRampToValueAtTime(18, t + 1.2);
+    gain.gain.setValueAtTime(0.8, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 1.2);
+  }
+
+  private synthFireExplosion(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(160, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.35);
+    gain.gain.setValueAtTime(0.65, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.35);
+  }
+
+  private synthIceShatter(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1400, t);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.2);
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  private synthLightningZap(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(800, t);
+    osc.frequency.exponentialRampToValueAtTime(110, t + 0.15);
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.15);
+  }
+
+  private synthSpikeTrigger(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(480, t);
+    osc.frequency.exponentialRampToValueAtTime(80, t + 0.14);
+    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.14);
+  }
+
+  private synthWoodBreak(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.16);
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.16);
+  }
+
+  private synthChestOpen(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.linearRampToValueAtTime(420, t + 0.25);
+    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.35);
+  }
+
+  private synthCoinPickup(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(987, t);
+    osc.frequency.exponentialRampToValueAtTime(1318, t + 0.08);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.12);
+  }
+
+  private synthFlaskPickup(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.linearRampToValueAtTime(880, t + 0.14);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  private synthItemAcquired(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const notes = [440, 554, 659, 880];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+      gain.gain.setValueAtTime(0.35, t + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.35);
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      osc.start(t + idx * 0.08);
+      osc.stop(t + idx * 0.08 + 0.35);
+    });
+  }
+
+  private synthThreatLevelUp(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.6);
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.6);
+  }
+
+  private synthButtonHover(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(480, t);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.03);
+    gain.gain.setValueAtTime(0.15, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.03);
+  }
+
+  private synthMenuClick(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(620, t);
+    osc.frequency.exponentialRampToValueAtTime(180, t + 0.05);
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.05);
+  }
+
+  private synthModalOpen(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(340, t);
+    osc.frequency.linearRampToValueAtTime(560, t + 0.08);
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.12);
+  }
+
+  private synthAchievementUnlocked(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+    const t = ctx.currentTime;
+    const notes = [523, 659, 784, 1046];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.09);
+      gain.gain.setValueAtTime(0.4, t + idx * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.09 + 0.4);
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      osc.start(t + idx * 0.09);
+      osc.stop(t + idx * 0.09 + 0.4);
+    });
   }
 }
 

@@ -17,28 +17,253 @@ export const EDITOR_TILE = {
   GRATE: 22,
 } as const;
 
-export type EditorTileType = (typeof EDITOR_TILE)[keyof typeof EDITOR_TILE];
+export type EditorTileType = number;
+
+export type TileSubCategory = 'all' | 'ground' | 'paths' | 'water' | 'cliffs' | 'walls' | 'cobble';
 
 export interface TileMeta {
-  id: EditorTileType;
+  id: number;
   name: string;
   color: string;
   solid: boolean;
   walkable: boolean;
+  subCategory?: TileSubCategory;
 }
 
-export const TILE_METAS: Record<EditorTileType, TileMeta> = {
-  [EDITOR_TILE.FLOOR]: { id: EDITOR_TILE.FLOOR, name: 'Пол / Трава', color: '#166534', solid: false, walkable: true },
-  [EDITOR_TILE.WALL]: { id: EDITOR_TILE.WALL, name: 'Стена / Гора', color: '#334155', solid: true, walkable: false },
-  [EDITOR_TILE.PATH]: { id: EDITOR_TILE.PATH, name: 'Тропа / Дорога', color: '#78350f', solid: false, walkable: true },
-  [EDITOR_TILE.RUIN_FLOOR]: { id: EDITOR_TILE.RUIN_FLOOR, name: 'Каменный пол', color: '#475569', solid: false, walkable: true },
-  [EDITOR_TILE.WATER_DEEP]: { id: EDITOR_TILE.WATER_DEEP, name: 'Глубокая вода', color: '#1e3a8a', solid: true, walkable: false },
-  [EDITOR_TILE.BRIDGE]: { id: EDITOR_TILE.BRIDGE, name: 'Деревянный мост', color: '#92400e', solid: false, walkable: true },
-  [EDITOR_TILE.SNOW]: { id: EDITOR_TILE.SNOW, name: 'Снег', color: '#94a3b8', solid: false, walkable: true },
-  [EDITOR_TILE.CANYON_DIRT]: { id: EDITOR_TILE.CANYON_DIRT, name: 'Земля каньона', color: '#57534e', solid: false, walkable: true },
-  [EDITOR_TILE.RAIL]: { id: EDITOR_TILE.RAIL, name: 'Рельсы', color: '#71717a', solid: false, walkable: true },
-  [EDITOR_TILE.GRATE]: { id: EDITOR_TILE.GRATE, name: 'Решетка канализации', color: '#27272a', solid: false, walkable: true },
+export const TILE_METAS: Record<number, TileMeta> = {
+  // Ground & Grass
+  [TILE_INDEX.GRASS_1]: { id: TILE_INDEX.GRASS_1, name: 'Трава 1', color: '#166534', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.GRASS_2]: { id: TILE_INDEX.GRASS_2, name: 'Трава 2 (Цветы)', color: '#15803d', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.GRASS_3]: { id: TILE_INDEX.GRASS_3, name: 'Трава 3 (Кустики)', color: '#16a34a', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.DIRT_1]: { id: TILE_INDEX.DIRT_1, name: 'Земля / Грязь 1', color: '#78350f', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.DIRT_2]: { id: TILE_INDEX.DIRT_2, name: 'Земля / Грязь 2', color: '#92400e', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.CANYON_DIRT_1]: { id: TILE_INDEX.CANYON_DIRT_1, name: 'Земля каньона 1', color: '#57534e', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.CANYON_DIRT_2]: { id: TILE_INDEX.CANYON_DIRT_2, name: 'Земля каньона 2', color: '#78716c', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.SNOW_1]: { id: TILE_INDEX.SNOW_1, name: 'Снег 1', color: '#94a3b8', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.SNOW_2]: { id: TILE_INDEX.SNOW_2, name: 'Снег 2 (Сугроб)', color: '#cbd5e1', solid: false, walkable: true, subCategory: 'ground' },
+  [TILE_INDEX.RUIN_STONE]: { id: TILE_INDEX.RUIN_STONE, name: 'Каменный пол руин', color: '#475569', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.DUNGEON_1]: { id: TILE_INDEX.DUNGEON_1, name: 'Пол подземелья 1', color: '#334155', solid: false, walkable: true, subCategory: 'walls' },
+  [TILE_INDEX.DUNGEON_2]: { id: TILE_INDEX.DUNGEON_2, name: 'Пол подземелья 2', color: '#3f3f46', solid: false, walkable: true, subCategory: 'walls' },
+  [TILE_INDEX.DUNGEON_3]: { id: TILE_INDEX.DUNGEON_3, name: 'Пол подземелья 3', color: '#27272a', solid: false, walkable: true, subCategory: 'walls' },
+  [TILE_INDEX.DUNGEON_4]: { id: TILE_INDEX.DUNGEON_4, name: 'Пол подземелья 4', color: '#18181b', solid: false, walkable: true, subCategory: 'walls' },
+
+  // Water & Shores
+  [TILE_INDEX.WATER_DEEP]: { id: TILE_INDEX.WATER_DEEP, name: 'Глубокая вода / Озеро', color: '#1e3a8a', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_SHORE_T]: { id: TILE_INDEX.WATER_SHORE_T, name: 'Берег верх (Север)', color: '#2563eb', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_SHORE_B]: { id: TILE_INDEX.WATER_SHORE_B, name: 'Берег низ (Юг)', color: '#2563eb', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_SHORE_L]: { id: TILE_INDEX.WATER_SHORE_L, name: 'Берег лево (Запад)', color: '#2563eb', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_SHORE_R]: { id: TILE_INDEX.WATER_SHORE_R, name: 'Берег право (Восток)', color: '#2563eb', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_SHORE_TL]: { id: TILE_INDEX.WATER_SHORE_TL, name: 'Берег угол верх-лево', color: '#3b82f6', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_SHORE_TR]: { id: TILE_INDEX.WATER_SHORE_TR, name: 'Берег угол верх-право', color: '#3b82f6', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_SHORE_BL]: { id: TILE_INDEX.WATER_SHORE_BL, name: 'Берег угол низ-лево', color: '#3b82f6', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_SHORE_BR]: { id: TILE_INDEX.WATER_SHORE_BR, name: 'Берег угол низ-право', color: '#3b82f6', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WOOD_BRIDGE]: { id: TILE_INDEX.WOOD_BRIDGE, name: 'Мост деревянный верх', color: '#92400e', solid: false, walkable: true, subCategory: 'water' },
+  [TILE_INDEX.WOOD_BRIDGE_BOT]: { id: TILE_INDEX.WOOD_BRIDGE_BOT, name: 'Мост деревянный низ', color: '#78350f', solid: false, walkable: true, subCategory: 'water' },
+
+  // Organic Paths (Grass-to-Dirt)
+  [TILE_INDEX.PATH_T]: { id: TILE_INDEX.PATH_T, name: 'Тропа граница верх', color: '#a16207', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_B]: { id: TILE_INDEX.PATH_B, name: 'Тропа граница низ', color: '#a16207', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_L]: { id: TILE_INDEX.PATH_L, name: 'Тропа граница лево', color: '#a16207', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_R]: { id: TILE_INDEX.PATH_R, name: 'Тропа граница право', color: '#a16207', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_TL]: { id: TILE_INDEX.PATH_TL, name: 'Тропа угол верх-лево', color: '#ca8a04', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_TR]: { id: TILE_INDEX.PATH_TR, name: 'Тропа угол верх-право', color: '#ca8a04', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_BL]: { id: TILE_INDEX.PATH_BL, name: 'Тропа угол низ-лево', color: '#ca8a04', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_BR]: { id: TILE_INDEX.PATH_BR, name: 'Тропа угол низ-право', color: '#ca8a04', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_INNER_TL]: { id: TILE_INDEX.PATH_INNER_TL, name: 'Тропа внутр. угол ВЛ', color: '#eab308', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_INNER_TR]: { id: TILE_INDEX.PATH_INNER_TR, name: 'Тропа внутр. угол ВП', color: '#eab308', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_INNER_BL]: { id: TILE_INDEX.PATH_INNER_BL, name: 'Тропа внутр. угол НЛ', color: '#eab308', solid: false, walkable: true, subCategory: 'paths' },
+  [TILE_INDEX.PATH_INNER_BR]: { id: TILE_INDEX.PATH_INNER_BR, name: 'Тропа внутр. угол НП', color: '#eab308', solid: false, walkable: true, subCategory: 'paths' },
+
+  // Mountain Rock Cliffs (Dark Forest)
+  [TILE_INDEX.CLIFF_TOP_TL]: { id: TILE_INDEX.CLIFF_TOP_TL, name: 'Скала вершина угол ВЛ', color: '#334155', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_TOP_TM]: { id: TILE_INDEX.CLIFF_TOP_TM, name: 'Скала вершина край верх', color: '#334155', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_TOP_TR]: { id: TILE_INDEX.CLIFF_TOP_TR, name: 'Скала вершина угол ВП', color: '#334155', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_MID_L]: { id: TILE_INDEX.CLIFF_MID_L, name: 'Скала склон лево', color: '#475569', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_MID_M]: { id: TILE_INDEX.CLIFF_MID_M, name: 'Скала склон центр', color: '#475569', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_MID_R]: { id: TILE_INDEX.CLIFF_MID_R, name: 'Скала склон право', color: '#475569', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_BOT_BL]: { id: TILE_INDEX.CLIFF_BOT_BL, name: 'Скала основание угол НЛ', color: '#64748b', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_BOT_BM]: { id: TILE_INDEX.CLIFF_BOT_BM, name: 'Скала основание низ', color: '#64748b', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_BOT_BR]: { id: TILE_INDEX.CLIFF_BOT_BR, name: 'Скала основание угол НП', color: '#64748b', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_FACE]: { id: TILE_INDEX.CLIFF_FACE, name: 'Скала отвесная стена', color: '#1e293b', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_INNER_TL]: { id: TILE_INDEX.CLIFF_INNER_TL, name: 'Скала внутр. угол ВЛ', color: '#475569', solid: true, walkable: false, subCategory: 'cliffs' },
+  [TILE_INDEX.CLIFF_INNER_TR]: { id: TILE_INDEX.CLIFF_INNER_TR, name: 'Скала внутр. угол ВП', color: '#475569', solid: true, walkable: false, subCategory: 'cliffs' },
+
+  // Cobblestone / Ruin Transitions
+  [TILE_INDEX.COBBLE_T]: { id: TILE_INDEX.COBBLE_T, name: 'Брусчатка верх', color: '#64748b', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_B]: { id: TILE_INDEX.COBBLE_B, name: 'Брусчатка низ', color: '#64748b', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_L]: { id: TILE_INDEX.COBBLE_L, name: 'Брусчатка лево', color: '#64748b', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_R]: { id: TILE_INDEX.COBBLE_R, name: 'Брусчатка право', color: '#64748b', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_TL]: { id: TILE_INDEX.COBBLE_TL, name: 'Брусчатка угол ВЛ', color: '#94a3b8', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_TR]: { id: TILE_INDEX.COBBLE_TR, name: 'Брусчатка угол ВП', color: '#94a3b8', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_BL]: { id: TILE_INDEX.COBBLE_BL, name: 'Брусчатка угол НЛ', color: '#94a3b8', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_BR]: { id: TILE_INDEX.COBBLE_BR, name: 'Брусчатка угол НП', color: '#94a3b8', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_INNER_TL]: { id: TILE_INDEX.COBBLE_INNER_TL, name: 'Брусчатка внутр. ВЛ', color: '#cbd5e1', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_INNER_TR]: { id: TILE_INDEX.COBBLE_INNER_TR, name: 'Брусчатка внутр. ВП', color: '#cbd5e1', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_INNER_BL]: { id: TILE_INDEX.COBBLE_INNER_BL, name: 'Брусчатка внутр. НЛ', color: '#cbd5e1', solid: false, walkable: true, subCategory: 'cobble' },
+  [TILE_INDEX.COBBLE_INNER_BR]: { id: TILE_INDEX.COBBLE_INNER_BR, name: 'Брусчатка внутр. НП', color: '#cbd5e1', solid: false, walkable: true, subCategory: 'cobble' },
+
+  // Walls & Infrastructure
+  [TILE_INDEX.WALL_DUNGEON]: { id: TILE_INDEX.WALL_DUNGEON, name: 'Стена подземелья', color: '#0f172a', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_RUIN]: { id: TILE_INDEX.WALL_RUIN, name: 'Стена руин', color: '#1e293b', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_CANYON]: { id: TILE_INDEX.WALL_CANYON, name: 'Стена каньона', color: '#44403c', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_GLACIAL]: { id: TILE_INDEX.WALL_GLACIAL, name: 'Ледяная стена', color: '#0369a1', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_SIDE_L]: { id: TILE_INDEX.WALL_SIDE_L, name: 'Стена торец лево', color: '#334155', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_SIDE_R]: { id: TILE_INDEX.WALL_SIDE_R, name: 'Стена торец право', color: '#334155', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_CORNER_TL]: { id: TILE_INDEX.WALL_CORNER_TL, name: 'Стена угол ВЛ', color: '#475569', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_CORNER_TR]: { id: TILE_INDEX.WALL_CORNER_TR, name: 'Стена угол ВП', color: '#475569', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_CORNER_BL]: { id: TILE_INDEX.WALL_CORNER_BL, name: 'Стена угол НЛ', color: '#475569', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_CORNER_BR]: { id: TILE_INDEX.WALL_CORNER_BR, name: 'Стена угол НП', color: '#475569', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_END_BL]: { id: TILE_INDEX.WALL_END_BL, name: 'Стена выступ НЛ', color: '#1e293b', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.WALL_END_BR]: { id: TILE_INDEX.WALL_END_BR, name: 'Стена выступ НП', color: '#1e293b', solid: true, walkable: false, subCategory: 'walls' },
+  [TILE_INDEX.RAIL_TRACK_TILE]: { id: TILE_INDEX.RAIL_TRACK_TILE, name: 'Рельсы шахты', color: '#71717a', solid: false, walkable: true, subCategory: 'walls' },
+  [TILE_INDEX.SEWER_GRATE_TILE]: { id: TILE_INDEX.SEWER_GRATE_TILE, name: 'Решетка канализации', color: '#27272a', solid: false, walkable: true, subCategory: 'walls' },
 };
+
+export interface CustomBrushTile {
+  tileId: number;
+  rotation: number; // 0, 90, 180, 270
+  flipX?: boolean;
+  flipY?: boolean;
+}
+
+export interface CustomBrush {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  grid: (CustomBrushTile | null)[][]; // [row][col]
+}
+
+export const DEFAULT_CUSTOM_BRUSHES: CustomBrush[] = [
+  {
+    id: 'pond_3x3',
+    name: 'Озеро / Пруд 3x3',
+    width: 3,
+    height: 3,
+    grid: [
+      [{ tileId: TILE_INDEX.WATER_SHORE_TL, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_T, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_TR, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WATER_SHORE_L, rotation: 0 }, { tileId: TILE_INDEX.WATER_DEEP, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WATER_SHORE_BL, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_B, rotation: 0 }, { tileId: TILE_INDEX.WATER_SHORE_BR, rotation: 0 }],
+    ],
+  },
+  {
+    id: 'dirt_road_3x3',
+    name: 'Дорога с обочиной 3x3',
+    width: 3,
+    height: 3,
+    grid: [
+      [{ tileId: TILE_INDEX.PATH_TL, rotation: 0 }, { tileId: TILE_INDEX.PATH_T, rotation: 0 }, { tileId: TILE_INDEX.PATH_TR, rotation: 0 }],
+      [{ tileId: TILE_INDEX.PATH_L, rotation: 0 }, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, { tileId: TILE_INDEX.PATH_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.PATH_BL, rotation: 0 }, { tileId: TILE_INDEX.PATH_B, rotation: 0 }, { tileId: TILE_INDEX.PATH_BR, rotation: 0 }],
+    ],
+  },
+  {
+    id: 'cliff_mountain_3x3',
+    name: 'Скала / Гора 3x3',
+    width: 3,
+    height: 3,
+    grid: [
+      [{ tileId: TILE_INDEX.CLIFF_TOP_TL, rotation: 0 }, { tileId: TILE_INDEX.CLIFF_TOP_TM, rotation: 0 }, { tileId: TILE_INDEX.CLIFF_TOP_TR, rotation: 0 }],
+      [{ tileId: TILE_INDEX.CLIFF_MID_L, rotation: 0 }, { tileId: TILE_INDEX.CLIFF_MID_M, rotation: 0 }, { tileId: TILE_INDEX.CLIFF_MID_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.CLIFF_BOT_BL, rotation: 0 }, { tileId: TILE_INDEX.CLIFF_BOT_BM, rotation: 0 }, { tileId: TILE_INDEX.CLIFF_BOT_BR, rotation: 0 }],
+    ],
+  },
+  {
+    id: 'cobble_plaza_3x3',
+    name: 'Каменная площадь 3x3',
+    width: 3,
+    height: 3,
+    grid: [
+      [{ tileId: TILE_INDEX.COBBLE_TL, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_T, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_TR, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_L, rotation: 0 }, { tileId: TILE_INDEX.RUIN_STONE, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_BL, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_B, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_BR, rotation: 0 }],
+    ],
+  },
+  {
+    id: 'wood_bridge_2x3',
+    name: 'Деревянный мост 2x3',
+    width: 2,
+    height: 3,
+    grid: [
+      [{ tileId: TILE_INDEX.WOOD_BRIDGE, rotation: 0 }, { tileId: TILE_INDEX.WOOD_BRIDGE, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WOOD_BRIDGE_BOT, rotation: 0 }, { tileId: TILE_INDEX.WOOD_BRIDGE_BOT, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WOOD_BRIDGE_BOT, rotation: 0 }, { tileId: TILE_INDEX.WOOD_BRIDGE_BOT, rotation: 0 }],
+    ],
+  },
+];
+
+export function rotateBrushMatrixClockwise(brush: CustomBrush): CustomBrush {
+  const newW = brush.height;
+  const newH = brush.width;
+  const newGrid: (CustomBrushTile | null)[][] = Array.from({ length: newH }, () =>
+    Array.from({ length: newW }, () => null)
+  );
+
+  for (let r = 0; r < brush.height; r++) {
+    for (let c = 0; c < brush.width; c++) {
+      const cell = brush.grid[r][c];
+      if (cell) {
+        newGrid[c][brush.height - 1 - r] = {
+          ...cell,
+          rotation: (cell.rotation + 90) % 360,
+        };
+      }
+    }
+  }
+
+  return {
+    ...brush,
+    width: newW,
+    height: newH,
+    grid: newGrid,
+  };
+}
+
+export function rotateBrushMatrixCounterClockwise(brush: CustomBrush): CustomBrush {
+  return rotateBrushMatrixClockwise(
+    rotateBrushMatrixClockwise(rotateBrushMatrixClockwise(brush))
+  );
+}
+
+export function flipBrushHorizontal(brush: CustomBrush): CustomBrush {
+  const newGrid: (CustomBrushTile | null)[][] = Array.from({ length: brush.height }, (_, r) =>
+    Array.from({ length: brush.width }, (__, c) => {
+      const cell = brush.grid[r][brush.width - 1 - c];
+      if (cell) {
+        return {
+          ...cell,
+          flipX: !cell.flipX,
+        };
+      }
+      return null;
+    })
+  );
+
+  return {
+    ...brush,
+    grid: newGrid,
+  };
+}
+
+export function flipBrushVertical(brush: CustomBrush): CustomBrush {
+  const newGrid: (CustomBrushTile | null)[][] = Array.from({ length: brush.height }, (_, r) =>
+    Array.from({ length: brush.width }, (__, c) => {
+      const cell = brush.grid[brush.height - 1 - r][c];
+      if (cell) {
+        return {
+          ...cell,
+          flipY: !cell.flipY,
+        };
+      }
+      return null;
+    })
+  );
+
+  return {
+    ...brush,
+    grid: newGrid,
+  };
+}
 
 export interface EditorEntityItem {
   category: 'poi' | 'npc' | 'enemy' | 'pickup' | 'prop' | 'tree';
@@ -154,9 +379,21 @@ export const ENTITY_PALETTE: EditorEntityItem[] = [
   { category: 'prop', id: 'lupine', name: 'Цветы люпина', icon: 'LP', color: '#c084fc' },
   { category: 'prop', id: 'ice_crystal', name: 'Кристалл льда', icon: 'IC', color: '#38bdf8' },
 
-  // Trees
-  { category: 'tree', id: 'tree_pine', name: 'Сосна', icon: 'PN', color: '#15803d' },
-  { category: 'tree', id: 'tree_oak', name: 'Дуб', icon: 'OK', color: '#16a34a' },
+  // Trees & Foliage
+  { category: 'tree', id: 'tree_pine', name: 'Сосна классическая', icon: 'PN', color: '#15803d' },
+  { category: 'tree', id: 'tree_oak', name: 'Дуб классический', icon: 'OK', color: '#16a34a' },
+  { category: 'tree', id: 'tree_pine_sm', name: 'Малая сосна', icon: 'P1', color: '#15803d' },
+  { category: 'tree', id: 'tree_pine_md', name: 'Средняя сосна', icon: 'P2', color: '#15803d' },
+  { category: 'tree', id: 'tree_pine_lg', name: 'Большая сосна', icon: 'P3', color: '#15803d' },
+  { category: 'tree', id: 'tree_pine_xl', name: 'Вековая сосна (XL)', icon: 'P4', color: '#15803d' },
+  { category: 'tree', id: 'tree_oak_sm', name: 'Молодой дуб', icon: 'O1', color: '#16a34a' },
+  { category: 'tree', id: 'tree_oak_md', name: 'Средний дуб', icon: 'O2', color: '#16a34a' },
+  { category: 'tree', id: 'tree_oak_lg', name: 'Большой дуб', icon: 'O3', color: '#16a34a' },
+  { category: 'tree', id: 'tree_oak_xl', name: 'Древний дуб (XL)', icon: 'O4', color: '#16a34a' },
+  { category: 'tree', id: 'tree_birch_sm', name: 'Береза малая', icon: 'B1', color: '#4ade80' },
+  { category: 'tree', id: 'tree_birch_md', name: 'Береза средняя', icon: 'B2', color: '#4ade80' },
+  { category: 'tree', id: 'tree_birch_lg', name: 'Береза большая', icon: 'B3', color: '#4ade80' },
+  { category: 'tree', id: 'tree_birch_xl', name: 'Темное дерево (XL)', icon: 'B4', color: '#4ade80' },
 ];
 
 export interface ValidationResult {

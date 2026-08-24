@@ -89,7 +89,7 @@ class DashboardManager {
   private refreshTimer: number | null = null;
   private countdownInterval: number | null = null;
   private secondsUntilNextRefresh = 30;
-  private activeTab: 'cicd' | 'map' = 'cicd';
+  private activeTab: 'cicd' | 'map' = (localStorage.getItem('emberdeep_admin_tab') as 'cicd' | 'map') || 'map';
 
   constructor() {
     this.isAuthenticated = localStorage.getItem(AUTH_KEY) === REQUIRED_PIN;
@@ -105,6 +105,7 @@ class DashboardManager {
 
   public switchTab(tab: 'cicd' | 'map'): void {
     this.activeTab = tab;
+    localStorage.setItem('emberdeep_admin_tab', tab);
     this.renderDashboard();
   }
 

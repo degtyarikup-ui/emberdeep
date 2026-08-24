@@ -120,8 +120,20 @@ export const SPRITE_DEFS: Record<string, SpriteDefinition> = {
   ice_crystal: { url: asset('prop_ice_crystal.png'), widthTiles: 1.0, heightTiles: 1.2 },
 
   // Trees (Origin bottom-center)
-  tree_pine: { url: asset('tree_pine.png'), widthTiles: 2.0, heightTiles: 3.0 },
-  tree_oak: { url: asset('tree_oak.png'), widthTiles: 2.0, heightTiles: 2.5 },
+  tree_pine: { url: asset('tree_pine.png'), widthTiles: 1.5, heightTiles: 2.5 },
+  tree_oak: { url: asset('tree_oak.png'), widthTiles: 1.5, heightTiles: 2.2 },
+  tree_pine_sm: { url: asset('trees/tree_pine_sm.png'), widthTiles: 1.2, heightTiles: 1.8 },
+  tree_pine_md: { url: asset('trees/tree_pine_md.png'), widthTiles: 1.5, heightTiles: 2.3 },
+  tree_pine_lg: { url: asset('trees/tree_pine_lg.png'), widthTiles: 1.8, heightTiles: 2.8 },
+  tree_pine_xl: { url: asset('trees/tree_pine_xl.png'), widthTiles: 2.2, heightTiles: 3.5 },
+  tree_oak_sm: { url: asset('trees/tree_oak_sm.png'), widthTiles: 1.2, heightTiles: 1.6 },
+  tree_oak_md: { url: asset('trees/tree_oak_md.png'), widthTiles: 1.5, heightTiles: 2.0 },
+  tree_oak_lg: { url: asset('trees/tree_oak_lg.png'), widthTiles: 1.8, heightTiles: 2.5 },
+  tree_oak_xl: { url: asset('trees/tree_oak_xl.png'), widthTiles: 2.2, heightTiles: 3.2 },
+  tree_birch_sm: { url: asset('trees/tree_birch_sm.png'), widthTiles: 1.2, heightTiles: 1.7 },
+  tree_birch_md: { url: asset('trees/tree_birch_md.png'), widthTiles: 1.5, heightTiles: 2.2 },
+  tree_birch_lg: { url: asset('trees/tree_birch_lg.png'), widthTiles: 1.8, heightTiles: 2.7 },
+  tree_birch_xl: { url: asset('trees/tree_birch_xl.png'), widthTiles: 2.2, heightTiles: 3.4 },
 
   // TEXTURE Key Aliases
   [TEXTURE.TREE_PINE]: { url: asset('tree_pine.png'), widthTiles: 2.0, heightTiles: 3.0 },
@@ -287,7 +299,10 @@ class EditorAssetManager {
     tileVal: number,
     x: number,
     y: number,
-    size: number
+    size: number,
+    rotation = 0,
+    flipX = false,
+    flipY = false
   ): void {
     const tilesBiomeImg = this.images.get(asset('tiles-biome.png'));
 
@@ -296,7 +311,16 @@ class EditorAssetManager {
       const tileIndex = Math.max(0, Math.min(TOTAL_TILES - 1, tileVal));
       const sx = tileIndex * 32;
       if (sx + 32 <= tilesBiomeImg.naturalWidth) {
-        ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, x, y, size, size);
+        if (rotation !== 0 || flipX || flipY) {
+          ctx.save();
+          ctx.translate(x + size / 2, y + size / 2);
+          if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
+          if (flipX || flipY) ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+          ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, -size / 2, -size / 2, size, size);
+          ctx.restore();
+        } else {
+          ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, x, y, size, size);
+        }
         return;
       }
     }

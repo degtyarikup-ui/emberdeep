@@ -4,6 +4,13 @@ import {
   EDITOR_TILE,
   TILE_METAS,
   ENTITY_PALETTE,
+  DEFAULT_CUSTOM_BRUSHES,
+  type CustomBrush,
+  type TileSubCategory,
+  rotateBrushMatrixClockwise,
+  rotateBrushMatrixCounterClockwise,
+  flipBrushHorizontal,
+  flipBrushVertical,
   validateLevelData,
   exportLevelToTypeScript,
   createEmptyLevel,
@@ -39,11 +46,15 @@ export class MapEditor {
   private panY = 40;
   private tileSize = 28;
 
-  private activeTool: 'brush' | 'rect' | 'eraser' | 'picker' | 'inspect' | 'hand' = 'brush';
-  private activeCategory: 'tiles' | 'poi' | 'npc' | 'enemy' | 'pickup' | 'prop' | 'tree' = 'tiles';
+  private activeTool: 'brush' | 'rect' | 'eraser' | 'picker' | 'inspect' | 'hand' | 'custom_brush' = 'brush';
+  private activeCategory: 'tiles' | 'poi' | 'npc' | 'enemy' | 'pickup' | 'prop' | 'tree' | 'custom_brush' = 'tiles';
   private activeItemId: string | number = EDITOR_TILE.FLOOR;
   private brushSize = 1;
   private searchQuery = '';
+  private tileSubCategory: TileSubCategory = 'all';
+
+  private customBrushes: CustomBrush[] = [];
+  private activeCustomBrushId?: string;
 
   private isMouseDown = false;
   private isPanning = false;
@@ -64,6 +75,7 @@ export class MapEditor {
 
   constructor(targetEl: HTMLElement) {
     this.container = targetEl;
+    this.loadCustomBrushes();
 
     // Restore draft from localStorage if available
     const savedDraft = localStorage.getItem('emberdeep_map_editor_draft');
@@ -297,6 +309,9 @@ export class MapEditor {
               <button class="me-tool-btn active" data-tool="brush" title="Кисть (B)">
                 ${ICONS.brush}
               </button>
+              <button class="me-tool-btn" data-tool="custom_brush" title="Пользовательская кисть / Штамп (C)">
+                ${ICONS.sparkles}
+              </button>
               <button class="me-tool-btn" data-tool="rect" title="Область (R)">
                 ${ICONS.rect}
               </button>
@@ -321,6 +336,7 @@ export class MapEditor {
 
             <div class="me-category-tabs">
               <button class="me-tab-btn active" data-cat="tiles" title="Тайлы (клавиша 1)">Тайлы</button>
+              <button class="me-tab-btn" data-cat="custom_brush" title="Мои кисти (клавиша 8)">${ICONS.sparkles} Кисти</button>
               <button class="me-tab-btn" data-cat="poi" title="Точки (клавиша 2)">Точки</button>
               <button class="me-tab-btn" data-cat="npc" title="NPC (клавиша 3)">NPC</button>
               <button class="me-tab-btn" data-cat="enemy" title="Враги (клавиша 4)">Враги</button>
@@ -543,8 +559,25 @@ export class MapEditor {
         e.preventDefault();
       } else if (e.key === 'b' || e.key === 'B') {
         this.setTool('brush');
+      } else if (e.key === 'c' || e.key === 'C') {
+        this.setTool('custom_brush');
+        this.activeCategory = 'custom_brush';
+        document.querySelectorAll('.me-tab-btn').forEach((t) => {
+          t.classList.toggle('active', t.getAttribute('data-cat') === 'custom_brush');
+        });
+        this.renderPalette();
       } else if (e.key === 'r' || e.key === 'R') {
-        this.setTool('rect');
+        if (this.activeTool === 'custom_brush') {
+          const idx = this.customBrushes.findIndex((b) => b.id === this.activeCustomBrushId);
+          if (idx !== -1) {
+            this.customBrushes[idx] = rotateBrushMatrixClockwise(this.customBrushes[idx]);
+            this.saveCustomBrushes();
+            this.renderPalette();
+            this.draw();
+          }
+        } else {
+          this.setTool('rect');
+        }
       } else if (e.key === 'e' || e.key === 'E') {
         this.setTool('eraser');
       } else if (e.key === 'i' || e.key === 'I') {
@@ -554,10 +587,11 @@ export class MapEditor {
       } else if (e.key === '[' || e.code === 'BracketLeft') {
         this.setBrushSize(Math.max(1, this.brushSize - 1));
       } else if (e.key === ']' || e.code === 'BracketRight') {
-        this.setBrushSize(Math.min(5, this.brushSize + 1));
-      } else if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) {
+        this.setBrushSize(Math.min(6, this.brushSize + 1));
+      } else if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(e.key)) {
         const catMap: Record<string, typeof this.activeCategory> = {
           '1': 'tiles',
+          '8': 'custom_brush',
           '2': 'poi',
           '3': 'npc',
           '4': 'enemy',
@@ -618,14 +652,41 @@ export class MapEditor {
     listEl.innerHTML = '';
 
     if (this.activeCategory === 'tiles') {
+      const subCats: { id: TileSubCategory; label: string }[] = [
+        { id: 'all', label: 'Все' },
+        { id: 'ground', label: 'Земля' },
+        { id: 'paths', label: 'Тропы' },
+        { id: 'water', label: 'Вода/Берег' },
+        { id: 'cliffs', label: 'Скалы' },
+        { id: 'cobble', label: 'Камень' },
+        { id: 'walls', label: 'Стены' },
+      ];
+
+      const subcatBar = document.createElement('div');
+      subcatBar.className = 'me-subcategory-bar';
+      subCats.forEach((sc) => {
+        const btn = document.createElement('button');
+        btn.className = `me-subcat-btn ${this.tileSubCategory === sc.id ? 'active' : ''}`;
+        btn.textContent = sc.label;
+        btn.addEventListener('click', () => {
+          this.tileSubCategory = sc.id;
+          this.renderPalette();
+        });
+        subcatBar.appendChild(btn);
+      });
+      listEl.appendChild(subcatBar);
+
       let tiles = Object.values(TILE_METAS);
+      if (this.tileSubCategory !== 'all') {
+        tiles = tiles.filter((t) => t.subCategory === this.tileSubCategory);
+      }
       if (this.searchQuery) {
         tiles = tiles.filter((t) => t.name.toLowerCase().includes(this.searchQuery));
       }
 
       tiles.forEach((t) => {
         const item = document.createElement('div');
-        const isActive = this.activeItemId === t.id;
+        const isActive = this.activeItemId === t.id && this.activeTool !== 'custom_brush';
         item.className = `me-palette-item ${isActive ? 'active' : ''}`;
 
         const previewImg = editorAssets.getTilePreviewUrl(t.id, this.level.biome.id);
@@ -634,7 +695,7 @@ export class MapEditor {
           : `<div style="width:100%; height:100%; background:${t.color};"></div>`;
 
         item.innerHTML = `
-          <div class="me-palette-icon" style="border: 1px solid ${isActive ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'};">
+          <div class="me-palette-icon" style="border: 1px solid ${isActive ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'};">
             ${iconContent}
           </div>
           <div class="me-palette-label">${t.name}</div>
@@ -642,11 +703,113 @@ export class MapEditor {
         item.addEventListener('click', () => {
           this.activeItemId = t.id;
           this.renderPalette();
-          if (this.activeTool === 'hand' || this.activeTool === 'eraser' || this.activeTool === 'picker') {
+          if (this.activeTool === 'hand' || this.activeTool === 'eraser' || this.activeTool === 'picker' || this.activeTool === 'custom_brush') {
             this.setTool('brush');
           }
         });
         listEl.appendChild(item);
+      });
+    } else if (this.activeCategory === 'custom_brush') {
+      const topBar = document.createElement('div');
+      topBar.style.padding = '4px 6px 8px 6px';
+      topBar.style.display = 'flex';
+      topBar.style.flexDirection = 'column';
+      topBar.style.gap = '6px';
+
+      const createBtn = document.createElement('button');
+      createBtn.className = 'me-btn me-btn-primary';
+      createBtn.style.width = '100%';
+      createBtn.style.justifyContent = 'center';
+      createBtn.innerHTML = `${ICONS.plus} Конструктор новой кисти`;
+      createBtn.addEventListener('click', () => {
+        this.openBrushDesignerModal();
+      });
+      topBar.appendChild(createBtn);
+      listEl.appendChild(topBar);
+
+      let brushes = this.customBrushes;
+      if (this.searchQuery) {
+        brushes = brushes.filter((b) => b.name.toLowerCase().includes(this.searchQuery));
+      }
+
+      brushes.forEach((brush) => {
+        const isActive = this.activeCustomBrushId === brush.id && this.activeTool === 'custom_brush';
+        const card = document.createElement('div');
+        card.className = `me-brush-card ${isActive ? 'active' : ''}`;
+
+        const previewContainer = document.createElement('div');
+        previewContainer.className = 'me-brush-card-preview';
+        const canvas = document.createElement('canvas');
+        this.renderCustomBrushPreview(canvas, brush);
+        previewContainer.appendChild(canvas);
+
+        const info = document.createElement('div');
+        info.className = 'me-brush-card-info';
+        info.innerHTML = `
+          <div class="me-brush-card-name">${brush.name}</div>
+          <div class="me-brush-card-dim">${brush.width}x${brush.height} тайлов</div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'me-brush-card-actions';
+
+        const rotBtn = document.createElement('button');
+        rotBtn.className = 'me-brush-card-btn';
+        rotBtn.title = 'Повернуть кисть на 90° (клавиша R)';
+        rotBtn.innerHTML = ICONS.rotateCw;
+        rotBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = this.customBrushes.findIndex((b) => b.id === brush.id);
+          if (idx !== -1) {
+            this.customBrushes[idx] = rotateBrushMatrixClockwise(this.customBrushes[idx]);
+            this.saveCustomBrushes();
+            this.renderPalette();
+            this.draw();
+          }
+        });
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'me-brush-card-btn';
+        editBtn.title = 'Редактировать в конструкторе';
+        editBtn.innerHTML = ICONS.edit;
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openBrushDesignerModal(brush);
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'me-brush-card-btn';
+        delBtn.title = 'Удалить кисть';
+        delBtn.innerHTML = ICONS.trash;
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm(`Удалить кисть "${brush.name}"?`)) {
+            this.customBrushes = this.customBrushes.filter((b) => b.id !== brush.id);
+            this.saveCustomBrushes();
+            if (this.activeCustomBrushId === brush.id && this.customBrushes.length > 0) {
+              this.activeCustomBrushId = this.customBrushes[0].id;
+            }
+            this.renderPalette();
+            this.draw();
+          }
+        });
+
+        actions.appendChild(rotBtn);
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+
+        card.appendChild(previewContainer);
+        card.appendChild(info);
+        card.appendChild(actions);
+
+        card.addEventListener('click', () => {
+          this.activeCustomBrushId = brush.id;
+          this.setTool('custom_brush');
+          this.renderPalette();
+          this.draw();
+        });
+
+        listEl.appendChild(card);
       });
     } else {
       let items = ENTITY_PALETTE.filter((e) => e.category === this.activeCategory);
@@ -656,7 +819,7 @@ export class MapEditor {
 
       items.forEach((ent) => {
         const item = document.createElement('div');
-        const isActive = this.activeItemId === ent.id;
+        const isActive = this.activeItemId === ent.id && this.activeTool !== 'custom_brush';
         item.className = `me-palette-item ${isActive ? 'active' : ''}`;
 
         const previewImg = editorAssets.getPreviewUrl(ent.id);
@@ -665,7 +828,7 @@ export class MapEditor {
           : `<span style="color:${ent.color}; font-size:10px; font-weight:600;">${ent.icon}</span>`;
 
         item.innerHTML = `
-          <div class="me-palette-icon" style="border: 1px solid ${isActive ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.08)'};">
+          <div class="me-palette-icon" style="border: 1px solid ${isActive ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.08)'};">
             ${iconContent}
           </div>
           <div class="me-palette-label">${ent.name}</div>
@@ -673,7 +836,7 @@ export class MapEditor {
         item.addEventListener('click', () => {
           this.activeItemId = ent.id;
           this.renderPalette();
-          if (this.activeTool === 'hand' || this.activeTool === 'eraser' || this.activeTool === 'picker') {
+          if (this.activeTool === 'hand' || this.activeTool === 'eraser' || this.activeTool === 'picker' || this.activeTool === 'custom_brush') {
             this.setTool('brush');
           }
         });
@@ -834,7 +997,7 @@ export class MapEditor {
     }
 
     if (this.isMouseDown) {
-      if (this.activeTool === 'brush' || this.activeTool === 'eraser') {
+      if ((this.activeTool === 'brush' && this.activeCategory === 'tiles') || this.activeTool === 'eraser' || this.activeTool === 'custom_brush') {
         if (col >= 0 && col < this.level.cols && row >= 0 && row < this.level.rows) {
           this.applyToolAt(col, row);
         }
@@ -956,6 +1119,34 @@ export class MapEditor {
       return;
     }
 
+    if (this.activeTool === 'custom_brush') {
+      const brush = this.customBrushes.find((b) => b.id === this.activeCustomBrushId) || this.customBrushes[0];
+      if (brush) {
+        const halfW = Math.floor((brush.width - 1) / 2);
+        const halfH = Math.floor((brush.height - 1) / 2);
+        const updates: TileUpdate[] = [];
+
+        for (let r = 0; r < brush.height; r++) {
+          for (let c = 0; c < brush.width; c++) {
+            const cell = brush.grid[r][c];
+            if (cell && cell.tileId >= 0) {
+              const targetR = row - halfH + r;
+              const targetC = col - halfW + c;
+              if (targetR >= 0 && targetR < this.level.rows && targetC >= 0 && targetC < this.level.cols) {
+                this.level.data[targetR][targetC] = cell.tileId;
+                updates.push({ col: targetC, row: targetR, val: cell.tileId });
+              }
+            }
+          }
+        }
+        if (this.collabClient && updates.length > 0) {
+          this.collabClient.sendTileUpdates(updates);
+        }
+        this.draw();
+      }
+      return;
+    }
+
     if (this.activeTool === 'brush') {
       if (this.activeCategory === 'tiles') {
         const half = Math.floor((this.brushSize - 1) / 2);
@@ -1034,9 +1225,16 @@ export class MapEditor {
         if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       } else if (this.activeCategory === 'tree') {
         if (!this.level.trees) this.level.trees = [];
-        const kind = this.activeItemId === 'tree_oak' ? 'oak' : 'pine';
         this.level.trees = this.level.trees.filter((t) => t.col !== col || t.row !== row);
-        this.level.trees.push({ col, row, kind });
+        this.level.decorations = this.level.decorations.filter((d) => d.col !== col || d.row !== row);
+
+        if (this.activeItemId === 'tree_oak') {
+          this.level.trees.push({ col, row, kind: 'oak' });
+        } else if (this.activeItemId === 'tree_pine') {
+          this.level.trees.push({ col, row, kind: 'pine' });
+        } else {
+          this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
+        }
         if (this.collabClient) this.collabClient.sendLevelSync(this.level);
       }
       this.draw();
@@ -1235,6 +1433,44 @@ export class MapEditor {
       this.ctx.strokeStyle = '#ffffff';
       this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(rx, ry, rw, rh);
+    } else if (this.activeTool === 'custom_brush' && this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows && !this.isSpaceHeld) {
+      const brush = this.customBrushes.find((b) => b.id === this.activeCustomBrushId) || this.customBrushes[0];
+      if (brush) {
+        const halfW = Math.floor((brush.width - 1) / 2);
+        const halfH = Math.floor((brush.height - 1) / 2);
+
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.75;
+        for (let r = 0; r < brush.height; r++) {
+          for (let c = 0; c < brush.width; c++) {
+            const cell = brush.grid[r][c];
+            if (cell && cell.tileId >= 0) {
+              const targetR = this.hoverRow - halfH + r;
+              const targetC = this.hoverCol - halfW + c;
+              if (targetR >= 0 && targetR < rows && targetC >= 0 && targetC < cols) {
+                const tx = this.panX + targetC * step;
+                const ty = this.panY + targetR * step;
+                editorAssets.drawTile(this.ctx, cell.tileId, tx, ty, step, cell.rotation, cell.flipX, cell.flipY);
+              }
+            }
+          }
+        }
+        this.ctx.restore();
+
+        const minC = Math.max(0, this.hoverCol - halfW);
+        const minR = Math.max(0, this.hoverRow - halfH);
+        const maxC = Math.min(cols - 1, this.hoverCol - halfW + brush.width - 1);
+        const maxR = Math.min(rows - 1, this.hoverRow - halfH + brush.height - 1);
+
+        const hx = this.panX + minC * step;
+        const hy = this.panY + minR * step;
+        const hw = (maxC - minC + 1) * step;
+        const hh = (maxR - minR + 1) * step;
+
+        this.ctx.strokeStyle = '#22c55e';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.strokeRect(hx, hy, hw, hh);
+      }
     } else if (this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows && !this.isSpaceHeld && this.activeTool !== 'hand') {
       const size = (this.activeTool === 'brush' && this.activeCategory === 'tiles') || this.activeTool === 'eraser' ? this.brushSize : 1;
       const half = Math.floor((size - 1) / 2);
@@ -1253,9 +1489,9 @@ export class MapEditor {
         this.ctx.fillRect(hx, hy, hw, hh);
         this.ctx.strokeStyle = '#f87171';
       } else {
-        this.ctx.fillStyle = 'rgba(250, 204, 21, 0.10)';
+        this.ctx.fillStyle = 'rgba(34, 197, 94, 0.12)';
         this.ctx.fillRect(hx, hy, hw, hh);
-        this.ctx.strokeStyle = '#facc15';
+        this.ctx.strokeStyle = '#22c55e';
       }
       this.ctx.lineWidth = 1.5;
       this.ctx.strokeRect(hx, hy, hw, hh);
@@ -1597,6 +1833,414 @@ export class MapEditor {
         }, 2000);
       });
     });
+  }
+
+  private loadCustomBrushes(): void {
+    const saved = localStorage.getItem('emberdeep_custom_brushes');
+    if (saved) {
+      try {
+        this.customBrushes = JSON.parse(saved);
+      } catch {
+        this.customBrushes = [...DEFAULT_CUSTOM_BRUSHES];
+      }
+    } else {
+      this.customBrushes = [...DEFAULT_CUSTOM_BRUSHES];
+    }
+    if (this.customBrushes.length > 0 && !this.activeCustomBrushId) {
+      this.activeCustomBrushId = this.customBrushes[0].id;
+    }
+  }
+
+  private saveCustomBrushes(): void {
+    try {
+      localStorage.setItem('emberdeep_custom_brushes', JSON.stringify(this.customBrushes));
+    } catch {
+      // ignore
+    }
+  }
+
+  private renderCustomBrushPreview(canvas: HTMLCanvasElement, brush: CustomBrush): void {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    canvas.width = 36;
+    canvas.height = 36;
+    ctx.clearRect(0, 0, 36, 36);
+
+    const maxDim = Math.max(brush.width, brush.height, 1);
+    const cellSize = Math.max(4, Math.floor(32 / maxDim));
+    const offsetX = Math.floor((36 - brush.width * cellSize) / 2);
+    const offsetY = Math.floor((36 - brush.height * cellSize) / 2);
+
+    for (let r = 0; r < brush.height; r++) {
+      for (let c = 0; c < brush.width; c++) {
+        const cell = brush.grid[r]?.[c];
+        if (cell && cell.tileId >= 0) {
+          editorAssets.drawTile(
+            ctx,
+            cell.tileId,
+            offsetX + c * cellSize,
+            offsetY + r * cellSize,
+            cellSize,
+            cell.rotation,
+            cell.flipX,
+            cell.flipY
+          );
+        }
+      }
+    }
+  }
+
+  private openBrushDesignerModal(brushToEdit?: CustomBrush): void {
+    let currentBrush: CustomBrush = brushToEdit
+      ? JSON.parse(JSON.stringify(brushToEdit))
+      : {
+          id: `brush_${Date.now()}`,
+          name: 'Новая кисть',
+          width: 3,
+          height: 3,
+          grid: Array.from({ length: 3 }, () =>
+            Array.from({ length: 3 }, () => ({ tileId: TILE_METAS[0] ? TILE_METAS[0].id : 0, rotation: 0 }))
+          ),
+        };
+
+    let selectedTileId = 0;
+    let selectedRotation = 0;
+    let selectedCell: { r: number; c: number } | null = null;
+    let designerSubCat: TileSubCategory = 'all';
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'me-modal-backdrop';
+    backdrop.id = 'me-brush-designer-backdrop';
+
+    const renderDesigner = () => {
+      backdrop.innerHTML = `
+        <div class="me-modal-window" style="width:720px; max-width:95vw; max-height:92vh; display:flex; flex-direction:column;">
+          <div class="me-modal-header">
+            <span style="display:flex; align-items:center; gap:6px;">
+              ${ICONS.sparkles} Конструктор пользовательской кисти
+            </span>
+            <button id="me-designer-close" class="me-btn me-btn-danger">&times;</button>
+          </div>
+
+          <div class="me-modal-body" style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; padding:14px;">
+            <!-- Top Config Bar -->
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; justify-content:space-between; background:#141417; padding:10px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+              <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:200px;">
+                <label style="font-size:11px; font-weight:600; color:var(--text-secondary);">Название:</label>
+                <input type="text" id="me-designer-name" class="me-input" style="flex:1;" value="${currentBrush.name}">
+              </div>
+
+              <!-- Size controls -->
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:11px; color:var(--text-tertiary);">Ширина:</span>
+                <button id="me-dec-w" class="me-btn" style="padding:2px 8px;">-</button>
+                <span style="font-family:var(--font-mono, monospace); font-weight:600; color:#4ade80;">${currentBrush.width}</span>
+                <button id="me-inc-w" class="me-btn" style="padding:2px 8px;">+</button>
+
+                <span style="font-size:11px; color:var(--text-tertiary); margin-left:6px;">Высота:</span>
+                <button id="me-dec-h" class="me-btn" style="padding:2px 8px;">-</button>
+                <span style="font-family:var(--font-mono, monospace); font-weight:600; color:#4ade80;">${currentBrush.height}</span>
+                <button id="me-inc-h" class="me-btn" style="padding:2px 8px;">+</button>
+              </div>
+            </div>
+
+            <!-- Global Matrix Transform Toolbar -->
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
+              <button id="me-designer-rot-cw" class="me-btn" title="Повернуть всю матрицу на 90° по часовой">
+                ${ICONS.rotateCw} 90° По часовой
+              </button>
+              <button id="me-designer-rot-ccw" class="me-btn" title="Повернуть всю матрицу на 90° против часовой">
+                ${ICONS.rotateCcw} -90° Против часовой
+              </button>
+              <button id="me-designer-flip-h" class="me-btn" title="Отразить горизонтально">
+                ${ICONS.flipH} Отразить по горизонтали
+              </button>
+              <button id="me-designer-flip-v" class="me-btn" title="Отразить вертикально">
+                ${ICONS.flipV} Отразить по вертикали
+              </button>
+              <button id="me-designer-clear" class="me-btn" title="Очистить все ячейки">
+                ${ICONS.trash} Очистить
+              </button>
+            </div>
+
+            <!-- Main Interactive Editor Area -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; min-height:300px;">
+              <!-- Left: Matrix Canvas / Grid -->
+              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0c0c0e; border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:16px;">
+                <span style="font-size:10px; color:var(--text-tertiary); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">
+                  Сетка кисти (клик — применить тайл, ПКМ — стереть)
+                </span>
+
+                <div class="me-designer-matrix" style="grid-template-columns: repeat(${currentBrush.width}, 44px);">
+                  ${currentBrush.grid
+                    .map((row, r) =>
+                      row
+                        .map((cell, c) => {
+                          const isSelected = selectedCell?.r === r && selectedCell?.c === c;
+                          const isEmpty = !cell || cell.tileId < 0;
+                          const rot = cell?.rotation || 0;
+                          const previewUrl = !isEmpty ? editorAssets.getTilePreviewUrl(cell!.tileId, this.level.biome.id) : '';
+
+                          return `
+                            <div class="me-matrix-cell ${isEmpty ? 'empty' : ''} ${isSelected ? 'selected' : ''}" data-r="${r}" data-c="${c}">
+                              ${
+                                !isEmpty && previewUrl
+                                  ? `<img src="${previewUrl}" style="width:32px; height:32px; image-rendering:pixelated; transform:rotate(${rot}deg) ${cell?.flipX ? 'scaleX(-1)' : ''} ${cell?.flipY ? 'scaleY(-1)' : ''};">`
+                                  : !isEmpty
+                                  ? `<div style="width:32px; height:32px; background:#15803d;"></div>`
+                                  : ''
+                              }
+                              ${!isEmpty && rot > 0 ? `<span class="me-cell-rot-badge">${rot}°</span>` : ''}
+                            </div>
+                          `;
+                        })
+                        .join('')
+                    )
+                    .join('')}
+                </div>
+
+                ${
+                  selectedCell
+                    ? `
+                  <div style="margin-top:12px; display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:10px; color:var(--text-secondary);">Ячейка [${selectedCell.c + 1}, ${selectedCell.r + 1}]:</span>
+                    <button id="me-cell-rot-btn" class="me-btn" style="padding:2px 8px;">${ICONS.rotateCw} Повернуть на 90°</button>
+                    <button id="me-cell-clear-btn" class="me-btn" style="padding:2px 8px;">${ICONS.eraser} Очистить</button>
+                  </div>
+                `
+                    : ''
+                }
+              </div>
+
+              <!-- Right: Tile Selector & Settings -->
+              <div style="display:flex; flex-direction:column; background:#0c0c0e; border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:10px;">
+                <span style="font-size:10px; color:var(--text-tertiary); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em;">
+                  Выбор текстуры для ячеек
+                </span>
+
+                <!-- Subcategories -->
+                <div class="me-subcategory-bar" style="border-radius:4px; margin-bottom:8px;">
+                  ${[
+                    { id: 'all', label: 'Все' },
+                    { id: 'ground', label: 'Земля' },
+                    { id: 'paths', label: 'Тропы' },
+                    { id: 'water', label: 'Вода' },
+                    { id: 'cliffs', label: 'Скалы' },
+                    { id: 'cobble', label: 'Камень' },
+                    { id: 'walls', label: 'Стены' },
+                  ]
+                    .map(
+                      (sc) => `
+                    <button class="me-subcat-btn ${designerSubCat === sc.id ? 'active' : ''}" data-subcat="${sc.id}">
+                      ${sc.label}
+                    </button>
+                  `
+                    )
+                    .join('')}
+                </div>
+
+                <!-- Rotation of selected placement tile -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; padding:4px 6px; background:#18181b; border-radius:4px;">
+                  <span style="font-size:11px; color:var(--text-secondary);">Поворот при установке:</span>
+                  <div style="display:flex; gap:4px;">
+                    ${[0, 90, 180, 270]
+                      .map(
+                        (deg) => `
+                      <button class="me-btn ${selectedRotation === deg ? 'me-btn-primary' : ''}" data-rot="${deg}" style="padding:1px 6px; font-size:10px; font-family:var(--font-mono, monospace);">
+                        ${deg}°
+                      </button>
+                    `
+                      )
+                      .join('')}
+                  </div>
+                </div>
+
+                <!-- Tile items grid -->
+                <div id="me-designer-tile-list" style="flex:1; overflow-y:auto; display:grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap:4px; max-height:220px; padding:4px;">
+                  ${Object.values(TILE_METAS)
+                    .filter((t) => designerSubCat === 'all' || t.subCategory === designerSubCat)
+                    .map((t) => {
+                      const isSel = selectedTileId === t.id;
+                      const previewImg = editorAssets.getTilePreviewUrl(t.id, this.level.biome.id);
+                      return `
+                        <div class="me-palette-icon ${isSel ? 'active' : ''}" data-tile-id="${t.id}" title="${t.name}" style="width:36px; height:36px; cursor:pointer; border:1.5px solid ${isSel ? '#22c55e' : 'rgba(255,255,255,0.1)'}; border-radius:4px;">
+                          ${
+                            previewImg
+                              ? `<img src="${previewImg}" style="width:100%; height:100%; object-fit:contain; image-rendering:pixelated; transform:rotate(${selectedRotation}deg);">`
+                              : `<div style="width:100%; height:100%; background:${t.color};"></div>`
+                          }
+                        </div>
+                      `;
+                    })
+                    .join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="me-modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
+            <button id="me-designer-cancel" class="me-btn">Отмена</button>
+            <button id="me-designer-save" class="me-btn me-btn-primary" style="background:#15803d; border-color:#22c55e; color:#ffffff;">
+              ${ICONS.check} Сохранить и использовать кисть
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Event bindings
+      backdrop.querySelector('#me-designer-close')?.addEventListener('click', () => backdrop.remove());
+      backdrop.querySelector('#me-designer-cancel')?.addEventListener('click', () => backdrop.remove());
+
+      // Resize W / H
+      backdrop.querySelector('#me-dec-w')?.addEventListener('click', () => {
+        if (currentBrush.width > 1) {
+          currentBrush.width--;
+          currentBrush.grid = currentBrush.grid.map((r) => r.slice(0, currentBrush.width));
+          selectedCell = null;
+          renderDesigner();
+        }
+      });
+      backdrop.querySelector('#me-inc-w')?.addEventListener('click', () => {
+        if (currentBrush.width < 8) {
+          currentBrush.width++;
+          currentBrush.grid = currentBrush.grid.map((r) => [...r, { tileId: selectedTileId, rotation: selectedRotation }]);
+          selectedCell = null;
+          renderDesigner();
+        }
+      });
+      backdrop.querySelector('#me-dec-h')?.addEventListener('click', () => {
+        if (currentBrush.height > 1) {
+          currentBrush.height--;
+          currentBrush.grid = currentBrush.grid.slice(0, currentBrush.height);
+          selectedCell = null;
+          renderDesigner();
+        }
+      });
+      backdrop.querySelector('#me-inc-h')?.addEventListener('click', () => {
+        if (currentBrush.height < 8) {
+          currentBrush.height++;
+          currentBrush.grid.push(
+            Array.from({ length: currentBrush.width }, () => ({ tileId: selectedTileId, rotation: selectedRotation }))
+          );
+          selectedCell = null;
+          renderDesigner();
+        }
+      });
+
+      // Transformations
+      backdrop.querySelector('#me-designer-rot-cw')?.addEventListener('click', () => {
+        currentBrush = rotateBrushMatrixClockwise(currentBrush);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-designer-rot-ccw')?.addEventListener('click', () => {
+        currentBrush = rotateBrushMatrixCounterClockwise(currentBrush);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-designer-flip-h')?.addEventListener('click', () => {
+        currentBrush = flipBrushHorizontal(currentBrush);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-designer-flip-v')?.addEventListener('click', () => {
+        currentBrush = flipBrushVertical(currentBrush);
+        renderDesigner();
+      });
+      backdrop.querySelector('#me-designer-clear')?.addEventListener('click', () => {
+        currentBrush.grid = Array.from({ length: currentBrush.height }, () =>
+          Array.from({ length: currentBrush.width }, () => null)
+        );
+        renderDesigner();
+      });
+
+      // Subcategories
+      backdrop.querySelectorAll('.me-subcat-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          designerSubCat = btn.getAttribute('data-subcat') as TileSubCategory;
+          renderDesigner();
+        });
+      });
+
+      // Placement rotation
+      backdrop.querySelectorAll('[data-rot]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          selectedRotation = Number(btn.getAttribute('data-rot')) || 0;
+          renderDesigner();
+        });
+      });
+
+      // Tile selection
+      backdrop.querySelectorAll('[data-tile-id]').forEach((icon) => {
+        icon.addEventListener('click', () => {
+          selectedTileId = Number(icon.getAttribute('data-tile-id'));
+          renderDesigner();
+        });
+      });
+
+      // Cell interaction
+      backdrop.querySelectorAll('.me-matrix-cell').forEach((cellEl) => {
+        const r = Number(cellEl.getAttribute('data-r'));
+        const c = Number(cellEl.getAttribute('data-c'));
+
+        cellEl.addEventListener('click', () => {
+          selectedCell = { r, c };
+          currentBrush.grid[r][c] = {
+            tileId: selectedTileId,
+            rotation: selectedRotation,
+          };
+          renderDesigner();
+        });
+
+        cellEl.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          selectedCell = { r, c };
+          currentBrush.grid[r][c] = null; // clear cell
+          renderDesigner();
+        });
+      });
+
+      // Selected cell controls
+      backdrop.querySelector('#me-cell-rot-btn')?.addEventListener('click', () => {
+        if (selectedCell && currentBrush.grid[selectedCell.r][selectedCell.c]) {
+          const cell = currentBrush.grid[selectedCell.r][selectedCell.c]!;
+          cell.rotation = (cell.rotation + 90) % 360;
+          renderDesigner();
+        }
+      });
+      backdrop.querySelector('#me-cell-clear-btn')?.addEventListener('click', () => {
+        if (selectedCell) {
+          currentBrush.grid[selectedCell.r][selectedCell.c] = null;
+          renderDesigner();
+        }
+      });
+
+      // Save
+      backdrop.querySelector('#me-designer-save')?.addEventListener('click', () => {
+        const nameInput = backdrop.querySelector('#me-designer-name') as HTMLInputElement | null;
+        if (nameInput && nameInput.value.trim()) {
+          currentBrush.name = nameInput.value.trim();
+        }
+
+        const existingIdx = this.customBrushes.findIndex((b) => b.id === currentBrush.id);
+        if (existingIdx !== -1) {
+          this.customBrushes[existingIdx] = currentBrush;
+        } else {
+          this.customBrushes.push(currentBrush);
+        }
+
+        this.activeCustomBrushId = currentBrush.id;
+        this.saveCustomBrushes();
+        this.setTool('custom_brush');
+        this.activeCategory = 'custom_brush';
+        document.querySelectorAll('.me-tab-btn').forEach((t) => {
+          t.classList.toggle('active', t.getAttribute('data-cat') === 'custom_brush');
+        });
+        this.renderPalette();
+        this.draw();
+        backdrop.remove();
+      });
+    };
+
+    renderDesigner();
+    document.body.appendChild(backdrop);
   }
 
   private downloadJson(): void {

@@ -6,6 +6,7 @@ import {
   serializeLevelToJson,
   deserializeLevelFromJson,
   EDITOR_TILE,
+  rotateBrushMatrixClockwise,
 } from '../src/admin/mapEditorHelper';
 import { buildLevel1 } from '../src/world/level1';
 
@@ -94,3 +95,47 @@ describe('mapEditorHelper: JSON serialization roundtrip', () => {
     expect(restored.enemies.length).toBe(level.enemies.length);
   });
 });
+
+describe('mapEditorHelper: CustomBrush transformations', () => {
+  it('rotates brush matrix 90 degrees clockwise', () => {
+    const testBrush = {
+      id: 'test',
+      name: 'Test',
+      width: 2,
+      height: 3,
+      grid: [
+        [{ tileId: 1, rotation: 0 }, { tileId: 2, rotation: 0 }],
+        [{ tileId: 3, rotation: 0 }, { tileId: 4, rotation: 0 }],
+        [{ tileId: 5, rotation: 0 }, { tileId: 6, rotation: 0 }],
+      ],
+    };
+    const rotated = rotateBrushMatrixClockwise(testBrush);
+    expect(rotated.width).toBe(3);
+    expect(rotated.height).toBe(2);
+    expect(rotated.grid[0][0]?.tileId).toBe(5);
+    expect(rotated.grid[0][0]?.rotation).toBe(90);
+    expect(rotated.grid[0][2]?.tileId).toBe(1);
+    expect(rotated.grid[1][2]?.tileId).toBe(2);
+  });
+
+  it('completes 360-degree rotation back to original shape', () => {
+    const testBrush = {
+      id: 'test',
+      name: 'Test',
+      width: 3,
+      height: 2,
+      grid: [
+        [{ tileId: 10, rotation: 0 }, { tileId: 11, rotation: 0 }, { tileId: 12, rotation: 0 }],
+        [{ tileId: 13, rotation: 0 }, { tileId: 14, rotation: 0 }, { tileId: 15, rotation: 0 }],
+      ],
+    };
+    let b = rotateBrushMatrixClockwise(testBrush);
+    b = rotateBrushMatrixClockwise(b);
+    b = rotateBrushMatrixClockwise(b);
+    b = rotateBrushMatrixClockwise(b);
+    expect(b.width).toBe(3);
+    expect(b.height).toBe(2);
+    expect(b.grid[0][0]?.tileId).toBe(10);
+  });
+});
+

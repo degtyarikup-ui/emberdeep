@@ -33,6 +33,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
   private hasEnraged = false;
 
   private cleaveAngle = 0;
+  private cleaveAngleLocked = false;
   private chargeAngle = 0;
   private chargeSpeed = 240;
 
@@ -285,20 +286,21 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
         // 0. Check Cleave Arc trigger (Frontal AoE Cleave on distance <= 115 px)
         if (this.cleaveCooldown <= 0 && dist <= 115) {
           this.orcState = 'cleave_windup';
-          const windupDuration = this.isEnraged ? 400 : 550;
+          const windupDuration = this.isEnraged ? 750 : 950;
           this.stateTimer = windupDuration;
-          this.cleaveCooldown = this.isEnraged ? 3000 : 3800;
+          this.cleaveCooldown = this.isEnraged ? 3400 : 4200;
           this.cleaveAngle = Math.atan2(dy, dx);
+          this.cleaveAngleLocked = false;
           body.setVelocity(0, 0);
           this.setTint(0xf87171);
           this.setScale(1.85, 1.65);
           this.axe.setTint(0xf87171);
           SoundFX.playCleaveWindup();
 
-          // Spawn Fan/Cone Telegraph Graphics (120 degrees sector)
+          // Spawn Fan/Cone Telegraph Graphics (110 degrees sector)
           this.destroyCleaveTelegraph();
           const g = this.scene.add.graphics().setDepth(DEPTH.SHADOW + 2);
-          const radius = this.isEnraged ? 120 : 110;
+          const radius = this.isEnraged ? 115 : 110;
           this.cleaveTelegraph = { graphics: g, totalTime: windupDuration, radius };
           break;
         }
@@ -472,20 +474,31 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
       case 'cleave_windup': {
         this.stateTimer -= delta;
         body.setVelocity(0, 0);
-        this.setFlipX(dx < 0);
-        this.cleaveAngle = Math.atan2(dy, dx); // Continues tracking during windup
 
         if (this.cleaveTelegraph) {
+          const progress = Math.min(1, Math.max(0, 1 - (this.stateTimer / this.cleaveTelegraph.totalTime)));
+
+          // Track player direction only during the first 60% of windup
+          if (progress < 0.6) {
+            this.setFlipX(dx < 0);
+            this.cleaveAngle = Math.atan2(dy, dx);
+          } else if (!this.cleaveAngleLocked) {
+            this.cleaveAngleLocked = true;
+            if (this.scene?.cameras?.main) {
+              this.scene.cameras.main.shake(70, 0.002);
+            }
+          }
+
           const g = this.cleaveTelegraph.graphics;
           g.clear();
-          const progress = Math.min(1, Math.max(0, 1 - (this.stateTimer / this.cleaveTelegraph.totalTime)));
           const radius = this.cleaveTelegraph.radius;
-          const halfAngle = Math.PI / 3; // 60 deg each side => 120 deg sector
+          const halfAngle = (55 * Math.PI) / 180; // 55 deg each side => 110 deg sector
           const startAngle = this.cleaveAngle - halfAngle;
           const endAngle = this.cleaveAngle + halfAngle;
 
           // Sector Background (transparent red danger zone)
-          g.fillStyle(0xdc2626, 0.22);
+          const bgAlpha = this.cleaveAngleLocked ? 0.28 : 0.18;
+          g.fillStyle(0xdc2626, bgAlpha);
           g.beginPath();
           g.moveTo(this.x, this.y - 8);
           g.arc(this.x, this.y - 8, radius, startAngle, endAngle, false);
@@ -493,15 +506,20 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
           g.fillPath();
 
           // Sector Progress (filling from center outward)
-          g.fillStyle(0xef4444, 0.45);
+          const fillAlpha = this.cleaveAngleLocked ? 0.55 : 0.38;
+          g.fillStyle(0xef4444, fillAlpha);
           g.beginPath();
           g.moveTo(this.x, this.y - 8);
-          g.arc(this.x, this.y - 8, radius * Math.max(0.1, progress), startAngle, endAngle, false);
+          g.arc(this.x, this.y - 8, radius * Math.max(0.08, progress), startAngle, endAngle, false);
           g.closePath();
           g.fillPath();
 
-          // Sector Border
-          g.lineStyle(2.5, 0xf87171, 0.9);
+          // Sector Border (flashes gold/white when angle locks, then pulses red)
+          const borderThickness = this.cleaveAngleLocked ? 3.0 : 2.0;
+          const borderColor = this.cleaveAngleLocked
+            ? (Math.floor(this.stateTimer / 60) % 2 === 0 ? 0xfef08a : 0xf87171)
+            : 0xf87171;
+          g.lineStyle(borderThickness, borderColor, 0.95);
           g.beginPath();
           g.moveTo(this.x, this.y - 8);
           g.arc(this.x, this.y - 8, radius, startAngle, endAngle, false);
@@ -531,7 +549,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
           this.scene.cameras.main.shake(220, 0.006);
 
           // Spawn Crescent Slash Wave FX
-          const slashDist = (this.isEnraged ? 120 : 110) * 0.55;
+          const slashDist = (this.isEnraged ? 115 : 110) * 0.55;
           const slashX = this.x + Math.cos(this.cleaveAngle) * slashDist;
           const slashY = this.y - 8 + Math.sin(this.cleaveAngle) * slashDist;
           const slash = this.scene.add.sprite(slashX, slashY, TEXTURE.SLASH_WHIRLWIND || TEXTURE.SLASH_FX);
@@ -548,11 +566,11 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
             onComplete: () => slash.destroy(),
           });
 
-          // Check cone hit on players
+          // Check cone hit on players (110 degrees = 55 deg each side)
           const gs = this.scene as GameSceneContext;
           if (gs && gs.players) {
-            const hitRadius = this.isEnraged ? 120 : 110;
-            const halfCone = Math.PI / 3;
+            const hitRadius = this.isEnraged ? 115 : 110;
+            const halfCone = (55 * Math.PI) / 180;
 
             for (const player of gs.players) {
               if (player.isDowned || player.godMode) continue;
@@ -585,7 +603,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
           }
 
           this.orcState = 'recovery';
-          this.stateTimer = this.isEnraged ? 200 : 300;
+          this.stateTimer = this.isEnraged ? 220 : 320;
         }
         break;
       }

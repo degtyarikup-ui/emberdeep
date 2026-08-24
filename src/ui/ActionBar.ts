@@ -108,7 +108,7 @@ export class ActionBar {
         ? ITEM_SPRITE_MAP.supernova_icon
         : this.heroClass === 'ranger'
         ? { col: 1, row: 9 }
-        : { col: 6, row: 1 };
+        : ITEM_SPRITE_MAP.shield;
     const specFrame = specIconCoord.row * 11 + specIconCoord.col;
     const specIcon = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, specFrame);
     specIcon.setScale(1.0);
@@ -139,7 +139,7 @@ export class ActionBar {
         ? 'Чародейская Сверхновая: выпускает кольцо из 8 сфер энергии вокруг мага.'
         : this.heroClass === 'ranger'
         ? 'Веерный залп: выпускает 5 пробивающих стрел веером.'
-        : 'Вихрь стали: круговой сокрушительный удар вокруг рыцаря.'
+        : 'Стойка со щитом: поднимает щитовой барьер на 2.5 сек, поглощая урон. При блоке отбрасывает врагов ударной волной.'
     );
     this.container.add(this.specialSlot);
 

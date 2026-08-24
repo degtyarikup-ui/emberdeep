@@ -8,6 +8,7 @@ import { EnergyProjectile } from './EnergyProjectile';
 import { MetaManager } from '../meta/MetaManager';
 import { EntityAnimController, AnimStateName } from '../gfx/AnimationManager';
 import { ElementalSlotConfig, ElementType, ELEMENT_COLORS } from '../combat/ElementalSystem';
+import { ITEM_SPRITE_MAP } from '../gfx/UIAtlas';
 import { ITEMS } from '../items/registry';
 import type { Enemy } from './Enemy';
 import type { BossEnemy } from './BossEnemy';
@@ -54,11 +55,12 @@ export interface PlayerInput {
 }
 
 export interface SpecialResult {
-  kind: 'whirlwind' | 'volley' | 'supernova';
+  kind: 'whirlwind' | 'volley' | 'supernova' | 'shield_bastion';
   x: number;
   y: number;
   radius?: number;
   damage?: number;
+  duration?: number;
   projectiles?: (ArrowProjectile | EnergyProjectile)[];
   element?: ElementType;
 }
@@ -83,6 +85,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   readonly slot: number;
   readonly label: Phaser.GameObjects.Text;
   readonly sword: Phaser.GameObjects.Sprite;
+
+  public knightShieldActive = false;
+  public knightShieldTimer = 0;
+  public knightShieldHits = 0;
+  private knightShieldCont?: Phaser.GameObjects.Container;
 
   private invuln = 0;
   private attackCooldown = 0;
@@ -137,11 +144,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    this.specialMaxCooldown = isKnight ? 8000 : isRanger ? 4200 : 4000;
+    this.specialCooldown = 0;
 
     this.setOrigin(0.5, 1.0);
     this.setPipeline('Light2D');
     this.setTint(PLAYER_TINTS[slot] ?? 0xffffff);
-    this.baseScale = 1.0;
+    this.baseScale = isKnight ? 1.0 : isRanger ? 1.22 : 1.35;
     this.setScale(this.baseScale);
 
     if (isKnight) {
@@ -165,9 +174,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.sword.setOrigin(isKnight ? 0.5 : isRanger ? 0.5 : 0.5, isKnight ? 0.88 : isRanger ? 0.5 : 0.85);
     this.sword.setPipeline('Light2D');
     this.sword.setDepth(DEPTH.YSORT_BASE + y + 17);
-    this.sword.setScale(1.0);
+    this.sword.setScale(isKnight ? 1.0 : isRanger ? 1.15 : 1.25);
 
     this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.35).setDepth(DEPTH.SHADOW);
+    this.shadow.setScale(isKnight ? 1.0 : isRanger ? 1.15 : 1.25);
     this.animController = new EntityAnimController(this);
     // Setup states onController
     this.animController.registerState('idle', { priority: 10, interruptible: true });
@@ -344,6 +354,143 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.label.setVisible(visible);
   }
 
+  public activateKnightShield(): void {
+    this.knightShieldActive = true;
+    this.knightShieldTimer = 2500;
+    this.knightShieldHits = 2;
+    SoundFX.playShieldBlock();
+
+    if (this.knightShieldCont) {
+      this.knightShieldCont.destroy();
+    }
+
+    const cont = this.scene.add.container(this.x, this.y - 14);
+    cont.setDepth(DEPTH.YSORT_BASE + this.y + 18);
+
+    // 1. Glowing Azure Aura Ring
+    const aura = this.scene.add.circle(0, 0, 22, 0x38bdf8, 0.22);
+    aura.setStrokeStyle(2, 0x93c5fd, 0.9);
+    cont.add(aura);
+
+    // 2. Shield Crest
+    const shieldFrame = ITEM_SPRITE_MAP.shield.row * 11 + ITEM_SPRITE_MAP.shield.col;
+    const shieldSpr = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, shieldFrame);
+    shieldSpr.setScale(1.2);
+    shieldSpr.setAlpha(0.92);
+    shieldSpr.setTint(0xe0f2fe);
+    cont.add(shieldSpr);
+
+    const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+    if (worldLayer) worldLayer.add(cont);
+
+    this.knightShieldCont = cont;
+
+    this.scene.tweens.add({
+      targets: [aura, shieldSpr],
+      scaleX: '+=0.15',
+      scaleY: '+=0.15',
+      alpha: 0.7,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  public destroyKnightShield(withShatter = false): void {
+    this.knightShieldActive = false;
+    this.knightShieldTimer = 0;
+    this.knightShieldHits = 0;
+
+    if (this.knightShieldCont) {
+      if (withShatter && this.scene) {
+        this.scene.tweens.add({
+          targets: this.knightShieldCont,
+          scaleX: 2.0,
+          scaleY: 2.0,
+          alpha: 0,
+          duration: 200,
+          onComplete: () => {
+            this.knightShieldCont?.destroy();
+            this.knightShieldCont = undefined;
+          },
+        });
+      } else {
+        this.knightShieldCont.destroy();
+        this.knightShieldCont = undefined;
+      }
+    }
+  }
+
+  private triggerShieldBlockEffect(_fromX?: number, _fromY?: number): void {
+    if (!this.scene) return;
+
+    // 1. Floating text "БЛОК"
+    const gs = this.scene as unknown as { spawnDamageNumber?: (x: number, y: number, text: string, color: string) => void; enemies?: { isDead?: boolean; x: number; y: number; body?: Phaser.Physics.Arcade.Body }[] };
+    if (gs.spawnDamageNumber) {
+      gs.spawnDamageNumber(this.x, this.y - 24, 'БЛОК', '#38bdf8');
+    }
+
+    // 2. Flash tint
+    this.setTint(0x60a5fa);
+    this.scene.time.delayedCall(120, () => this.clearTint());
+
+    // 3. Metallic spark burst
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8 + (Math.random() - 0.5) * 0.5;
+      const speed = 60 + Math.random() * 80;
+      const spark = this.scene.add.rectangle(this.x, this.y - 14, 3, 3, 0xbae6fd);
+      spark.setDepth(DEPTH.YSORT_BASE + this.y + 20);
+      const wl = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+      if (wl) wl.add(spark);
+
+      this.scene.tweens.add({
+        targets: spark,
+        x: this.x + Math.cos(angle) * (speed * 0.25),
+        y: this.y - 14 + Math.sin(angle) * (speed * 0.25),
+        alpha: 0,
+        scaleX: 0.2,
+        scaleY: 0.2,
+        duration: 220,
+        onComplete: () => spark.destroy(),
+      });
+    }
+
+    // 4. Expanding shockwave ring
+    const shockwave = this.scene.add.circle(this.x, this.y - 14, 16, 0x38bdf8, 0.45);
+    shockwave.setStrokeStyle(2.5, 0x93c5fd, 0.9);
+    shockwave.setDepth(DEPTH.YSORT_BASE + this.y + 19);
+    const wl = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+    if (wl) wl.add(shockwave);
+
+    this.scene.tweens.add({
+      targets: shockwave,
+      scaleX: 2.8,
+      scaleY: 2.8,
+      alpha: 0,
+      duration: 250,
+      ease: 'Cubic.easeOut',
+      onComplete: () => shockwave.destroy(),
+    });
+
+    // 5. Knockback nearby enemies in 50px radius
+    if (gs.enemies) {
+      for (const enemy of gs.enemies) {
+        if (enemy.isDead) continue;
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+        if (dist <= 50) {
+          const body = enemy.body as Phaser.Physics.Arcade.Body;
+          if (body) {
+            const edx = enemy.x - this.x;
+            const edy = enemy.y - this.y;
+            const elen = Math.hypot(edx, edy) || 1;
+            body.setVelocity((edx / elen) * 200, (edy / elen) * 200);
+          }
+        }
+      }
+    }
+  }
+
   /** Returns true if damage was actually applied (false while invulnerable or in godMode). */
   takeDamage(amount: number, fromX: number, fromY: number): boolean {
     if (this.godMode || this.invuln > 0 || this.dying) return false;
@@ -370,14 +517,26 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return false;
     }
 
-    // Knight Active Shield / Sword Guard Block
+    // 1. Knight Active Shield Bastion Block
+    if (this.knightShieldActive) {
+      this.knightShieldHits--;
+      SoundFX.playShieldBlock();
+      this.triggerShieldBlockEffect(fromX, fromY);
+
+      if (this.knightShieldHits <= 0) {
+        this.destroyKnightShield(true);
+      }
+      this.invuln = 350;
+      return false; // Complete block!
+    }
+
+    // 2. Knight Active Melee Swing Guard
     let finalAmount = amount;
     if (this.heroClass === 'knight' && this.isAttacking) {
       SoundFX.playShieldBlock();
       if (Math.random() < 0.5) {
+        this.triggerShieldBlockEffect(fromX, fromY);
         this.invuln = 450;
-        this.setTint(0x38bdf8);
-        this.scene.time.delayedCall(120, () => this.clearTint());
         return false; // Complete parry block!
       }
       finalAmount = Math.max(1, finalAmount - 1);
@@ -637,47 +796,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
       return { kind: 'supernova', x: this.x, y: this.y, projectiles, element: this.elementalSlots.skill };
     } else {
-      SoundFX.playWhirlwind();
-      this.playWhirlwindAnimation();
+      this.activateKnightShield();
       return {
-        kind: 'whirlwind',
+        kind: 'shield_bastion',
         x: this.x,
         y: this.y,
-        radius: 60,
-        damage: Math.max(2, Math.round(this.attackDamage * 2.0)),
+        duration: 2500,
         element: this.elementalSlots.skill,
       };
     }
-  }
-
-  private playWhirlwindAnimation(): void {
-    const ring = this.scene.add.sprite(this.x, this.y - 14, TEXTURE.SLASH_WHIRLWIND);
-    ring.setOrigin(0.5, 0.5);
-    ring.setScale(0.8);
-    ring.setDepth(DEPTH.YSORT_BASE + this.y + 10);
-    ring.setPipeline('Light2D');
-    if (this.elementalSlots.skill) {
-      const col = ELEMENT_COLORS[this.elementalSlots.skill];
-      ring.setTint(Phaser.Display.Color.HexStringToColor(col).color);
-    } else {
-      ring.setTint(0x67e8f9);
-    }
-
-    const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
-    if (worldLayer) worldLayer.add(ring);
-
-    this.scene.tweens.add({
-      targets: ring,
-      scaleX: 2.2,
-      scaleY: 2.2,
-      angle: 720,
-      alpha: 0,
-      duration: 350,
-      ease: 'Cubic.easeOut',
-      onComplete: () => ring.destroy(),
-    });
-
-    this.triggerSquash(1.3, 0.85, 100);
   }
 
   private playRangerShootAnimation(aimAngle: number): void {
@@ -983,6 +1110,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   override destroy(fromScene?: boolean): void {
     if (this.shieldRing) this.shieldRing.destroy(fromScene);
+    if (this.knightShieldCont) this.knightShieldCont.destroy(fromScene);
     this.sword.destroy(fromScene);
     if (this.shadow) this.shadow.destroy(fromScene);
     this.label.destroy(fromScene);
@@ -998,6 +1126,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.specialCooldown > 0) this.specialCooldown -= delta;
     if (this.attackLock > 0) this.attackLock -= delta;
     if (this.knockbackLock > 0) this.knockbackLock -= delta;
+
+    // Knight Shield Bastion update
+    if (this.knightShieldActive) {
+      this.knightShieldTimer -= delta;
+      if (this.knightShieldTimer <= 0) {
+        this.destroyKnightShield(false);
+      } else if (this.knightShieldCont) {
+        this.knightShieldCont.setPosition(this.x, this.y - 14);
+        this.knightShieldCont.setDepth(DEPTH.YSORT_BASE + this.y + 18);
+      }
+    }
 
     // Radiant Shield regeneration and visual barrier
     if ((this.items['radiant_shield'] || 0) > 0) {

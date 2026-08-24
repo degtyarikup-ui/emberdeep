@@ -1772,6 +1772,13 @@ export class GameScene extends Phaser.Scene {
     const res = player.trySpecial(targetX, targetY);
     if (!res) return;
 
+    if (res.kind === 'shield_bastion') {
+      if (player === this.myPlayer) {
+        this.worldCam.shake(50, 0.0015);
+      }
+      return;
+    }
+
     if ((res.kind === 'volley' || res.kind === 'supernova') && res.projectiles) {
       for (const p of res.projectiles) {
         this.worldLayer.add(p);

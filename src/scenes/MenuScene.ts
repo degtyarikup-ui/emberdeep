@@ -322,12 +322,12 @@ export class MenuScene extends Phaser.Scene {
 
     const rangerSprite = this.add.sprite(-cardW / 2 + 34, 24, TEXTURE.RANGER_IDLE);
     rangerSprite.setOrigin(0.5, 1.0);
-    rangerSprite.setScale(2.15);
+    rangerSprite.setScale(2.62);
     rangerSprite.play(ANIM.RANGER_IDLE);
 
     const rangerBow = this.add.sprite(-cardW / 2 + 44, 10, TEXTURE.BOW);
     rangerBow.setOrigin(0.5, 0.5);
-    rangerBow.setScale(1.3);
+    rangerBow.setScale(1.5);
 
     const rangerText = this.add
       .text(-cardW / 2 + 66, -24, t().rangerTitle, {
@@ -368,12 +368,12 @@ export class MenuScene extends Phaser.Scene {
 
     const wizardSprite = this.add.sprite(-cardW / 2 + 34, 24, `${TEXTURE.WIZARD_IDLE}_f0`);
     wizardSprite.setOrigin(0.5, 1.0);
-    wizardSprite.setScale(2.15);
+    wizardSprite.setScale(2.90);
     wizardSprite.play(ANIM.WIZARD_IDLE);
 
     const wizardStaff = this.add.sprite(-cardW / 2 + 44, 9, TEXTURE.STAFF);
     wizardStaff.setOrigin(0.5, 0.85);
-    wizardStaff.setScale(1.3);
+    wizardStaff.setScale(1.6);
     wizardStaff.setAngle(12);
 
     const wizardText = this.add

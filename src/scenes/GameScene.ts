@@ -255,6 +255,10 @@ export class GameScene extends Phaser.Scene {
   private fullBrightBuffTimer = 0;
   private buffBadgeContainer?: Phaser.GameObjects.Container;
   private buffBadgeTimeText?: Phaser.GameObjects.Text;
+  private showFpsHud = false;
+  private fpsHudContainer?: Phaser.GameObjects.Container;
+  private fpsHudText?: Phaser.GameObjects.Text;
+  private fpsUpdateTimer = 0;
 
   public levelData?: ReturnType<typeof buildLevel1>;
 
@@ -281,6 +285,9 @@ export class GameScene extends Phaser.Scene {
     if (data?.godMode !== undefined) this.godMode = data.godMode;
     if (data?.speedHack !== undefined) this.speedHack = data.speedHack;
     if (data?.fullBright !== undefined) this.fullBright = data.fullBright;
+    try {
+      this.showFpsHud = localStorage.getItem('emberdeep_fps_hud') === '1';
+    } catch {}
   }
 
   create(): void {
@@ -857,6 +864,7 @@ export class GameScene extends Phaser.Scene {
     this.buildHeartsUI();
     this.updateInventoryHUD();
     this.createBuffBadgeUI();
+    this.createFpsHud();
 
     // 3D Stone Top-Right Status Header
     const headerW = 164;
@@ -998,7 +1006,7 @@ export class GameScene extends Phaser.Scene {
     this.debugContainer = modal;
 
     const modalW = 420;
-    const modalH = 410;
+    const modalH = 445;
 
     const bg = this.add.rectangle(0, 0, modalW, modalH, 0x0a0614, 0.97);
     bg.setStrokeStyle(2, 0x818cf8);
@@ -1172,6 +1180,20 @@ export class GameScene extends Phaser.Scene {
           } else {
             const level = buildLevel1(this.depth);
             this.lights.setAmbientColor(level.biome.ambientColor);
+          }
+        },
+      },
+      {
+        id: 'fps',
+        label: () => `FPS HUD: ${this.showFpsHud ? 'ВКЛ' : 'ВЫКЛ'}`,
+        active: () => this.showFpsHud,
+        onClick: () => {
+          this.showFpsHud = !this.showFpsHud;
+          try {
+            localStorage.setItem('emberdeep_fps_hud', this.showFpsHud ? '1' : '0');
+          } catch {}
+          if (this.fpsHudContainer) {
+            this.fpsHudContainer.setVisible(this.showFpsHud);
           }
         },
       },
@@ -1355,12 +1377,28 @@ export class GameScene extends Phaser.Scene {
     if (this.interactPressed) this.mySeq.interact++;
 
     const t = this.time.now / 1000;
+    const px = this.myPlayer?.x ?? 0;
+    const py = this.myPlayer?.y ?? 0;
     for (const tl of this.torchLights) {
+      if (Math.abs(tl.light.x - px) > 650 || Math.abs(tl.light.y - py) > 650) continue;
       tl.light.intensity = tl.base + Math.sin(t * 6 + tl.phase) * 0.25 + Math.sin(t * 13 + tl.phase) * 0.08;
     }
     for (const [player, light] of this.playerLights) {
       light.x = player.x;
       light.y = player.y - 8;
+    }
+
+    if (this.showFpsHud && this.fpsHudText) {
+      this.fpsUpdateTimer += delta;
+      if (this.fpsUpdateTimer >= 150) {
+        this.fpsUpdateTimer = 0;
+        const fps = Math.round(this.game.loop.actualFps);
+        const ms = delta.toFixed(1);
+        const aliveEnemies = this.enemies.filter((e) => !e.isDead && e.active).length;
+        this.fpsHudText.setText(`${fps} FPS · ${ms}ms · ${aliveEnemies} вр.`);
+        const fpsColor = fps >= 55 ? '#4ade80' : fps >= 30 ? '#facc15' : '#ef4444';
+        this.fpsHudText.setColor(fpsColor);
+      }
     }
 
     if (this.myPlayer) {
@@ -1664,10 +1702,13 @@ export class GameScene extends Phaser.Scene {
     const aimAngle = res.aimAngle ?? (player.flipX ? Math.PI : 0);
 
     const inSlashCone = (tx: number, ty: number, range = 54, maxAngleRad = 1.45): boolean => {
-      const d = Phaser.Math.Distance.Between(player.x, player.y - 14, tx, ty);
-      if (d <= 20) return true; // Close melee body contact always hits
-      if (d > range) return false;
-      const angleToTarget = Phaser.Math.Angle.Between(player.x, player.y - 14, tx, ty);
+      const dx = tx - player.x;
+      const dy = ty - (player.y - 14);
+      if (Math.abs(dx) > range || Math.abs(dy) > range) return false;
+      const dSq = dx * dx + dy * dy;
+      if (dSq <= 400) return true; // Close melee body contact always hits (<= 20)
+      if (dSq > range * range) return false;
+      const angleToTarget = Math.atan2(dy, dx);
       const angleDiff = Math.abs(Phaser.Math.Angle.Wrap(angleToTarget - aimAngle));
       return angleDiff <= maxAngleRad;
     };
@@ -2124,6 +2165,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateSpikeTraps(delta: number): void {
+    if (this.spikeTraps.length === 0) return;
     for (const trap of this.spikeTraps) {
       if (trap.cooldown > 0) {
         trap.cooldown -= delta;
@@ -2136,15 +2178,19 @@ export class GameScene extends Phaser.Scene {
           let triggered = false;
           for (const p of this.players) {
             if (p.hp <= 0) continue;
-            if (Phaser.Math.Distance.Between(p.x, p.y, trap.x, trap.y - 8) <= 20) {
+            const dx = Math.abs(p.x - trap.x);
+            const dy = Math.abs(p.y - (trap.y - 8));
+            if (dx <= 20 && dy <= 20 && dx * dx + dy * dy <= 400) {
               triggered = true;
               break;
             }
           }
           if (!triggered) {
             for (const e of this.enemies) {
-              if (e.isDead) continue;
-              if (Phaser.Math.Distance.Between(e.x, e.y, trap.x, trap.y - 8) <= 20) {
+              if (e.isDead || !e.active) continue;
+              const dx = Math.abs(e.x - trap.x);
+              const dy = Math.abs(e.y - (trap.y - 8));
+              if (dx <= 20 && dy <= 20 && dx * dx + dy * dy <= 400) {
                 triggered = true;
                 break;
               }
@@ -2171,7 +2217,9 @@ export class GameScene extends Phaser.Scene {
             // Damage player in range
             for (const p of this.players) {
               if (p.hp <= 0) continue;
-              if (Phaser.Math.Distance.Between(p.x, p.y, trap.x, trap.y - 8) <= 24) {
+              const dx = Math.abs(p.x - trap.x);
+              const dy = Math.abs(p.y - (trap.y - 8));
+              if (dx <= 24 && dy <= 24 && dx * dx + dy * dy <= 576) {
                 p.takeDamage(1, trap.x, trap.y);
                 this.buildHeartsUI();
                 if (p === this.myPlayer) {
@@ -2185,8 +2233,10 @@ export class GameScene extends Phaser.Scene {
 
             // Damage and hurt enemies in range
             for (const e of this.enemies) {
-              if (e.isDead) continue;
-              if (Phaser.Math.Distance.Between(e.x, e.y, trap.x, trap.y - 8) <= 24) {
+              if (e.isDead || !e.active) continue;
+              const dx = Math.abs(e.x - trap.x);
+              const dy = Math.abs(e.y - (trap.y - 8));
+              if (dx <= 24 && dy <= 24 && dx * dx + dy * dy <= 576) {
                 const killed = e.takeDamage(1, trap.x, trap.y, this.enemies);
                 this.bloodSpark.setPosition(e.x, e.y - 8);
                 this.bloodSpark.explode(killed ? 20 : 10);
@@ -3188,6 +3238,31 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(1, 0.5);
 
     this.buffBadgeContainer.add([bg, slot, icon, label, this.buffBadgeTimeText]);
+  }
+
+  private createFpsHud(): void {
+    const hudW = 175;
+    const hudH = 26;
+    // Positioned below the depth header in the top-right
+    this.fpsHudContainer = this.add.container(this.scale.width - 20 - hudW / 2, 110);
+    this.fpsHudContainer.setDepth(DEPTH.UI + 50);
+    this.fpsHudContainer.setScrollFactor(0);
+    this.worldCam.ignore(this.fpsHudContainer);
+
+    const bg = this.add.rectangle(0, 0, hudW, hudH, 0x09090b, 0.94);
+    bg.setStrokeStyle(1.5, 0x38bdf8);
+
+    this.fpsHudText = this.add
+      .text(0, 0, '60 FPS · 16.6ms', {
+        fontFamily: FONT.TITLE,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#4ade80',
+      })
+      .setOrigin(0.5);
+
+    this.fpsHudContainer.add([bg, this.fpsHudText]);
+    this.fpsHudContainer.setVisible(this.showFpsHud);
   }
 
   private updateFlaskPickups(): void {

@@ -389,10 +389,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** Alerts nearby pack members within hearing/sight radius so they join combat. */
   alertNearbyAllies(otherEnemies: Enemy[] = [], radius = PACK_ALERT_RADIUS): void {
     if (!otherEnemies || otherEnemies.length === 0) return;
+    const rSq = radius * radius;
     for (const ally of otherEnemies) {
       if (ally === this || ally.isDead || !ally.active) continue;
-      const dist = Math.hypot(this.x - ally.x, this.y - ally.y);
-      if (dist <= radius) {
+      const odx = this.x - ally.x;
+      const ody = this.y - ally.y;
+      if (Math.abs(odx) > radius || Math.abs(ody) > radius) continue;
+      const distSq = odx * odx + ody * ody;
+      if (distSq <= rSq) {
+        const dist = Math.sqrt(distSq);
         if (ally.currentAIState === 'patrol') {
           // Stagger reaction slightly based on distance (0-200ms) for natural pack behavior
           const delay = Math.min(200, Math.floor(dist * 0.8));
@@ -642,6 +647,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
               if (other === this || other.isDead || !other.active) continue;
               const odx = this.x - other.x;
               const ody = this.y - other.y;
+              if (Math.abs(odx) >= 24 || Math.abs(ody) >= 24) continue;
               const odist = Math.hypot(odx, ody);
               if (odist < 24) {
                 const force = (24 - odist) / 24;
@@ -816,6 +822,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           if (other === this || other.isDead || !other.active) continue;
           const odx = this.x - other.x;
           const ody = this.y - other.y;
+          if (Math.abs(odx) >= 36 || Math.abs(ody) >= 36) continue;
           const odist = Math.hypot(odx, ody);
           if (odist < 36) {
             if (odist === 0) {

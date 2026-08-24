@@ -1781,6 +1781,59 @@ class SoundFXManager {
     osc.stop(t + 0.45);
   }
 
+  /** Orc Warchief Heavy Cleave Arc slash sound */
+  playBossCleaveSlash(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain) return;
+
+    const t = ctx.currentTime;
+    // Heavy blade whoosh
+    const whoosh = ctx.createOscillator();
+    const wGain = ctx.createGain();
+    whoosh.type = 'sawtooth';
+    whoosh.frequency.setValueAtTime(80, t);
+    whoosh.frequency.exponentialRampToValueAtTime(320, t + 0.12);
+    whoosh.frequency.exponentialRampToValueAtTime(50, t + 0.28);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(900, t);
+    filter.frequency.exponentialRampToValueAtTime(200, t + 0.28);
+
+    wGain.gain.setValueAtTime(0.01, t);
+    wGain.gain.linearRampToValueAtTime(0.55, t + 0.08);
+    wGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+
+    whoosh.connect(filter);
+    filter.connect(wGain);
+    wGain.connect(this.sfxGain);
+    whoosh.start(t);
+    whoosh.stop(t + 0.28);
+
+    // Sharp metal edge noise
+    const bufSize = Math.floor(ctx.sampleRate * 0.22);
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+
+    const nFilter = ctx.createBiquadFilter();
+    nFilter.type = 'bandpass';
+    nFilter.frequency.setValueAtTime(1400, t);
+    nFilter.Q.setValueAtTime(2.2, t);
+
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.38, t);
+    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    noise.connect(nFilter);
+    nFilter.connect(nGain);
+    nGain.connect(this.sfxGain);
+    noise.start(t);
+    noise.stop(t + 0.22);
+  }
+
   /** Stairs descent */
   playStairsDescent(): void {
     const ctx = this.ensureContext();

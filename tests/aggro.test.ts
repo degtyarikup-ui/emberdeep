@@ -33,6 +33,7 @@ function createMockScene(): Phaser.Scene {
       destroy: () => undefined,
     }),
     rectangle: () => ({ destroy: () => undefined }),
+    circle: () => ({ setDepth: () => ({ destroy: () => undefined }), destroy: () => undefined }),
   };
   const physics = {
     add: {
@@ -199,4 +200,29 @@ describe('Enemy aggro and social alerting logic', () => {
     expect(ally.currentAIState).toBe('alert');
     expect(ally.isInCombat).toBe(true);
   });
+
+  it('orc_shield operates as an aggressive vanguard with high speed and zero angular distortion', () => {
+    const scene = createMockScene();
+    const shieldOrc = new Enemy(scene, 100, 100, 'orc_shield', 1);
+
+    // Provoke into alert and transition to chase
+    shieldOrc.provoke(COMBAT_AGGRO_DURATION, false);
+    expect(shieldOrc.currentAIState).toBe('alert');
+
+    shieldOrc.updateAI(160, 100, 150, [shieldOrc]); // Completes alert (120ms) -> chase
+    shieldOrc.updateAI(160, 100, 4500, [shieldOrc]); // Advance delta past initial cooldown -> triggers Bull Rush special_windup
+
+    expect(shieldOrc.currentAIState).toBe('special_windup');
+    expect(shieldOrc.angle).toBe(0);
+
+    // Complete windup (260ms) -> lunge
+    shieldOrc.updateAI(160, 100, 300, [shieldOrc]);
+    expect(shieldOrc.currentAIState).toBe('lunge');
+    expect(shieldOrc.angle).toBe(0);
+
+    // After damage or block, angle remains 0 and scale is preserved
+    shieldOrc.takeDamage(5, 50, 100, [shieldOrc]);
+    expect(shieldOrc.angle).toBe(0);
+  });
 });
+

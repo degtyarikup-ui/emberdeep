@@ -115,19 +115,19 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     bodySize: { idle: [20, 22], run: [20, 22] },
     bodyOffset: { idle: [2, 4], run: [2, 4] },
     maxHp: 20,
-    patrolSpeed: 50,
-    chaseSpeed: 105,
-    detectRadius: 240,
-    loseRadius: 360,
+    patrolSpeed: 70,
+    chaseSpeed: 130,
+    detectRadius: 260,
+    loseRadius: 380,
     attackRange: 54,
     contactDamage: 1,
     scale: 1.5,
-    windupDuration: 320,
+    windupDuration: 220,
     lungeDuration: 180,
-    recoveryDuration: 300,
-    lungeSpeed: 230,
-    canBackstep: true,
-    canCircleStrafe: true,
+    recoveryDuration: 180,
+    lungeSpeed: 290,
+    canBackstep: false,
+    canCircleStrafe: false,
   },
   orc_archer: {
     clips: ACTORS.MASKED_ORC,
@@ -421,10 +421,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         }
       }
       amount = Math.max(1, Math.round(amount * 0.3));
+      // Immediate retaliation / counter-attack readiness upon block
+      this.specialCooldown = 0;
+      this.backstepCooldown = 0;
     }
 
     this.hp -= amount;
     this.hitLock = HIT_LOCK;
+    this.setAngle(0);
+    this.setScale(this.stats.scale);
 
     // Turn to face attacker (opposite of knockback)
     const dx = this.x - fromX;
@@ -461,6 +466,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private die(): void {
     this.aiState = 'dead';
     this.clearTint();
+    this.setAngle(0);
     this.setScale(this.stats.scale);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
@@ -674,21 +680,21 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             SoundFX.playCleaveWindup();
             break;
           }
-          // Orc Shieldbearer Shield Bull Rush at mid-range (65..175 px)
-          if (this.kind === 'orc_shield' && distToPlayer >= 65 && distToPlayer <= 175) {
+          // Orc Shieldbearer Shield Bull Rush at mid-range (55..180 px)
+          if (this.kind === 'orc_shield' && distToPlayer >= 55 && distToPlayer <= 180) {
             this.aiState = 'special_windup';
-            this.stateTimer = 340;
-            this.specialCooldown = 3800;
+            this.stateTimer = 260;
+            this.specialCooldown = 2400;
             this.setTint(0xe2e8f0);
-            this.setScale(this.stats.scale * 1.35, this.stats.scale * 0.85);
-            this.setAngle(dx < 0 ? -15 : 15);
+            this.setAngle(0);
+            this.setScale(this.stats.scale);
             body.setVelocity(0, 0);
             SoundFX.playCleaveWindup();
             if (this.scene) {
               const sx = this.x + (dx < 0 ? -12 : 12);
               const sy = this.y - 12;
-              const gleam = this.scene.add.circle(sx, sy, 7, 0xf8fafc, 0.9);
-              this.scene.tweens.add({ targets: gleam, scale: 2.2, alpha: 0, duration: 250, onComplete: () => gleam.destroy() });
+              const gleam = this.scene.add.circle(sx, sy, 8, 0xf8fafc, 0.95);
+              this.scene.tweens.add({ targets: gleam, scale: 2.4, alpha: 0, duration: 240, onComplete: () => gleam.destroy() });
             }
             break;
           }
@@ -761,8 +767,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             this.setScale(this.stats.scale * 1.15, this.stats.scale * 0.85);
           } else if (this.kind === 'orc_shield') {
             this.setTint(0xfca5a5); // Crimson battle glow on axe
-            this.setScale(this.stats.scale * 0.9, this.stats.scale * 1.35); // Raises axe high
-            this.setAngle(dx < 0 ? -18 : 18);
+            this.setAngle(0);
+            this.setScale(this.stats.scale);
             SoundFX.playCleaveWindup();
           } else {
             this.setTint(0xffffff);
@@ -837,19 +843,22 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           } else if (this.kind === 'orc_shield') {
             // Launch Shield Bull Rush!
             this.aiState = 'lunge';
-            this.stateTimer = 260;
+            this.stateTimer = 240;
             this.clearTint();
-            this.setScale(this.stats.scale * 1.3, this.stats.scale * 0.95);
-            this.setAngle(dx < 0 ? -16 : 16);
+            this.setAngle(0);
+            this.setScale(this.stats.scale);
             this.attackAngle = Math.atan2(dy, dx);
             body.setVelocity(
-              Math.cos(this.attackAngle) * 270,
-              Math.sin(this.attackAngle) * 270
+              Math.cos(this.attackAngle) * 310,
+              Math.sin(this.attackAngle) * 310
             );
             SoundFX.playShieldBlock();
             if (this.scene) {
-              const ring = this.scene.add.circle(this.x, this.y - 10, 8, 0xe2e8f0, 0.8);
-              this.scene.tweens.add({ targets: ring, scale: 2.5, alpha: 0, duration: 250, onComplete: () => ring.destroy() });
+              const bx = this.x + Math.cos(this.attackAngle) * 16;
+              const by = this.y - 12 + Math.sin(this.attackAngle) * 16;
+              const barrier = this.scene.add.circle(bx, by, 14, 0xe2e8f0, 0.85);
+              barrier.setDepth(this.depth + 1);
+              this.scene.tweens.add({ targets: barrier, scaleX: 1.8, scaleY: 0.8, alpha: 0, duration: 240, onComplete: () => barrier.destroy() });
             }
             break;
           } else if (this.kind === 'orc_archer') {
@@ -885,9 +894,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           this.aiState = 'lunge';
           this.stateTimer = this.stats.lungeDuration;
           this.clearTint();
+          this.setAngle(0);
           this.setScale(this.stats.scale);
           if (this.kind === 'orc_shield') {
-            this.setAngle(dx < 0 ? 22 : -22);
             SoundFX.playBoneCleave();
           }
 
@@ -901,7 +910,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       }
 
       case 'lunge': {
-        if (this.stateTimer === this.stats.lungeDuration || (this.kind === 'orc_shield' && this.stateTimer >= 250)) {
+        if (this.stateTimer === this.stats.lungeDuration || (this.kind === 'orc_shield' && this.stateTimer >= 230)) {
            // just started lunge
            const dust = this.scene.add.circle(this.x, this.y, 4, 0xaaaaaa, 0.5);
            this.scene.tweens.add({ targets: dust, scale: 2, alpha: 0, duration: 300, onComplete: () => dust.destroy() });
@@ -915,9 +924,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         if (distToPlayer < hitRadius) {
           output.landedHit = true;
           output.damage = this.kind === 'orc_shield' ? 2 : this.stats.contactDamage;
-          if (this.kind === 'orc_shield') {
-            this.setAngle(0);
-          }
+          this.setAngle(0);
           this.aiState = 'recovery';
           this.stateTimer = this.stats.recoveryDuration;
           body.setVelocity(0, 0);

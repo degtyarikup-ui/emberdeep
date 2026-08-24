@@ -11,7 +11,7 @@ interface GameSceneContext extends Phaser.Scene {
   buildHeartsUI?: () => void;
 }
 
-export type OrcBossState = 'idle' | 'chase' | 'slam_windup' | 'charge_windup' | 'charging' | 'storm_windup' | 'recovery' | 'dead';
+export type OrcBossState = 'idle' | 'chase' | 'cleave_windup' | 'slam_windup' | 'charge_windup' | 'charging' | 'storm_windup' | 'recovery' | 'dead';
 
 export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
   readonly bossName = 'Вождь Орков Грог\'Нар';
@@ -25,12 +25,14 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
   private phase: 1 | 2 = 1;
 
   private stateTimer = 0;
+  private cleaveCooldown = 2200;
   private slamCooldown = 3200;
   private chargeCooldown = 6500;
   private stormCooldown = 8000;
   private warcryCooldown = 15000;
   private hasEnraged = false;
 
+  private cleaveAngle = 0;
   private chargeAngle = 0;
   private chargeSpeed = 240;
 
@@ -44,6 +46,12 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     circle: Phaser.GameObjects.Arc;
     border: Phaser.GameObjects.Arc;
     crack: Phaser.GameObjects.Graphics;
+  };
+
+  private cleaveTelegraph?: {
+    graphics: Phaser.GameObjects.Graphics;
+    totalTime: number;
+    radius: number;
   };
 
   // Net puppet interpolation
@@ -133,6 +141,13 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  private destroyCleaveTelegraph(): void {
+    if (this.cleaveTelegraph) {
+      this.cleaveTelegraph.graphics.destroy();
+      this.cleaveTelegraph = undefined;
+    }
+  }
+
   public takeDamage(amount: number, fromX?: number, fromY?: number): boolean {
     if (this.isDead || this.isSpawning) return false;
 
@@ -182,6 +197,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     this.animState = 'dead';
     this.orcState = 'dead';
     this.destroySlamTelegraph();
+    this.destroyCleaveTelegraph();
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (body) {
@@ -239,6 +255,7 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     }
 
     // Cooldown ticks
+    this.cleaveCooldown -= delta;
     this.slamCooldown -= delta;
     this.chargeCooldown -= delta;
     this.stormCooldown -= delta;
@@ -263,6 +280,27 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
             { x: this.x - 36, y: this.y - 12, kind: 'wolf' as EnemyKind },
             { x: this.x + 36, y: this.y - 12, kind: 'skeleton' }
           );
+        }
+
+        // 0. Check Cleave Arc trigger (Frontal AoE Cleave on distance <= 115 px)
+        if (this.cleaveCooldown <= 0 && dist <= 115) {
+          this.orcState = 'cleave_windup';
+          const windupDuration = this.isEnraged ? 400 : 550;
+          this.stateTimer = windupDuration;
+          this.cleaveCooldown = this.isEnraged ? 3000 : 3800;
+          this.cleaveAngle = Math.atan2(dy, dx);
+          body.setVelocity(0, 0);
+          this.setTint(0xf87171);
+          this.setScale(1.85, 1.65);
+          this.axe.setTint(0xf87171);
+          SoundFX.playCleaveWindup();
+
+          // Spawn Fan/Cone Telegraph Graphics (120 degrees sector)
+          this.destroyCleaveTelegraph();
+          const g = this.scene.add.graphics().setDepth(DEPTH.SHADOW + 2);
+          const radius = this.isEnraged ? 120 : 110;
+          this.cleaveTelegraph = { graphics: g, totalTime: windupDuration, radius };
+          break;
         }
 
         // 1. Check Ground Slam trigger (Close range AoE)
@@ -431,6 +469,127 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
         break;
       }
 
+      case 'cleave_windup': {
+        this.stateTimer -= delta;
+        body.setVelocity(0, 0);
+        this.setFlipX(dx < 0);
+        this.cleaveAngle = Math.atan2(dy, dx); // Continues tracking during windup
+
+        if (this.cleaveTelegraph) {
+          const g = this.cleaveTelegraph.graphics;
+          g.clear();
+          const progress = Math.min(1, Math.max(0, 1 - (this.stateTimer / this.cleaveTelegraph.totalTime)));
+          const radius = this.cleaveTelegraph.radius;
+          const halfAngle = Math.PI / 3; // 60 deg each side => 120 deg sector
+          const startAngle = this.cleaveAngle - halfAngle;
+          const endAngle = this.cleaveAngle + halfAngle;
+
+          // Sector Background (transparent red danger zone)
+          g.fillStyle(0xdc2626, 0.22);
+          g.beginPath();
+          g.moveTo(this.x, this.y - 8);
+          g.arc(this.x, this.y - 8, radius, startAngle, endAngle, false);
+          g.closePath();
+          g.fillPath();
+
+          // Sector Progress (filling from center outward)
+          g.fillStyle(0xef4444, 0.45);
+          g.beginPath();
+          g.moveTo(this.x, this.y - 8);
+          g.arc(this.x, this.y - 8, radius * Math.max(0.1, progress), startAngle, endAngle, false);
+          g.closePath();
+          g.fillPath();
+
+          // Sector Border
+          g.lineStyle(2.5, 0xf87171, 0.9);
+          g.beginPath();
+          g.moveTo(this.x, this.y - 8);
+          g.arc(this.x, this.y - 8, radius, startAngle, endAngle, false);
+          g.closePath();
+          g.strokePath();
+        }
+
+        if (this.stateTimer <= 0) {
+          this.destroyCleaveTelegraph();
+          this.clearTint();
+          if (this.isEnraged) this.axe.setTint(0xff7777); else this.axe.clearTint();
+          this.setScale(1.75);
+
+          // Short lunge / step towards target (30 px)
+          const lungeDist = 30;
+          const targetLungeX = this.x + Math.cos(this.cleaveAngle) * lungeDist;
+          const targetLungeY = this.y + Math.sin(this.cleaveAngle) * lungeDist;
+          this.scene.tweens.add({
+            targets: this,
+            x: targetLungeX,
+            y: targetLungeY,
+            duration: 110,
+            ease: 'Power2',
+          });
+
+          SoundFX.playBossCleaveSlash();
+          this.scene.cameras.main.shake(220, 0.006);
+
+          // Spawn Crescent Slash Wave FX
+          const slashDist = (this.isEnraged ? 120 : 110) * 0.55;
+          const slashX = this.x + Math.cos(this.cleaveAngle) * slashDist;
+          const slashY = this.y - 8 + Math.sin(this.cleaveAngle) * slashDist;
+          const slash = this.scene.add.sprite(slashX, slashY, TEXTURE.SLASH_WHIRLWIND || TEXTURE.SLASH_FX);
+          slash.setRotation(this.cleaveAngle);
+          slash.setScale(2.2);
+          slash.setTint(this.isEnraged ? 0xef4444 : 0xf97316);
+          slash.setDepth(DEPTH.YSORT_BASE + this.y + 10);
+          this.scene.tweens.add({
+            targets: slash,
+            scaleX: 3.2,
+            scaleY: 3.2,
+            alpha: 0,
+            duration: 250,
+            onComplete: () => slash.destroy(),
+          });
+
+          // Check cone hit on players
+          const gs = this.scene as GameSceneContext;
+          if (gs && gs.players) {
+            const hitRadius = this.isEnraged ? 120 : 110;
+            const halfCone = Math.PI / 3;
+
+            for (const player of gs.players) {
+              if (player.isDowned || player.godMode) continue;
+              const pdx = player.x - this.x;
+              const pdy = player.y - (this.y - 8);
+              const pdist = Math.hypot(pdx, pdy);
+
+              if (pdist <= hitRadius) {
+                const playerAngle = Math.atan2(pdy, pdx);
+                let angleDiff = Math.abs(playerAngle - this.cleaveAngle);
+                while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2);
+
+                if (angleDiff <= halfCone) {
+                  // Hit player with 2 damage & 50px knockback!
+                  player.takeDamage(2, this.x, this.y);
+                  SoundFX.playPlayerHurt();
+                  if (gs.spawnDamageNumber) {
+                    gs.spawnDamageNumber(player.x, player.y, '-2', '#ef4444');
+                  }
+                  if (gs.buildHeartsUI) gs.buildHeartsUI();
+
+                  const kbBody = player.body as Phaser.Physics.Arcade.Body;
+                  if (kbBody) {
+                    kbBody.velocity.x += Math.cos(this.cleaveAngle) * 220;
+                    kbBody.velocity.y += Math.sin(this.cleaveAngle) * 220;
+                  }
+                }
+              }
+            }
+          }
+
+          this.orcState = 'recovery';
+          this.stateTimer = this.isEnraged ? 200 : 300;
+        }
+        break;
+      }
+
       case 'slam_windup': {
         this.stateTimer -= delta;
         body.setVelocity(0, 0);
@@ -557,7 +716,12 @@ export class OrcBossEnemy extends Phaser.Physics.Arcade.Sprite {
     let axeDepth = DEPTH.YSORT_BASE + this.y - 1; // Behind / beside boss body
     let axeAngle: number;
 
-    if (this.orcState === 'slam_windup') {
+    if (this.orcState === 'cleave_windup') {
+      axeOffsetX = this.flipX ? 12 : -12;
+      axeOffsetY = -22;
+      axeDepth = DEPTH.YSORT_BASE + this.y + 2;
+      axeAngle = this.flipX ? -80 : 80;
+    } else if (this.orcState === 'slam_windup') {
       axeOffsetX = this.flipX ? -8 : 8;
       axeOffsetY = -28; // Raised high above head
       axeDepth = DEPTH.YSORT_BASE + this.y + 2;

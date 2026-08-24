@@ -27,6 +27,14 @@ import { getBiomeForDepth, type BiomeId } from '../world/biomes';
 import type { EnemyKind } from '../entities/Enemy';
 import type { PropKey } from '../gfx/propKeys';
 
+import {
+  SMART_BRUSHES,
+  getFamilyForTile,
+  getBaseTileForFamily,
+  calculateAutotileCell,
+  autotileNeighborhood,
+} from './autotileHelper';
+
 interface DrawableEntity {
   col: number;
   row: number;
@@ -48,11 +56,12 @@ export class MapEditor {
   private tileSize = 28;
 
   private activeTool: 'brush' | 'rect' | 'eraser' | 'picker' | 'inspect' | 'hand' | 'custom_brush' = 'brush';
-  private activeCategory: 'tiles' | 'poi' | 'npc' | 'enemy' | 'pickup' | 'prop' | 'tree' | 'custom_brush' = 'tiles';
+  private activeCategory: 'tiles' | 'smart_brush' | 'custom_brush' | 'poi' | 'npc' | 'enemy' | 'pickup' | 'prop' | 'tree' = 'tiles';
   private activeItemId: string | number = EDITOR_TILE.FLOOR;
   private brushSize = 1;
   private searchQuery = '';
   private tileSubCategory: TileSubCategory = 'all';
+  private autoTileEnabled = true;
 
   private customBrushes: CustomBrush[] = [];
   private activeCustomBrushId?: string;
@@ -274,6 +283,9 @@ export class MapEditor {
             <button id="me-undo-btn" class="me-btn" title="Отмена (Ctrl+Z)">Отмена</button>
             <button id="me-redo-btn" class="me-btn" title="Повтор (Ctrl+Y)">Повтор</button>
             <button id="me-grid-toggle-btn" class="me-btn ${this.showGrid ? 'me-btn-primary' : ''}" title="Вкл/Выкл сетку">Сетка</button>
+            <button id="me-autotile-toggle-btn" class="me-btn ${this.autoTileEnabled ? 'me-btn-primary' : ''}" title="Вкл/Выкл автоматическую стыковку углов и берегов">
+              ${ICONS.sparkles} Авто-стыковка: ${this.autoTileEnabled ? 'ВКЛ' : 'ВЫКЛ'}
+            </button>
           </div>
 
           <div class="me-toolbar-group">
@@ -337,13 +349,13 @@ export class MapEditor {
 
             <div class="me-category-tabs">
               <button class="me-tab-btn active" data-cat="tiles" title="Тайлы (клавиша 1)">Тайлы</button>
-              <button class="me-tab-btn" data-cat="custom_brush" title="Мои кисти (клавиша 8)">${ICONS.sparkles} Кисти</button>
-              <button class="me-tab-btn" data-cat="poi" title="Точки (клавиша 2)">Точки</button>
-              <button class="me-tab-btn" data-cat="npc" title="NPC (клавиша 3)">NPC</button>
-              <button class="me-tab-btn" data-cat="enemy" title="Враги (клавиша 4)">Враги</button>
-              <button class="me-tab-btn" data-cat="pickup" title="Лут (клавиша 5)">Лут</button>
-              <button class="me-tab-btn" data-cat="prop" title="Пропсы (клавиша 6)">Пропсы</button>
-              <button class="me-tab-btn" data-cat="tree" title="Деревья (клавиша 7)">Деревья</button>
+              <button class="me-tab-btn" data-cat="smart_brush" title="Умные авто-кисти (клавиша 2)">${ICONS.sparkles} Авто-кисти</button>
+              <button class="me-tab-btn" data-cat="custom_brush" title="Конструктор кистей (клавиша 3)">${ICONS.brush} Мои кисти</button>
+              <button class="me-tab-btn" data-cat="tree" title="Деревья (клавиша 4)">Деревья</button>
+              <button class="me-tab-btn" data-cat="prop" title="Пропсы (клавиша 5)">Пропсы</button>
+              <button class="me-tab-btn" data-cat="pickup" title="Лут (клавиша 6)">Лут</button>
+              <button class="me-tab-btn" data-cat="enemy" title="Враги (клавиша 7)">Враги</button>
+              <button class="me-tab-btn" data-cat="poi" title="Точки (клавиша 8)">Точки</button>
             </div>
 
             <div class="me-palette-search-box">
@@ -449,6 +461,15 @@ export class MapEditor {
       this.draw();
     });
 
+    document.getElementById('me-autotile-toggle-btn')?.addEventListener('click', () => {
+      this.autoTileEnabled = !this.autoTileEnabled;
+      const btn = document.getElementById('me-autotile-toggle-btn');
+      if (btn) {
+        btn.classList.toggle('me-btn-primary', this.autoTileEnabled);
+        btn.innerHTML = `${ICONS.sparkles} Авто-стыковка: ${this.autoTileEnabled ? 'ВКЛ' : 'ВЫКЛ'}`;
+      }
+    });
+
     document.getElementById('me-hud-fit')?.addEventListener('click', () => this.fitToView());
     document.getElementById('me-hud-zoom-in')?.addEventListener('click', () => this.setZoom(this.zoom * 1.25));
     document.getElementById('me-hud-zoom-out')?.addEventListener('click', () => this.setZoom(this.zoom / 1.25));
@@ -522,6 +543,15 @@ export class MapEditor {
         document.querySelectorAll('.me-tab-btn').forEach((t) => t.classList.remove('active'));
         tab.classList.add('active');
         this.activeCategory = tab.getAttribute('data-cat') as typeof this.activeCategory;
+        if (this.activeCategory === 'smart_brush') {
+          if (!SMART_BRUSHES.some((b) => b.id === this.activeItemId)) {
+            this.activeItemId = SMART_BRUSHES[0].id;
+          }
+        } else if (this.activeCategory === 'tiles') {
+          if (typeof this.activeItemId !== 'number') {
+            this.activeItemId = EDITOR_TILE.FLOOR;
+          }
+        }
         this.renderPalette();
       });
     });
@@ -592,13 +622,13 @@ export class MapEditor {
       } else if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(e.key)) {
         const catMap: Record<string, typeof this.activeCategory> = {
           '1': 'tiles',
-          '8': 'custom_brush',
-          '2': 'poi',
-          '3': 'npc',
-          '4': 'enemy',
-          '5': 'pickup',
-          '6': 'prop',
-          '7': 'tree',
+          '2': 'smart_brush',
+          '3': 'custom_brush',
+          '4': 'tree',
+          '5': 'prop',
+          '6': 'pickup',
+          '7': 'enemy',
+          '8': 'poi',
         };
         const targetCat = catMap[e.key];
         if (targetCat) {
@@ -703,6 +733,53 @@ export class MapEditor {
         `;
         item.addEventListener('click', () => {
           this.activeItemId = t.id;
+          this.renderPalette();
+          if (this.activeTool === 'hand' || this.activeTool === 'eraser' || this.activeTool === 'picker' || this.activeTool === 'custom_brush') {
+            this.setTool('brush');
+          }
+        });
+        listEl.appendChild(item);
+      });
+    } else if (this.activeCategory === 'smart_brush') {
+      const banner = document.createElement('div');
+      banner.style.padding = '8px 10px';
+      banner.style.margin = '4px 6px 8px 6px';
+      banner.style.background = 'rgba(34, 197, 94, 0.08)';
+      banner.style.border = '1px solid rgba(34, 197, 94, 0.2)';
+      banner.style.borderRadius = '6px';
+      banner.style.fontSize = '11px';
+      banner.style.color = '#86efac';
+      banner.style.lineHeight = '1.4';
+      banner.innerHTML = `<strong>${ICONS.sparkles} Умные кисти</strong> автоматически подбирают и стыкуют внешние/внутренние углы, берега и бордюры при рисовании.`;
+      listEl.appendChild(banner);
+
+      SMART_BRUSHES.forEach((b) => {
+        const item = document.createElement('div');
+        const isActive = this.activeItemId === b.id && this.activeTool !== 'custom_brush';
+        item.className = `me-palette-item ${isActive ? 'active' : ''}`;
+        item.style.alignItems = 'flex-start';
+        item.style.padding = '8px';
+
+        const previewImg = editorAssets.getTilePreviewUrl(b.previewTileId, this.level.biome.id);
+        const iconContent = previewImg
+          ? `<img src="${previewImg}" alt="${b.name}">`
+          : `<div style="width:100%; height:100%; background:#22c55e;"></div>`;
+
+        item.innerHTML = `
+          <div class="me-palette-icon" style="border: 1px solid ${isActive ? 'rgba(34,197,94,0.5)' : 'rgba(255,255,255,0.1)'}; margin-top:2px; flex-shrink:0;">
+            ${iconContent}
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px; min-width:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="me-palette-label" style="font-weight:600; color:var(--text-primary); font-size:12px;">${b.name}</span>
+              <span style="font-size:9px; font-weight:700; background:rgba(34,197,94,0.2); color:#4ade80; padding:1px 4px; border-radius:3px;">AUTO</span>
+            </div>
+            <div style="font-size:10px; color:var(--text-tertiary); line-height:1.25;">${b.description}</div>
+          </div>
+        `;
+
+        item.addEventListener('click', () => {
+          this.activeItemId = b.id;
           this.renderPalette();
           if (this.activeTool === 'hand' || this.activeTool === 'eraser' || this.activeTool === 'picker' || this.activeTool === 'custom_brush') {
             this.setTool('brush');
@@ -1149,7 +1226,11 @@ export class MapEditor {
     }
 
     if (this.activeTool === 'brush') {
-      if (this.activeCategory === 'tiles') {
+      if (this.activeCategory === 'smart_brush') {
+        const smartDef = SMART_BRUSHES.find((b) => b.id === this.activeItemId) || SMART_BRUSHES[0];
+        const family = smartDef.family;
+        const baseTile = getBaseTileForFamily(family);
+
         const half = Math.floor((this.brushSize - 1) / 2);
         const minC = Math.max(0, col - half);
         const maxC = Math.min(this.level.cols - 1, col - half + this.brushSize - 1);
@@ -1159,11 +1240,50 @@ export class MapEditor {
         const updates: TileUpdate[] = [];
         for (let r = minR; r <= maxR; r++) {
           for (let c = minC; c <= maxC; c++) {
-            const val = Number(this.activeItemId);
-            this.level.data[r][c] = val;
-            updates.push({ col: c, row: r, val });
+            this.level.data[r][c] = baseTile;
+            updates.push({ col: c, row: r, val: baseTile });
           }
         }
+
+        // Recalculate neighborhood autotiling in real-time
+        const autoUpdates = autotileNeighborhood(this.level.data, row, col, Math.max(2, this.brushSize + 1));
+        autoUpdates.forEach((u) => {
+          const idx = updates.findIndex((up) => up.col === u.col && up.row === u.row);
+          if (idx >= 0) updates[idx].val = u.val;
+          else updates.push({ col: u.col, row: u.row, val: u.val });
+        });
+
+        if (this.collabClient && updates.length > 0) {
+          this.collabClient.sendTileUpdates(updates);
+        }
+      } else if (this.activeCategory === 'tiles') {
+        const half = Math.floor((this.brushSize - 1) / 2);
+        const minC = Math.max(0, col - half);
+        const maxC = Math.min(this.level.cols - 1, col - half + this.brushSize - 1);
+        const minR = Math.max(0, row - half);
+        const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
+
+        const updates: TileUpdate[] = [];
+        const rawVal = Number(this.activeItemId);
+        const family = this.autoTileEnabled ? getFamilyForTile(rawVal) : null;
+        const placeVal = family ? getBaseTileForFamily(family) : rawVal;
+
+        for (let r = minR; r <= maxR; r++) {
+          for (let c = minC; c <= maxC; c++) {
+            this.level.data[r][c] = placeVal;
+            updates.push({ col: c, row: r, val: placeVal });
+          }
+        }
+
+        if (family && this.autoTileEnabled) {
+          const autoUpdates = autotileNeighborhood(this.level.data, row, col, Math.max(2, this.brushSize + 1));
+          autoUpdates.forEach((u) => {
+            const idx = updates.findIndex((up) => up.col === u.col && up.row === u.row);
+            if (idx >= 0) updates[idx].val = u.val;
+            else updates.push({ col: u.col, row: u.row, val: u.val });
+          });
+        }
+
         if (this.collabClient && updates.length > 0) {
           this.collabClient.sendTileUpdates(updates);
         }
@@ -1248,10 +1368,41 @@ export class MapEditor {
     const minR = Math.max(0, Math.min(r0, r1));
     const maxR = Math.min(this.level.rows - 1, Math.max(r0, r1));
 
-    const tileVal = this.activeCategory === 'tiles' ? Number(this.activeItemId) : EDITOR_TILE.FLOOR;
-    for (let r = minR; r <= maxR; r++) {
-      for (let c = minC; c <= maxC; c++) {
-        this.level.data[r][c] = tileVal;
+    if (this.activeCategory === 'smart_brush') {
+      const smartDef = SMART_BRUSHES.find((b) => b.id === this.activeItemId) || SMART_BRUSHES[0];
+      const family = smartDef.family;
+      const baseVal = getBaseTileForFamily(family);
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+          this.level.data[r][c] = baseVal;
+        }
+      }
+      for (let r = Math.max(0, minR - 1); r <= Math.min(this.level.rows - 1, maxR + 1); r++) {
+        for (let c = Math.max(0, minC - 1); c <= Math.min(this.level.cols - 1, maxC + 1); c++) {
+          const cur = this.level.data[r][c];
+          const fam = getFamilyForTile(cur);
+          if (fam) {
+            this.level.data[r][c] = calculateAutotileCell(this.level.data, r, c, fam);
+          }
+        }
+      }
+    } else {
+      const tileVal = this.activeCategory === 'tiles' ? Number(this.activeItemId) : EDITOR_TILE.FLOOR;
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+          this.level.data[r][c] = tileVal;
+        }
+      }
+      if (this.autoTileEnabled) {
+        for (let r = Math.max(0, minR - 1); r <= Math.min(this.level.rows - 1, maxR + 1); r++) {
+          for (let c = Math.max(0, minC - 1); c <= Math.min(this.level.cols - 1, maxC + 1); c++) {
+            const cur = this.level.data[r][c];
+            const fam = getFamilyForTile(cur);
+            if (fam) {
+              this.level.data[r][c] = calculateAutotileCell(this.level.data, r, c, fam);
+            }
+          }
+        }
       }
     }
   }
@@ -1298,16 +1449,31 @@ export class MapEditor {
     const cols = this.level.cols;
     const rows = this.level.rows;
 
-    // 1. Draw Tiles (using actual tilesheet sprites)
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = this.panX + c * step;
-        const y = this.panY + r * step;
+    // 0. Base seamless background layer under map (eliminates all dark/black hairline gaps at any zoom level)
+    const mapX0 = Math.floor(this.panX);
+    const mapY0 = Math.floor(this.panY);
+    const mapX1 = Math.floor(this.panX + cols * step);
+    const mapY1 = Math.floor(this.panY + rows * step);
+    if (mapX1 > 0 && mapX0 < this.canvas.width && mapY1 > 0 && mapY0 < this.canvas.height) {
+      this.ctx.fillStyle = '#14532d'; // Dark forest grass base tint
+      this.ctx.fillRect(mapX0, mapY0, mapX1 - mapX0, mapY1 - mapY0);
+    }
 
-        if (x + step < 0 || x > this.canvas.width || y + step < 0 || y > this.canvas.height) continue;
+    // 1. Draw Tiles with contiguous pixel-snapped integer bounds (x0..x1, y0..y1) to eliminate subpixel seam gaps
+    for (let r = 0; r < rows; r++) {
+      const y0 = Math.floor(this.panY + r * step);
+      const y1 = Math.floor(this.panY + (r + 1) * step);
+      const cellH = y1 - y0;
+      if (y1 < 0 || y0 > this.canvas.height) continue;
+
+      for (let c = 0; c < cols; c++) {
+        const x0 = Math.floor(this.panX + c * step);
+        const x1 = Math.floor(this.panX + (c + 1) * step);
+        const cellW = x1 - x0;
+        if (x1 < 0 || x0 > this.canvas.width) continue;
 
         const tileType = (this.level.data[r]?.[c] ?? 0) as EditorTileType;
-        editorAssets.drawTile(this.ctx, tileType, x, y, step);
+        editorAssets.drawTile(this.ctx, tileType, x0, y0, cellW, cellH);
       }
     }
 
@@ -1317,14 +1483,14 @@ export class MapEditor {
       this.ctx.lineWidth = 1;
       this.ctx.beginPath();
       for (let c = 0; c <= cols; c++) {
-        const x = this.panX + c * step;
-        this.ctx.moveTo(x, this.panY);
-        this.ctx.lineTo(x, this.panY + rows * step);
+        const x = Math.floor(this.panX + c * step);
+        this.ctx.moveTo(x, mapY0);
+        this.ctx.lineTo(x, mapY1);
       }
       for (let r = 0; r <= rows; r++) {
-        const y = this.panY + r * step;
-        this.ctx.moveTo(this.panX, y);
-        this.ctx.lineTo(this.panX + cols * step, y);
+        const y = Math.floor(this.panY + r * step);
+        this.ctx.moveTo(mapX0, y);
+        this.ctx.lineTo(mapX1, y);
       }
       this.ctx.stroke();
     }
@@ -1332,7 +1498,7 @@ export class MapEditor {
     // Outer Map Border
     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     this.ctx.lineWidth = 1;
-    this.ctx.strokeRect(this.panX, this.panY, cols * step, rows * step);
+    this.ctx.strokeRect(mapX0, mapY0, mapX1 - mapX0, mapY1 - mapY0);
 
     // 3. Collect All Drawable Entities for Y-Sorted Rendering
     const drawables: DrawableEntity[] = [];
@@ -1340,7 +1506,8 @@ export class MapEditor {
     // Trees
     if (this.level.trees) {
       this.level.trees.forEach((tr) => {
-        drawables.push({ col: tr.col, row: tr.row, spriteId: tr.kind === 'pine' ? 'tree_pine' : 'tree_oak', type: 'tree' });
+        const spriteKey = tr.kind === 'pine' ? 'tree_pine' : tr.kind === 'oak' ? 'tree_oak' : String(tr.kind);
+        drawables.push({ col: tr.col, row: tr.row, spriteId: spriteKey, type: 'tree' });
       });
     }
 
@@ -1476,7 +1643,7 @@ export class MapEditor {
         }
       }
     } else if (this.hoverCol >= 0 && this.hoverCol < cols && this.hoverRow >= 0 && this.hoverRow < rows && !this.isSpaceHeld && this.activeTool !== 'hand') {
-      const size = (this.activeTool === 'brush' && this.activeCategory === 'tiles') || this.activeTool === 'eraser' ? this.brushSize : 1;
+      const size = (this.activeTool === 'brush' && (this.activeCategory === 'tiles' || this.activeCategory === 'smart_brush')) || this.activeTool === 'eraser' ? this.brushSize : 1;
       const half = Math.floor((size - 1) / 2);
       const minC = Math.max(0, this.hoverCol - half);
       const maxC = Math.min(cols - 1, this.hoverCol - half + size - 1);

@@ -377,11 +377,29 @@ class EditorAssetManager {
     tileVal: number,
     x: number,
     y: number,
-    size: number,
-    rotation = 0,
-    flipX = false,
-    flipY = false
+    w: number,
+    hOrRotation?: number,
+    rotationOrFlipX?: number | boolean,
+    flipXOrFlipY?: boolean,
+    flipY?: boolean
   ): void {
+    const width = w;
+    let height = w;
+    let rotation = 0;
+    let flipX = false;
+    let flipYVal = false;
+
+    if (typeof hOrRotation === 'number' && typeof rotationOrFlipX === 'number') {
+      height = hOrRotation;
+      rotation = rotationOrFlipX;
+      flipX = Boolean(flipXOrFlipY);
+      flipYVal = Boolean(flipY);
+    } else {
+      if (typeof hOrRotation === 'number') rotation = hOrRotation;
+      if (typeof rotationOrFlipX === 'boolean') flipX = rotationOrFlipX;
+      if (typeof flipXOrFlipY === 'boolean') flipYVal = flipXOrFlipY;
+    }
+
     const tilesBiomeImg = this.images.get(asset('tiles-biome.png'));
 
     if (tilesBiomeImg && tilesBiomeImg.complete && tilesBiomeImg.naturalWidth > 0) {
@@ -389,15 +407,15 @@ class EditorAssetManager {
       const tileIndex = Math.max(0, Math.min(TOTAL_TILES - 1, tileVal));
       const sx = tileIndex * 32;
       if (sx + 32 <= tilesBiomeImg.naturalWidth) {
-        if (rotation !== 0 || flipX || flipY) {
+        if (rotation !== 0 || flipX || flipYVal) {
           ctx.save();
-          ctx.translate(x + size / 2, y + size / 2);
+          ctx.translate(x + width / 2, y + height / 2);
           if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
-          if (flipX || flipY) ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-          ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, -size / 2, -size / 2, size, size);
+          if (flipX || flipYVal) ctx.scale(flipX ? -1 : 1, flipYVal ? -1 : 1);
+          ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, -width / 2, -height / 2, width, height);
           ctx.restore();
         } else {
-          ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, x, y, size, size);
+          ctx.drawImage(tilesBiomeImg, sx, 0, 32, 32, x, y, width, height);
         }
         return;
       }
@@ -405,7 +423,7 @@ class EditorAssetManager {
 
     // Fallback tint
     ctx.fillStyle = '#14532d';
-    ctx.fillRect(x, y, size, size);
+    ctx.fillRect(x, y, width, height);
   }
 }
 

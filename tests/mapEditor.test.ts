@@ -195,3 +195,76 @@ describe('mapEditorHelper: CustomBrush transformations', () => {
   });
 });
 
+import {
+  calculateAutotileCell,
+  autotileNeighborhood,
+  isTileInFamily,
+  getFamilyForTile,
+} from '../src/admin/autotileHelper';
+import { TILE_INDEX } from '../src/gfx/tileIndex';
+
+describe('autotileHelper: Smart Autotiling Rules', () => {
+  it('correctly categorizes tiles into families', () => {
+    expect(isTileInFamily(TILE_INDEX.PATH_TL, 'path')).toBe(true);
+    expect(isTileInFamily(TILE_INDEX.DIRT_1, 'path')).toBe(true);
+    expect(isTileInFamily(TILE_INDEX.WATER_SHORE_TL, 'water')).toBe(true);
+    expect(isTileInFamily(TILE_INDEX.COBBLE_INNER_BR, 'cobble')).toBe(true);
+    expect(isTileInFamily(TILE_INDEX.CLIFF_TOP_TL, 'cliff')).toBe(true);
+    expect(getFamilyForTile(TILE_INDEX.PATH_INNER_TL)).toBe('path');
+    expect(getFamilyForTile(TILE_INDEX.WATER_DEEP)).toBe('water');
+  });
+
+  it('calculates path outer corners, straight borders, and center dirt', () => {
+    // 3x3 path block on 5x5 grass map (row 1..3, col 1..3)
+    const grid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => TILE_INDEX.GRASS_1));
+    for (let r = 1; r <= 3; r++) {
+      for (let c = 1; c <= 3; c++) {
+        grid[r][c] = TILE_INDEX.DIRT_1;
+      }
+    }
+
+    // Top-left corner (1,1): above is grass, left is grass -> PATH_TL
+    expect(calculateAutotileCell(grid, 1, 1, 'path')).toBe(TILE_INDEX.PATH_TL);
+    // Top-right corner (1,3): above is grass, right is grass -> PATH_TR
+    expect(calculateAutotileCell(grid, 1, 3, 'path')).toBe(TILE_INDEX.PATH_TR);
+    // Bottom-left corner (3,1): below is grass, left is grass -> PATH_BL
+    expect(calculateAutotileCell(grid, 3, 1, 'path')).toBe(TILE_INDEX.PATH_BL);
+    // Bottom-right corner (3,3): below is grass, right is grass -> PATH_BR
+    expect(calculateAutotileCell(grid, 3, 3, 'path')).toBe(TILE_INDEX.PATH_BR);
+
+    // Top edge (1,2): above is grass, left and right are path -> PATH_T
+    expect(calculateAutotileCell(grid, 1, 2, 'path')).toBe(TILE_INDEX.PATH_T);
+    // Left edge (2,1) -> PATH_L
+    expect(calculateAutotileCell(grid, 2, 1, 'path')).toBe(TILE_INDEX.PATH_L);
+    // Center (2,2): all 8 neighbors are path -> DIRT_1
+    expect(calculateAutotileCell(grid, 2, 2, 'path')).toBe(TILE_INDEX.DIRT_1);
+  });
+
+  it('calculates path inner corners correctly', () => {
+    // L-shaped path
+    const grid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => TILE_INDEX.DIRT_1));
+    // Set top-left (0,0) to grass
+    grid[0][0] = TILE_INDEX.GRASS_1;
+
+    // Cell (1,1) has all 4 orthogonal neighbors as path, but top-left is grass -> PATH_INNER_TL
+    expect(calculateAutotileCell(grid, 1, 1, 'path')).toBe(TILE_INDEX.PATH_INNER_TL);
+  });
+
+  it('autotileNeighborhood automatically shapes borders in real-time', () => {
+    const grid = Array.from({ length: 6 }, () => Array.from({ length: 6 }, () => TILE_INDEX.GRASS_1));
+    // Paint a 2x2 patch at (2,2)..(3,3)
+    grid[2][2] = TILE_INDEX.DIRT_1;
+    grid[2][3] = TILE_INDEX.DIRT_1;
+    grid[3][2] = TILE_INDEX.DIRT_1;
+    grid[3][3] = TILE_INDEX.DIRT_1;
+
+    autotileNeighborhood(grid, 2, 2, 2);
+
+    expect(grid[2][2]).toBe(TILE_INDEX.PATH_TL);
+    expect(grid[2][3]).toBe(TILE_INDEX.PATH_TR);
+    expect(grid[3][2]).toBe(TILE_INDEX.PATH_BL);
+    expect(grid[3][3]).toBe(TILE_INDEX.PATH_BR);
+  });
+});
+
+

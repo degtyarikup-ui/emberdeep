@@ -114,186 +114,191 @@ function carveRoadV(grid: number[][], xMid: number, y0: number, y1: number, widt
 // LEVEL 1: «Темный Лес» (Massive Primeval Forest, Winding River, Campsite & Ancient Altar)
 // =========================================================================
 function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
-  const COLS = 140;
-  const ROWS = 90;
-  const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(WALL));
+  const COLS = 200;
+  const ROWS = 80;
+  const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(FLOOR));
 
-  // 1. Organic outer mountain/forest boundary (multi-layered rugged rocks)
+  // 1. Outer mountain perimeter
   for (let r = 0; r < ROWS; r++) {
-    const leftMargin = 5 + (r >= 30 && r <= 60 ? 1 : 0);
-    const rightMargin = 5 + (r >= 25 && r <= 55 ? 1 : 0);
-    for (let c = leftMargin; c < COLS - rightMargin; c++) {
-      binary[r][c] = FLOOR;
-    }
-  }
-  for (let c = 0; c < COLS; c++) {
-    const topMargin = 5 + (c >= 35 && c <= 75 ? 1 : 0);
-    const botMargin = 5 + (c >= 30 && c <= 70 ? 1 : 0);
-    for (let r = 0; r < topMargin; r++) binary[r][c] = WALL;
-    for (let r = ROWS - botMargin; r < ROWS; r++) binary[r][c] = WALL;
-  }
-
-  // 2. Organic Mountain Rock Ridges separating distinct zones
-  // Ridge 1: NW Ridge dividing Campsite & Sawmill (rows 4..24)
-  for (let r = 4; r <= 24; r++) {
-    const rc = Math.round(29 + Math.sin(r * 0.3) * 1.5);
-    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
-  }
-  // Ridge 2: Central-West Ridge dividing Witch Glade & River (rows 36..56)
-  for (let r = 36; r <= 56; r++) {
-    const rc = Math.round(50 + Math.cos(r * 0.25) * 1.5);
-    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
-  }
-  // Ridge 3: SW Necropolis Wall
-  for (let r = 48; r < ROWS; r++) {
-    for (let c = 0; c <= 12; c++) binary[r][c] = WALL;
-  }
-  for (let c = 13; c <= 44; c++) {
-    for (let r = 80; r < ROWS; r++) binary[r][c] = WALL;
-  }
-  // Ridge 4: NE Mountain Crest above Bandit Outpost (rows 4..26)
-  for (let r = 4; r <= 26; r++) {
-    const rc = Math.round(86 + Math.sin(r * 0.25) * 2.0);
-    for (let c = rc - 4; c <= rc + 4; c++) binary[r][c] = WALL;
-  }
-  // Ridge 5: East-Central Divide between Bandit Outpost and Altar Grove (rows 46..58)
-  for (let r = 46; r <= 58; r++) {
-    const rc = Math.round(102 + Math.cos(r * 0.3) * 1.5);
-    for (let c = rc - 4; c <= rc + 4; c++) binary[r][c] = WALL;
-  }
-  // Ridge 6: SE Smuggler Ridge (rows 68..84)
-  for (let r = 68; r <= 84; r++) {
-    const rc = Math.round(77 + Math.sin(r * 0.3) * 1.5);
-    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
-  }
-
-  // 3. Smooth, continuous, meandering forest river & central secret island (cols 65..77, rows 42..54)
-  for (let r = 0; r < ROWS; r++) {
-    if (r <= 16) {
-      const rc = Math.round(58 - r * 0.25);
-      for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WATER_DEEP;
-    } else if (r <= 26) {
-      const rc = 54;
-      for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WATER_DEEP;
-    } else if (r <= 36) {
-      const t = (r - 26) / 10.0;
-      const wCenter = Math.round(54 + t * 16);
-      const spread = Math.round(3 + t * 11);
-      for (let c = wCenter - spread; c <= wCenter + spread; c++) binary[r][c] = WATER_DEEP;
-    } else if (r <= 56) {
-      for (let c = 54; c <= 62; c++) binary[r][c] = WATER_DEEP;
-      for (let c = 80; c <= 88; c++) binary[r][c] = WATER_DEEP;
-    } else if (r <= 66) {
-      const t = (r - 56) / 10.0;
-      const wCenter = Math.round(71 + t * 13);
-      const spread = Math.round(14 - t * 11);
-      for (let c = wCenter - spread; c <= wCenter + spread; c++) binary[r][c] = WATER_DEEP;
-    } else if (r <= 76) {
-      const rc = 84;
-      for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WATER_DEEP;
-    } else {
-      const rc = Math.round(84 + (r - 76) * 0.5);
-      for (let c = rc - 3; c <= rc + 3; c++) {
-        if (c < COLS - 5) binary[r][c] = WATER_DEEP;
+    for (let c = 0; c < COLS; c++) {
+      if (r < 3 || r >= ROWS - 3 || c < 3 || c >= COLS - 3) {
+        binary[r][c] = WALL;
       }
     }
   }
 
-  // 4. Sturdy wooden bridges across the river (anchored on land on both sides)
-  // North Bridge (rows 18-19, cols 49..58)
-  for (let c = 49; c <= 58; c++) {
-    binary[18][c] = BRIDGE_TOP;
-    binary[19][c] = BRIDGE_BOT;
+  // Helper road carvers
+  const carveRoadH = (b: number[][], c1: number, c2: number, r: number, halfW = 1) => {
+    const left = Math.min(c1, c2);
+    const right = Math.max(c1, c2);
+    for (let c = left; c <= right; c++) {
+      for (let dr = -halfW; dr <= halfW; dr++) {
+        const nr = r + dr;
+        if (nr >= 0 && nr < ROWS && c >= 0 && c < COLS) {
+          if (b[nr][c] !== WATER_DEEP && b[nr][c] !== BRIDGE_TOP && b[nr][c] !== BRIDGE_BOT) {
+            b[nr][c] = PATH;
+          }
+        }
+      }
+    }
+  };
+
+  const carveRoadV = (b: number[][], c: number, r1: number, r2: number, halfW = 1) => {
+    const top = Math.min(r1, r2);
+    const bot = Math.max(r1, r2);
+    for (let r = top; r <= bot; r++) {
+      for (let dc = -halfW; dc <= halfW; dc++) {
+        const nc = c + dc;
+        if (r >= 0 && r < ROWS && nc >= 0 && nc < COLS) {
+          if (b[r][nc] !== WATER_DEEP && b[r][nc] !== BRIDGE_TOP && b[r][nc] !== BRIDGE_BOT) {
+            b[r][nc] = PATH;
+          }
+        }
+      }
+    }
+  };
+
+  // 2. Natural Mountain Ridges dividing 5 Sectors
+  // Ridge 1: West Divide (Cols 44..48, rows 4..34 & rows 48..76)
+  for (let r = 4; r <= 34; r++) {
+    const rc = Math.round(46 + Math.sin(r * 0.2) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
   }
-  // West Island Bridge (rows 48-49, cols 52..64)
-  for (let c = 52; c <= 64; c++) {
-    binary[48][c] = BRIDGE_TOP;
-    binary[49][c] = BRIDGE_BOT;
-  }
-  // East Island Bridge (rows 48-49, cols 78..90)
-  for (let c = 78; c <= 90; c++) {
-    binary[48][c] = BRIDGE_TOP;
-    binary[49][c] = BRIDGE_BOT;
-  }
-  // South Bridge (rows 72-73, cols 79..89)
-  for (let c = 79; c <= 89; c++) {
-    binary[72][c] = BRIDGE_TOP;
-    binary[73][c] = BRIDGE_BOT;
+  for (let r = 48; r <= 76; r++) {
+    const rc = Math.round(46 + Math.cos(r * 0.2) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
   }
 
-  // 5. 10 Thematic Zone Clearings & POIs
-  // 1. Campsite
-  carveRoadH(binary, 10, 24, 20, 5);
-  carveRoadV(binary, 14, 16, 26, 5);
-  // 2. Sawmill
-  carveRoadH(binary, 36, 50, 20, 5);
-  carveRoadV(binary, 44, 12, 26, 5);
-  // 3. River Docks
-  carveRoadH(binary, 52, 62, 30, 4);
-  // 4. Island
-  carveRoadH(binary, 64, 78, 48, 5);
-  carveRoadV(binary, 71, 42, 54, 5);
-  // 5. Witch Glade
-  carveRoadH(binary, 16, 28, 40, 5);
-  carveRoadV(binary, 22, 36, 44, 5);
-  // 6. Bandit Base
-  carveRoadH(binary, 96, 122, 26, 7);
-  carveRoadV(binary, 108, 16, 40, 7);
-  // 7. Necropolis
-  carveRoadH(binary, 20, 42, 66, 5);
-  carveRoadV(binary, 32, 54, 76, 5);
-  // 8. Smuggler Grotto
-  carveRoadH(binary, 92, 102, 78, 5);
-  // 9. Sunken Ruin
-  carveRoadH(binary, 52, 64, 72, 5);
-  carveRoadV(binary, 58, 66, 76, 5);
-  // 10. Orc Warchief Arena («Бойцовский круг Орды»)
-  // Carve circular combat ring around (112, 70) with radius 11
-  for (let r = 58; r <= 82; r++) {
-    for (let c = 100; c <= 124; c++) {
-      const distSq = (c - 112) * (c - 112) + (r - 70) * (r - 70);
-      if (distSq <= 121) {
+  // Ridge 2: Necropolis East Wall (Cols 84..88, rows 4..28 & rows 54..76)
+  for (let r = 4; r <= 28; r++) {
+    const rc = Math.round(86 + Math.cos(r * 0.25) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
+  }
+  for (let r = 54; r <= 76; r++) {
+    const rc = Math.round(86 + Math.sin(r * 0.25) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
+  }
+
+  // Ridge 3: Eastern Mountains (Cols 164..168, rows 4..30 & rows 52..76)
+  for (let r = 4; r <= 30; r++) {
+    const rc = Math.round(166 + Math.sin(r * 0.2) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
+  }
+  for (let r = 52; r <= 76; r++) {
+    const rc = Math.round(166 + Math.cos(r * 0.2) * 1.5);
+    for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WALL;
+  }
+
+  // 3. Meandering Forest River and Island of Mists (Cols 92..124)
+  for (let r = 0; r < ROWS; r++) {
+    if (r <= 24) {
+      const rc = Math.round(98 - r * 0.15);
+      for (let c = rc - 3; c <= rc + 3; c++) binary[r][c] = WATER_DEEP;
+    } else if (r <= 32) {
+      const t = (r - 24) / 8.0;
+      const wCenter = Math.round(94 + t * 14);
+      const spread = Math.round(3 + t * 12);
+      for (let c = wCenter - spread; c <= wCenter + spread; c++) binary[r][c] = WATER_DEEP;
+    } else if (r <= 50) {
+      for (let c = 92; c <= 99; c++) binary[r][c] = WATER_DEEP;
+      for (let c = 118; c <= 125; c++) binary[r][c] = WATER_DEEP;
+    } else if (r <= 58) {
+      const t = (r - 50) / 8.0;
+      const wCenter = Math.round(109 + t * 4);
+      const spread = Math.round(15 - t * 12);
+      for (let c = wCenter - spread; c <= wCenter + spread; c++) binary[r][c] = WATER_DEEP;
+    } else {
+      const rc = Math.round(113 + (r - 58) * 0.2);
+      for (let c = rc - 3; c <= rc + 3; c++) {
+        if (c < COLS - 4) binary[r][c] = WATER_DEEP;
+      }
+    }
+  }
+
+  // 4. Sturdy Bridges across River
+  // North Bridge (rows 16..17, cols 90..102)
+  for (let c = 90; c <= 102; c++) {
+    binary[16][c] = BRIDGE_TOP;
+    binary[17][c] = BRIDGE_BOT;
+  }
+  // Island West Bridge (rows 41..42, cols 91..101)
+  for (let c = 91; c <= 101; c++) {
+    binary[41][c] = BRIDGE_TOP;
+    binary[42][c] = BRIDGE_BOT;
+  }
+  // Island East Bridge (rows 41..42, cols 117..127)
+  for (let c = 117; c <= 127; c++) {
+    binary[41][c] = BRIDGE_TOP;
+    binary[42][c] = BRIDGE_BOT;
+  }
+  // South Bridge (rows 66..67, cols 108..120)
+  for (let c = 108; c <= 120; c++) {
+    binary[66][c] = BRIDGE_TOP;
+    binary[67][c] = BRIDGE_BOT;
+  }
+
+  // 5. 11 Thematic Zone Clearings & POIs
+  // 1. Campsite (Spawn)
+  carveRoadH(binary, 10, 22, 20, 4);
+  carveRoadV(binary, 14, 16, 26, 4);
+  // 2. Wolf Lair (North)
+  carveRoadH(binary, 24, 40, 14, 4);
+  carveRoadV(binary, 32, 8, 22, 4);
+  // 3. Witch Glade (South)
+  carveRoadH(binary, 14, 38, 60, 5);
+  carveRoadV(binary, 24, 48, 70, 5);
+  // 4. West Pass
+  carveRoadH(binary, 38, 54, 41, 4);
+  // 5. Necropolis Mausoleum (North)
+  carveRoadH(binary, 54, 80, 16, 5);
+  carveRoadV(binary, 66, 8, 26, 5);
+  // 6. Necropolis Graveyard (South)
+  carveRoadH(binary, 54, 80, 62, 5);
+  carveRoadV(binary, 66, 50, 72, 5);
+  // 7. Island of Mists
+  carveRoadH(binary, 101, 117, 41, 4);
+  carveRoadV(binary, 110, 34, 48, 4);
+  // 8. Orc Sawmill (North)
+  carveRoadH(binary, 132, 160, 16, 5);
+  carveRoadV(binary, 146, 8, 28, 5);
+  // 9. Orc Supply Depot (South)
+  carveRoadH(binary, 132, 160, 60, 5);
+  carveRoadV(binary, 146, 50, 70, 5);
+  // 10. Citadel Gates
+  carveRoadH(binary, 158, 174, 41, 4);
+  carveRoadV(binary, 166, 32, 50, 4);
+  // 11. Orc Warchief Arena
+  for (let r = 30; r <= 52; r++) {
+    for (let c = 173; c <= 195; c++) {
+      const distSq = (c - 184) * (c - 184) + (r - 41) * (r - 41);
+      if (distSq <= 100) {
         binary[r][c] = PATH;
       }
     }
   }
-  // Arena West Gate path
-  carveRoadH(binary, 90, 104, 70, 5);
-  // Arena East Exit path
-  carveRoadH(binary, 120, 126, 70, 3);
+  carveRoadH(binary, 172, 184, 41, 3);
+  carveRoadH(binary, 184, 196, 41, 2);
 
-  // 6. Comprehensive 3-Tile Wide Road Network connecting all 10 POIs
-  // Spawn -> Sawmill
-  carveRoadH(binary, 14, 44, 20, 3);
-  // Spawn -> Witch Glade
-  carveRoadV(binary, 22, 20, 40, 3);
-  // Witch Glade -> Necropolis
-  carveRoadV(binary, 24, 40, 58, 3);
-  // Sawmill -> River Docks
-  carveRoadH(binary, 44, 54, 30, 3);
-  // River Docks -> North Bridge
-  carveRoadV(binary, 52, 19, 30, 3);
-  // North Bridge -> Bandit Outpost
-  carveRoadH(binary, 58, 96, 19, 3);
-  carveRoadV(binary, 96, 19, 26, 3);
-  // Trail to Island (West Bridge)
-  carveRoadV(binary, 46, 20, 48, 3);
-  carveRoadH(binary, 46, 52, 48, 3);
-  // Trail from Island (East Bridge) -> Bandit Base / Altar
-  carveRoadH(binary, 88, 96, 48, 3);
-  carveRoadV(binary, 96, 48, 68, 3);
-  // Bandit Outpost -> Altar Grove
-  carveRoadV(binary, 110, 36, 68, 3);
-  // Necropolis -> Sunken Ruin
-  carveRoadH(binary, 36, 54, 72, 3);
-  // Sunken Ruin -> South Bridge
-  carveRoadH(binary, 54, 79, 72, 3);
-  // South Bridge -> Smuggler Grotto
-  carveRoadV(binary, 96, 72, 78, 3);
-  // South Bridge -> Altar Grove
-  carveRoadH(binary, 88, 110, 72, 3);
+  // 6. 3-Tile Wide Road Network
+  carveRoadH(binary, 14, 32, 20, 2);
+  carveRoadV(binary, 32, 14, 20, 2);
+  carveRoadV(binary, 24, 20, 60, 2);
+  carveRoadH(binary, 24, 42, 41, 2);
+  carveRoadH(binary, 42, 66, 41, 2);
+  carveRoadV(binary, 66, 16, 62, 2);
+  carveRoadH(binary, 66, 92, 16, 2);
+  carveRoadH(binary, 66, 92, 41, 2);
+  carveRoadH(binary, 66, 110, 62, 2);
+  carveRoadV(binary, 110, 62, 66, 2);
+  carveRoadH(binary, 102, 134, 16, 2);
+  carveRoadH(binary, 117, 134, 41, 2);
+  carveRoadH(binary, 110, 134, 66, 2);
+  carveRoadV(binary, 134, 16, 66, 2);
+  carveRoadH(binary, 134, 146, 16, 2);
+  carveRoadH(binary, 134, 146, 60, 2);
+  carveRoadH(binary, 146, 166, 41, 2);
 
-  // 7. Mountain Rock Cliff Autotiling & Vegetation Layer
+  // 7. Autotiling
   const rand = prand(1001 + depth * 19);
   const data: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(TILE_INDEX.GRASS_1));
 
@@ -376,468 +381,727 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     }
   }
 
-  // 8. Rich Forest Trees (Dense forest canopy clusters framing zones, creating natural mazes and shortcuts)
-  // 8. Rich Forest Trees (Dense forest canopy clusters framing zones, creating natural mazes and shortcuts)
-  const trees: TreeObject[] = [
-    // 1. Zone 1 & West Trail Thickets (Cols 4..28, Rows 6..32)
-    { col: 6, row: 8, kind: 'pine' }, { col: 10, row: 8, kind: 'oak' }, { col: 14, row: 6, kind: 'pine' },
-    { col: 18, row: 6, kind: 'oak' }, { col: 24, row: 6, kind: 'pine' }, { col: 6, row: 12, kind: 'oak' },
-    { col: 12, row: 10, kind: 'pine' }, { col: 18, row: 10, kind: 'oak' }, { col: 22, row: 10, kind: 'pine' },
-    { col: 6, row: 16, kind: 'pine' }, { col: 6, row: 22, kind: 'oak' }, { col: 6, row: 28, kind: 'pine' },
-    { col: 12, row: 30, kind: 'oak' }, { col: 18, row: 30, kind: 'pine' }, { col: 24, row: 28, kind: 'oak' },
-    { col: 22, row: 14, kind: 'pine' }, { col: 22, row: 28, kind: 'oak' }, { col: 16, row: 14, kind: 'pine' },
-    { col: 20, row: 12, kind: 'oak' }, { col: 24, row: 14, kind: 'pine' }, { col: 24, row: 18, kind: 'oak' },
-    { col: 26, row: 24, kind: 'pine' }, { col: 8, row: 32, kind: 'pine' }, { col: 16, row: 32, kind: 'oak' },
-
-    // 2. Zone 2: Sawmill Rim & Timber Woods (Cols 30..54, Rows 6..34)
-    { col: 34, row: 8, kind: 'pine' }, { col: 38, row: 6, kind: 'oak' }, { col: 44, row: 6, kind: 'pine' },
-    { col: 50, row: 6, kind: 'oak' }, { col: 36, row: 10, kind: 'pine' }, { col: 42, row: 8, kind: 'oak' },
-    { col: 50, row: 8, kind: 'pine' }, { col: 48, row: 12, kind: 'oak' }, { col: 34, row: 12, kind: 'pine' },
-    { col: 50, row: 12, kind: 'oak' }, { col: 32, row: 18, kind: 'pine' }, { col: 32, row: 26, kind: 'oak' },
-    { col: 34, row: 30, kind: 'oak' }, { col: 42, row: 32, kind: 'pine' }, { col: 50, row: 32, kind: 'oak' },
-    { col: 38, row: 9, kind: 'pine' }, { col: 46, row: 9, kind: 'oak' }, { col: 34, row: 20, kind: 'pine' },
-    { col: 46, row: 18, kind: 'oak' }, { col: 50, row: 28, kind: 'oak' },
-    { col: 38, row: 34, kind: 'pine' }, { col: 46, row: 34, kind: 'oak' },
-
-    // 3. Zone 3 & North Riverbank Forest (Cols 54..94, Rows 6..36)
-    { col: 52, row: 8, kind: 'pine' }, { col: 62, row: 8, kind: 'oak' }, { col: 64, row: 12, kind: 'pine' },
-    { col: 62, row: 12, kind: 'oak' }, { col: 50, row: 14, kind: 'pine' }, { col: 48, row: 14, kind: 'oak' },
-    { col: 60, row: 18, kind: 'pine' }, { col: 44, row: 40, kind: 'oak' }, { col: 44, row: 46, kind: 'pine' },
-    { col: 44, row: 52, kind: 'oak' }, { col: 46, row: 34, kind: 'pine' }, { col: 64, row: 62, kind: 'oak' },
-    { col: 94, row: 12, kind: 'pine' }, { col: 94, row: 10, kind: 'oak' }, { col: 94, row: 16, kind: 'oak' },
-    { col: 86, row: 18, kind: 'pine' }, { col: 92, row: 26, kind: 'oak' }, { col: 86, row: 34, kind: 'pine' },
-    { col: 88, row: 20, kind: 'pine' }, { col: 88, row: 30, kind: 'oak' }, { col: 90, row: 40, kind: 'pine' },
-    { col: 90, row: 52, kind: 'oak' }, { col: 90, row: 62, kind: 'pine' }, { col: 88, row: 36, kind: 'oak' },
-    { col: 92, row: 44, kind: 'pine' }, { col: 92, row: 48, kind: 'oak' },
-
-    // 4. Zone 4: Secret Island & Mist Groves (Cols 64..78, Rows 40..58)
-    { col: 66, row: 42, kind: 'pine' }, { col: 68, row: 43, kind: 'oak' }, { col: 74, row: 43, kind: 'pine' },
-    { col: 76, row: 42, kind: 'oak' }, { col: 66, row: 46, kind: 'oak' }, { col: 76, row: 46, kind: 'pine' },
-    { col: 66, row: 50, kind: 'pine' }, { col: 76, row: 50, kind: 'oak' }, { col: 68, row: 53, kind: 'pine' },
-    { col: 74, row: 53, kind: 'oak' }, { col: 70, row: 54, kind: 'pine' },
-
-    // 5. Zone 5: Witch Glade Thickets (Cols 8..32, Rows 32..54)
-    { col: 8, row: 36, kind: 'oak' }, { col: 8, row: 42, kind: 'pine' }, { col: 10, row: 46, kind: 'oak' },
-    { col: 12, row: 34, kind: 'pine' }, { col: 12, row: 44, kind: 'oak' }, { col: 14, row: 48, kind: 'pine' },
-    { col: 14, row: 40, kind: 'pine' }, { col: 14, row: 46, kind: 'oak' }, { col: 18, row: 48, kind: 'oak' },
-    { col: 20, row: 50, kind: 'pine' }, { col: 26, row: 46, kind: 'oak' }, { col: 28, row: 34, kind: 'oak' },
-    { col: 28, row: 44, kind: 'pine' }, { col: 28, row: 50, kind: 'oak' }, { col: 30, row: 38, kind: 'pine' },
-    { col: 30, row: 46, kind: 'oak' },
-
-    // 6. Zone 6: Bandit Outpost & East Ridge (Cols 92..134, Rows 8..48)
-    { col: 98, row: 10, kind: 'pine' }, { col: 104, row: 10, kind: 'oak' }, { col: 110, row: 8, kind: 'pine' },
-    { col: 116, row: 8, kind: 'oak' }, { col: 120, row: 10, kind: 'oak' }, { col: 126, row: 8, kind: 'pine' },
-    { col: 130, row: 12, kind: 'oak' }, { col: 132, row: 18, kind: 'pine' }, { col: 132, row: 26, kind: 'oak' },
-    { col: 130, row: 34, kind: 'pine' }, { col: 128, row: 40, kind: 'oak' }, { col: 92, row: 14, kind: 'pine' },
-    { col: 92, row: 20, kind: 'oak' }, { col: 92, row: 36, kind: 'pine' }, { col: 92, row: 44, kind: 'oak' },
-    { col: 104, row: 12, kind: 'oak' }, { col: 116, row: 12, kind: 'pine' }, { col: 124, row: 14, kind: 'pine' },
-    { col: 126, row: 26, kind: 'pine' }, { col: 124, row: 38, kind: 'oak' }, { col: 124, row: 46, kind: 'pine' },
-    { col: 98, row: 42, kind: 'oak' }, { col: 106, row: 42, kind: 'pine' }, { col: 114, row: 42, kind: 'oak' },
-
-    // 7. Zone 7: Necropolis Haunted Grove (Cols 10..48, Rows 50..84)
-    { col: 14, row: 54, kind: 'pine' }, { col: 14, row: 62, kind: 'oak' }, { col: 14, row: 70, kind: 'pine' },
-    { col: 14, row: 78, kind: 'oak' }, { col: 16, row: 50, kind: 'oak' }, { col: 24, row: 50, kind: 'pine' },
-    { col: 32, row: 50, kind: 'oak' }, { col: 40, row: 50, kind: 'pine' }, { col: 46, row: 54, kind: 'oak' },
-    { col: 18, row: 60, kind: 'pine' }, { col: 44, row: 60, kind: 'oak' }, { col: 46, row: 64, kind: 'pine' },
-    { col: 18, row: 70, kind: 'pine' }, { col: 44, row: 74, kind: 'oak' }, { col: 46, row: 74, kind: 'oak' },
-    { col: 16, row: 76, kind: 'pine' }, { col: 24, row: 76, kind: 'oak' }, { col: 32, row: 76, kind: 'pine' },
-    { col: 40, row: 76, kind: 'oak' }, { col: 18, row: 78, kind: 'pine' }, { col: 22, row: 78, kind: 'oak' },
-    { col: 30, row: 78, kind: 'pine' }, { col: 38, row: 78, kind: 'oak' }, { col: 42, row: 78, kind: 'pine' },
-
-    // 8. Zone 8 & 9: Sunken Ruin & Lake Buffer (Cols 48..92, Rows 58..86)
-    { col: 48, row: 64, kind: 'pine' }, { col: 50, row: 60, kind: 'pine' }, { col: 64, row: 60, kind: 'oak' },
-    { col: 68, row: 66, kind: 'pine' }, { col: 48, row: 76, kind: 'oak' }, { col: 52, row: 78, kind: 'pine' },
-    { col: 64, row: 76, kind: 'oak' }, { col: 68, row: 76, kind: 'oak' }, { col: 74, row: 70, kind: 'pine' },
-    { col: 88, row: 76, kind: 'pine' }, { col: 92, row: 78, kind: 'oak' }, { col: 104, row: 78, kind: 'oak' },
-
-    // 9. Zone 10: Orc Arena Perimeter Trees (Cols 94..134, Rows 52..86)
-    { col: 96, row: 56, kind: 'oak' }, { col: 96, row: 60, kind: 'pine' }, { col: 96, row: 74, kind: 'oak' },
-    { col: 98, row: 64, kind: 'pine' }, { col: 98, row: 80, kind: 'oak' }, { col: 108, row: 54, kind: 'pine' },
-    { col: 106, row: 54, kind: 'pine' }, { col: 112, row: 54, kind: 'oak' }, { col: 118, row: 54, kind: 'oak' },
-    { col: 124, row: 54, kind: 'pine' }, { col: 126, row: 60, kind: 'pine' }, { col: 126, row: 68, kind: 'oak' },
-    { col: 126, row: 74, kind: 'pine' }, { col: 126, row: 80, kind: 'oak' }, { col: 130, row: 64, kind: 'oak' },
-    { col: 130, row: 72, kind: 'pine' }, { col: 130, row: 80, kind: 'oak' }, { col: 106, row: 82, kind: 'pine' },
-    { col: 112, row: 82, kind: 'oak' }, { col: 118, row: 82, kind: 'oak' }, { col: 124, row: 82, kind: 'pine' },
+  // 8. Forest Trees (Clean organic canopy framing POIs)
+  const trees: LevelData['trees'] = [
+    { col: 4, row: 4, kind: 'pine' },
+    { col: 4, row: 8, kind: 'oak' },
+    { col: 4, row: 12, kind: 'pine' },
+    { col: 4, row: 16, kind: 'oak' },
+    { col: 4, row: 20, kind: 'pine' },
+    { col: 4, row: 24, kind: 'oak' },
+    { col: 4, row: 28, kind: 'pine' },
+    { col: 4, row: 32, kind: 'oak' },
+    { col: 4, row: 36, kind: 'pine' },
+    { col: 4, row: 40, kind: 'oak' },
+    { col: 4, row: 44, kind: 'pine' },
+    { col: 4, row: 48, kind: 'oak' },
+    { col: 4, row: 52, kind: 'pine' },
+    { col: 4, row: 56, kind: 'oak' },
+    { col: 4, row: 60, kind: 'pine' },
+    { col: 4, row: 64, kind: 'oak' },
+    { col: 4, row: 68, kind: 'pine' },
+    { col: 4, row: 72, kind: 'oak' },
+    { col: 4, row: 76, kind: 'pine' },
+    { col: 8, row: 4, kind: 'oak' },
+    { col: 8, row: 8, kind: 'pine' },
+    { col: 8, row: 12, kind: 'oak' },
+    { col: 8, row: 16, kind: 'pine' },
+    { col: 8, row: 20, kind: 'oak' },
+    { col: 8, row: 24, kind: 'pine' },
+    { col: 8, row: 28, kind: 'oak' },
+    { col: 8, row: 32, kind: 'pine' },
+    { col: 8, row: 36, kind: 'oak' },
+    { col: 8, row: 40, kind: 'pine' },
+    { col: 8, row: 44, kind: 'oak' },
+    { col: 8, row: 48, kind: 'pine' },
+    { col: 8, row: 52, kind: 'oak' },
+    { col: 8, row: 56, kind: 'pine' },
+    { col: 8, row: 60, kind: 'oak' },
+    { col: 8, row: 64, kind: 'pine' },
+    { col: 8, row: 68, kind: 'oak' },
+    { col: 8, row: 72, kind: 'pine' },
+    { col: 8, row: 76, kind: 'oak' },
+    { col: 12, row: 4, kind: 'pine' },
+    { col: 12, row: 8, kind: 'oak' },
+    { col: 12, row: 12, kind: 'pine' },
+    { col: 12, row: 28, kind: 'pine' },
+    { col: 12, row: 32, kind: 'oak' },
+    { col: 12, row: 36, kind: 'pine' },
+    { col: 12, row: 40, kind: 'oak' },
+    { col: 12, row: 44, kind: 'pine' },
+    { col: 12, row: 48, kind: 'oak' },
+    { col: 12, row: 52, kind: 'pine' },
+    { col: 12, row: 56, kind: 'oak' },
+    { col: 12, row: 60, kind: 'pine' },
+    { col: 12, row: 64, kind: 'oak' },
+    { col: 12, row: 68, kind: 'pine' },
+    { col: 12, row: 72, kind: 'oak' },
+    { col: 12, row: 76, kind: 'pine' },
+    { col: 16, row: 4, kind: 'oak' },
+    { col: 16, row: 8, kind: 'pine' },
+    { col: 16, row: 12, kind: 'oak' },
+    { col: 16, row: 28, kind: 'oak' },
+    { col: 16, row: 32, kind: 'pine' },
+    { col: 16, row: 36, kind: 'oak' },
+    { col: 16, row: 40, kind: 'pine' },
+    { col: 16, row: 44, kind: 'oak' },
+    { col: 16, row: 48, kind: 'pine' },
+    { col: 16, row: 52, kind: 'oak' },
+    { col: 16, row: 68, kind: 'oak' },
+    { col: 16, row: 72, kind: 'pine' },
+    { col: 16, row: 76, kind: 'oak' },
+    { col: 20, row: 4, kind: 'pine' },
+    { col: 20, row: 8, kind: 'oak' },
+    { col: 20, row: 12, kind: 'pine' },
+    { col: 20, row: 28, kind: 'pine' },
+    { col: 20, row: 32, kind: 'oak' },
+    { col: 20, row: 36, kind: 'pine' },
+    { col: 20, row: 40, kind: 'oak' },
+    { col: 20, row: 44, kind: 'pine' },
+    { col: 20, row: 72, kind: 'oak' },
+    { col: 20, row: 76, kind: 'pine' },
+    { col: 24, row: 4, kind: 'oak' },
+    { col: 24, row: 8, kind: 'pine' },
+    { col: 24, row: 72, kind: 'pine' },
+    { col: 24, row: 76, kind: 'oak' },
+    { col: 28, row: 4, kind: 'pine' },
+    { col: 28, row: 24, kind: 'oak' },
+    { col: 28, row: 28, kind: 'pine' },
+    { col: 28, row: 32, kind: 'oak' },
+    { col: 28, row: 36, kind: 'pine' },
+    { col: 28, row: 44, kind: 'pine' },
+    { col: 28, row: 72, kind: 'oak' },
+    { col: 28, row: 76, kind: 'pine' },
+    { col: 32, row: 4, kind: 'oak' },
+    { col: 32, row: 24, kind: 'pine' },
+    { col: 32, row: 28, kind: 'oak' },
+    { col: 32, row: 32, kind: 'pine' },
+    { col: 32, row: 36, kind: 'oak' },
+    { col: 32, row: 44, kind: 'oak' },
+    { col: 32, row: 48, kind: 'pine' },
+    { col: 32, row: 52, kind: 'oak' },
+    { col: 32, row: 68, kind: 'oak' },
+    { col: 32, row: 72, kind: 'pine' },
+    { col: 32, row: 76, kind: 'oak' },
+    { col: 36, row: 4, kind: 'pine' },
+    { col: 36, row: 24, kind: 'oak' },
+    { col: 36, row: 28, kind: 'pine' },
+    { col: 36, row: 32, kind: 'oak' },
+    { col: 36, row: 36, kind: 'pine' },
+    { col: 36, row: 44, kind: 'pine' },
+    { col: 36, row: 48, kind: 'oak' },
+    { col: 36, row: 52, kind: 'pine' },
+    { col: 36, row: 68, kind: 'pine' },
+    { col: 36, row: 72, kind: 'oak' },
+    { col: 36, row: 76, kind: 'pine' },
+    { col: 40, row: 4, kind: 'oak' },
+    { col: 40, row: 8, kind: 'pine' },
+    { col: 40, row: 20, kind: 'oak' },
+    { col: 40, row: 24, kind: 'pine' },
+    { col: 40, row: 28, kind: 'oak' },
+    { col: 40, row: 32, kind: 'pine' },
+    { col: 40, row: 36, kind: 'oak' },
+    { col: 40, row: 48, kind: 'pine' },
+    { col: 40, row: 52, kind: 'oak' },
+    { col: 40, row: 56, kind: 'pine' },
+    { col: 40, row: 60, kind: 'oak' },
+    { col: 40, row: 64, kind: 'pine' },
+    { col: 40, row: 68, kind: 'oak' },
+    { col: 40, row: 72, kind: 'pine' },
+    { col: 40, row: 76, kind: 'oak' },
+    { col: 44, row: 36, kind: 'pine' },
+    { col: 48, row: 36, kind: 'oak' },
+    { col: 52, row: 4, kind: 'pine' },
+    { col: 52, row: 8, kind: 'oak' },
+    { col: 52, row: 12, kind: 'pine' },
+    { col: 52, row: 16, kind: 'oak' },
+    { col: 52, row: 20, kind: 'pine' },
+    { col: 52, row: 24, kind: 'oak' },
+    { col: 52, row: 28, kind: 'pine' },
+    { col: 52, row: 32, kind: 'oak' },
+    { col: 52, row: 36, kind: 'pine' },
+    { col: 52, row: 48, kind: 'oak' },
+    { col: 52, row: 52, kind: 'pine' },
+    { col: 52, row: 56, kind: 'oak' },
+    { col: 52, row: 60, kind: 'pine' },
+    { col: 52, row: 64, kind: 'oak' },
+    { col: 52, row: 68, kind: 'pine' },
+    { col: 52, row: 72, kind: 'oak' },
+    { col: 52, row: 76, kind: 'pine' },
+    { col: 56, row: 4, kind: 'oak' },
+    { col: 56, row: 8, kind: 'pine' },
+    { col: 56, row: 24, kind: 'pine' },
+    { col: 56, row: 28, kind: 'oak' },
+    { col: 56, row: 32, kind: 'pine' },
+    { col: 56, row: 36, kind: 'oak' },
+    { col: 56, row: 44, kind: 'oak' },
+    { col: 56, row: 48, kind: 'pine' },
+    { col: 56, row: 52, kind: 'oak' },
+    { col: 56, row: 56, kind: 'pine' },
+    { col: 56, row: 68, kind: 'oak' },
+    { col: 56, row: 72, kind: 'pine' },
+    { col: 56, row: 76, kind: 'oak' },
+    { col: 60, row: 4, kind: 'pine' },
+    { col: 60, row: 8, kind: 'oak' },
+    { col: 60, row: 24, kind: 'oak' },
+    { col: 60, row: 28, kind: 'pine' },
+    { col: 60, row: 32, kind: 'oak' },
+    { col: 60, row: 36, kind: 'pine' },
+    { col: 60, row: 44, kind: 'pine' },
+    { col: 60, row: 48, kind: 'oak' },
+    { col: 60, row: 52, kind: 'pine' },
+    { col: 60, row: 72, kind: 'oak' },
+    { col: 60, row: 76, kind: 'pine' },
+    { col: 64, row: 4, kind: 'oak' },
+    { col: 64, row: 76, kind: 'oak' },
+    { col: 68, row: 4, kind: 'pine' },
+    { col: 68, row: 76, kind: 'pine' },
+    { col: 72, row: 4, kind: 'oak' },
+    { col: 72, row: 8, kind: 'pine' },
+    { col: 72, row: 24, kind: 'pine' },
+    { col: 72, row: 28, kind: 'oak' },
+    { col: 72, row: 32, kind: 'pine' },
+    { col: 72, row: 36, kind: 'oak' },
+    { col: 72, row: 44, kind: 'oak' },
+    { col: 72, row: 48, kind: 'pine' },
+    { col: 72, row: 52, kind: 'oak' },
+    { col: 72, row: 72, kind: 'pine' },
+    { col: 72, row: 76, kind: 'oak' },
+    { col: 76, row: 4, kind: 'pine' },
+    { col: 76, row: 8, kind: 'oak' },
+    { col: 76, row: 24, kind: 'oak' },
+    { col: 76, row: 28, kind: 'pine' },
+    { col: 76, row: 32, kind: 'oak' },
+    { col: 76, row: 36, kind: 'pine' },
+    { col: 76, row: 44, kind: 'pine' },
+    { col: 76, row: 48, kind: 'oak' },
+    { col: 76, row: 52, kind: 'pine' },
+    { col: 76, row: 68, kind: 'pine' },
+    { col: 76, row: 72, kind: 'oak' },
+    { col: 76, row: 76, kind: 'pine' },
+    { col: 80, row: 4, kind: 'oak' },
+    { col: 80, row: 8, kind: 'pine' },
+    { col: 80, row: 24, kind: 'pine' },
+    { col: 80, row: 28, kind: 'oak' },
+    { col: 80, row: 32, kind: 'pine' },
+    { col: 80, row: 36, kind: 'oak' },
+    { col: 80, row: 44, kind: 'oak' },
+    { col: 80, row: 48, kind: 'pine' },
+    { col: 80, row: 52, kind: 'oak' },
+    { col: 80, row: 56, kind: 'pine' },
+    { col: 80, row: 68, kind: 'oak' },
+    { col: 80, row: 72, kind: 'pine' },
+    { col: 80, row: 76, kind: 'oak' },
+    { col: 84, row: 32, kind: 'oak' },
+    { col: 84, row: 36, kind: 'pine' },
+    { col: 84, row: 44, kind: 'pine' },
+    { col: 84, row: 48, kind: 'oak' },
+    { col: 84, row: 52, kind: 'pine' },
+    { col: 88, row: 32, kind: 'pine' },
+    { col: 88, row: 36, kind: 'oak' },
+    { col: 88, row: 44, kind: 'oak' },
+    { col: 88, row: 48, kind: 'pine' },
+    { col: 88, row: 52, kind: 'oak' },
+    { col: 92, row: 4, kind: 'pine' },
+    { col: 92, row: 8, kind: 'oak' },
+    { col: 92, row: 12, kind: 'pine' },
+    { col: 92, row: 32, kind: 'oak' },
+    { col: 92, row: 52, kind: 'pine' },
+    { col: 92, row: 56, kind: 'oak' },
+    { col: 92, row: 68, kind: 'pine' },
+    { col: 92, row: 72, kind: 'oak' },
+    { col: 92, row: 76, kind: 'pine' },
+    { col: 96, row: 52, kind: 'oak' },
+    { col: 96, row: 56, kind: 'pine' },
+    { col: 96, row: 68, kind: 'oak' },
+    { col: 96, row: 72, kind: 'pine' },
+    { col: 96, row: 76, kind: 'oak' },
+    { col: 100, row: 12, kind: 'pine' },
+    { col: 100, row: 20, kind: 'pine' },
+    { col: 100, row: 24, kind: 'oak' },
+    { col: 100, row: 36, kind: 'pine' },
+    { col: 100, row: 40, kind: 'oak' },
+    { col: 100, row: 44, kind: 'pine' },
+    { col: 100, row: 48, kind: 'oak' },
+    { col: 100, row: 56, kind: 'oak' },
+    { col: 100, row: 68, kind: 'pine' },
+    { col: 100, row: 72, kind: 'oak' },
+    { col: 100, row: 76, kind: 'pine' },
+    { col: 104, row: 4, kind: 'oak' },
+    { col: 104, row: 8, kind: 'pine' },
+    { col: 104, row: 12, kind: 'oak' },
+    { col: 104, row: 20, kind: 'oak' },
+    { col: 104, row: 24, kind: 'pine' },
+    { col: 104, row: 36, kind: 'oak' },
+    { col: 104, row: 48, kind: 'pine' },
+    { col: 104, row: 56, kind: 'pine' },
+    { col: 104, row: 68, kind: 'oak' },
+    { col: 104, row: 72, kind: 'pine' },
+    { col: 104, row: 76, kind: 'oak' },
+    { col: 108, row: 4, kind: 'pine' },
+    { col: 108, row: 8, kind: 'oak' },
+    { col: 108, row: 12, kind: 'pine' },
+    { col: 108, row: 20, kind: 'pine' },
+    { col: 108, row: 24, kind: 'oak' },
+    { col: 108, row: 68, kind: 'pine' },
+    { col: 108, row: 72, kind: 'oak' },
+    { col: 108, row: 76, kind: 'pine' },
+    { col: 112, row: 4, kind: 'oak' },
+    { col: 112, row: 8, kind: 'pine' },
+    { col: 112, row: 12, kind: 'oak' },
+    { col: 112, row: 20, kind: 'oak' },
+    { col: 112, row: 24, kind: 'pine' },
+    { col: 112, row: 28, kind: 'oak' },
+    { col: 112, row: 72, kind: 'pine' },
+    { col: 112, row: 76, kind: 'oak' },
+    { col: 116, row: 4, kind: 'pine' },
+    { col: 116, row: 8, kind: 'oak' },
+    { col: 116, row: 12, kind: 'pine' },
+    { col: 116, row: 20, kind: 'pine' },
+    { col: 116, row: 24, kind: 'oak' },
+    { col: 116, row: 28, kind: 'pine' },
+    { col: 116, row: 36, kind: 'pine' },
+    { col: 116, row: 48, kind: 'oak' },
+    { col: 120, row: 4, kind: 'oak' },
+    { col: 120, row: 8, kind: 'pine' },
+    { col: 120, row: 12, kind: 'oak' },
+    { col: 120, row: 20, kind: 'oak' },
+    { col: 120, row: 24, kind: 'pine' },
+    { col: 120, row: 28, kind: 'oak' },
+    { col: 120, row: 56, kind: 'pine' },
+    { col: 120, row: 60, kind: 'oak' },
+    { col: 120, row: 72, kind: 'pine' },
+    { col: 124, row: 4, kind: 'pine' },
+    { col: 124, row: 8, kind: 'oak' },
+    { col: 124, row: 12, kind: 'pine' },
+    { col: 124, row: 20, kind: 'pine' },
+    { col: 124, row: 24, kind: 'oak' },
+    { col: 124, row: 28, kind: 'pine' },
+    { col: 124, row: 32, kind: 'oak' },
+    { col: 124, row: 52, kind: 'pine' },
+    { col: 124, row: 56, kind: 'oak' },
+    { col: 124, row: 60, kind: 'pine' },
+    { col: 124, row: 72, kind: 'oak' },
+    { col: 124, row: 76, kind: 'pine' },
+    { col: 128, row: 4, kind: 'oak' },
+    { col: 128, row: 8, kind: 'pine' },
+    { col: 128, row: 12, kind: 'oak' },
+    { col: 128, row: 20, kind: 'oak' },
+    { col: 128, row: 24, kind: 'pine' },
+    { col: 128, row: 28, kind: 'oak' },
+    { col: 128, row: 32, kind: 'pine' },
+    { col: 128, row: 36, kind: 'oak' },
+    { col: 128, row: 44, kind: 'oak' },
+    { col: 128, row: 48, kind: 'pine' },
+    { col: 128, row: 52, kind: 'oak' },
+    { col: 128, row: 56, kind: 'pine' },
+    { col: 128, row: 60, kind: 'oak' },
+    { col: 128, row: 72, kind: 'pine' },
+    { col: 128, row: 76, kind: 'oak' },
+    { col: 132, row: 4, kind: 'pine' },
+    { col: 132, row: 8, kind: 'oak' },
+    { col: 132, row: 72, kind: 'oak' },
+    { col: 132, row: 76, kind: 'pine' },
+    { col: 136, row: 4, kind: 'oak' },
+    { col: 136, row: 8, kind: 'pine' },
+    { col: 136, row: 68, kind: 'oak' },
+    { col: 136, row: 72, kind: 'pine' },
+    { col: 136, row: 76, kind: 'oak' },
+    { col: 140, row: 4, kind: 'pine' },
+    { col: 140, row: 8, kind: 'oak' },
+    { col: 140, row: 24, kind: 'oak' },
+    { col: 140, row: 28, kind: 'pine' },
+    { col: 140, row: 32, kind: 'oak' },
+    { col: 140, row: 36, kind: 'pine' },
+    { col: 140, row: 40, kind: 'oak' },
+    { col: 140, row: 44, kind: 'pine' },
+    { col: 140, row: 48, kind: 'oak' },
+    { col: 140, row: 52, kind: 'pine' },
+    { col: 140, row: 68, kind: 'pine' },
+    { col: 140, row: 72, kind: 'oak' },
+    { col: 140, row: 76, kind: 'pine' },
+    { col: 144, row: 4, kind: 'oak' },
+    { col: 144, row: 32, kind: 'pine' },
+    { col: 144, row: 36, kind: 'oak' },
+    { col: 144, row: 40, kind: 'pine' },
+    { col: 144, row: 44, kind: 'oak' },
+    { col: 144, row: 48, kind: 'pine' },
+    { col: 144, row: 72, kind: 'pine' },
+    { col: 144, row: 76, kind: 'oak' },
+    { col: 148, row: 4, kind: 'pine' },
+    { col: 148, row: 32, kind: 'oak' },
+    { col: 148, row: 36, kind: 'pine' },
+    { col: 148, row: 44, kind: 'pine' },
+    { col: 148, row: 48, kind: 'oak' },
+    { col: 148, row: 72, kind: 'oak' },
+    { col: 148, row: 76, kind: 'pine' },
+    { col: 152, row: 4, kind: 'oak' },
+    { col: 152, row: 8, kind: 'pine' },
+    { col: 152, row: 24, kind: 'pine' },
+    { col: 152, row: 28, kind: 'oak' },
+    { col: 152, row: 32, kind: 'pine' },
+    { col: 152, row: 36, kind: 'oak' },
+    { col: 152, row: 44, kind: 'oak' },
+    { col: 152, row: 48, kind: 'pine' },
+    { col: 152, row: 52, kind: 'oak' },
+    { col: 152, row: 68, kind: 'oak' },
+    { col: 152, row: 72, kind: 'pine' },
+    { col: 152, row: 76, kind: 'oak' },
+    { col: 156, row: 4, kind: 'pine' },
+    { col: 156, row: 8, kind: 'oak' },
+    { col: 156, row: 24, kind: 'oak' },
+    { col: 156, row: 28, kind: 'pine' },
+    { col: 156, row: 32, kind: 'oak' },
+    { col: 156, row: 36, kind: 'pine' },
+    { col: 156, row: 44, kind: 'pine' },
+    { col: 156, row: 48, kind: 'oak' },
+    { col: 156, row: 52, kind: 'pine' },
+    { col: 156, row: 68, kind: 'pine' },
+    { col: 156, row: 72, kind: 'oak' },
+    { col: 156, row: 76, kind: 'pine' },
+    { col: 160, row: 4, kind: 'oak' },
+    { col: 160, row: 8, kind: 'pine' },
+    { col: 160, row: 24, kind: 'pine' },
+    { col: 160, row: 28, kind: 'oak' },
+    { col: 160, row: 32, kind: 'pine' },
+    { col: 160, row: 36, kind: 'oak' },
+    { col: 160, row: 48, kind: 'pine' },
+    { col: 160, row: 52, kind: 'oak' },
+    { col: 160, row: 68, kind: 'oak' },
+    { col: 160, row: 72, kind: 'pine' },
+    { col: 160, row: 76, kind: 'oak' },
+    { col: 172, row: 4, kind: 'pine' },
+    { col: 172, row: 8, kind: 'oak' },
+    { col: 172, row: 12, kind: 'pine' },
+    { col: 172, row: 16, kind: 'oak' },
+    { col: 172, row: 20, kind: 'pine' },
+    { col: 172, row: 24, kind: 'oak' },
+    { col: 172, row: 28, kind: 'pine' },
+    { col: 172, row: 32, kind: 'oak' },
+    { col: 172, row: 48, kind: 'oak' },
+    { col: 172, row: 52, kind: 'pine' },
+    { col: 172, row: 56, kind: 'oak' },
+    { col: 172, row: 60, kind: 'pine' },
+    { col: 172, row: 64, kind: 'oak' },
+    { col: 172, row: 68, kind: 'pine' },
+    { col: 172, row: 72, kind: 'oak' },
+    { col: 172, row: 76, kind: 'pine' },
+    { col: 176, row: 4, kind: 'oak' },
+    { col: 176, row: 8, kind: 'pine' },
+    { col: 176, row: 12, kind: 'oak' },
+    { col: 176, row: 16, kind: 'pine' },
+    { col: 176, row: 20, kind: 'oak' },
+    { col: 176, row: 24, kind: 'pine' },
+    { col: 176, row: 28, kind: 'oak' },
+    { col: 176, row: 32, kind: 'pine' },
+    { col: 176, row: 52, kind: 'oak' },
+    { col: 176, row: 56, kind: 'pine' },
+    { col: 176, row: 60, kind: 'oak' },
+    { col: 176, row: 64, kind: 'pine' },
+    { col: 176, row: 68, kind: 'oak' },
+    { col: 176, row: 72, kind: 'pine' },
+    { col: 176, row: 76, kind: 'oak' },
+    { col: 180, row: 4, kind: 'pine' },
+    { col: 180, row: 8, kind: 'oak' },
+    { col: 180, row: 12, kind: 'pine' },
+    { col: 180, row: 16, kind: 'oak' },
+    { col: 180, row: 20, kind: 'pine' },
+    { col: 180, row: 24, kind: 'oak' },
+    { col: 180, row: 28, kind: 'pine' },
+    { col: 180, row: 52, kind: 'pine' },
+    { col: 180, row: 56, kind: 'oak' },
+    { col: 180, row: 60, kind: 'pine' },
+    { col: 180, row: 64, kind: 'oak' },
+    { col: 180, row: 68, kind: 'pine' },
+    { col: 180, row: 72, kind: 'oak' },
+    { col: 180, row: 76, kind: 'pine' },
+    { col: 184, row: 4, kind: 'oak' },
+    { col: 184, row: 8, kind: 'pine' },
+    { col: 184, row: 12, kind: 'oak' },
+    { col: 184, row: 16, kind: 'pine' },
+    { col: 184, row: 20, kind: 'oak' },
+    { col: 184, row: 24, kind: 'pine' },
+    { col: 184, row: 28, kind: 'oak' },
+    { col: 184, row: 52, kind: 'oak' },
+    { col: 184, row: 56, kind: 'pine' },
+    { col: 184, row: 60, kind: 'oak' },
+    { col: 184, row: 64, kind: 'pine' },
+    { col: 184, row: 68, kind: 'oak' },
+    { col: 184, row: 72, kind: 'pine' },
+    { col: 184, row: 76, kind: 'oak' },
+    { col: 188, row: 4, kind: 'pine' },
+    { col: 188, row: 8, kind: 'oak' },
+    { col: 188, row: 12, kind: 'pine' },
+    { col: 188, row: 16, kind: 'oak' },
+    { col: 188, row: 20, kind: 'pine' },
+    { col: 188, row: 24, kind: 'oak' },
+    { col: 188, row: 28, kind: 'pine' },
+    { col: 188, row: 52, kind: 'pine' },
+    { col: 188, row: 56, kind: 'oak' },
+    { col: 188, row: 60, kind: 'pine' },
+    { col: 188, row: 64, kind: 'oak' },
+    { col: 188, row: 68, kind: 'pine' },
+    { col: 188, row: 72, kind: 'oak' },
+    { col: 188, row: 76, kind: 'pine' },
+    { col: 192, row: 4, kind: 'oak' },
+    { col: 192, row: 8, kind: 'pine' },
+    { col: 192, row: 12, kind: 'oak' },
+    { col: 192, row: 16, kind: 'pine' },
+    { col: 192, row: 20, kind: 'oak' },
+    { col: 192, row: 24, kind: 'pine' },
+    { col: 192, row: 28, kind: 'oak' },
+    { col: 192, row: 32, kind: 'pine' },
+    { col: 192, row: 52, kind: 'oak' },
+    { col: 192, row: 56, kind: 'pine' },
+    { col: 192, row: 60, kind: 'oak' },
+    { col: 192, row: 64, kind: 'pine' },
+    { col: 192, row: 68, kind: 'oak' },
+    { col: 192, row: 72, kind: 'pine' },
+    { col: 192, row: 76, kind: 'oak' },
+    { col: 196, row: 4, kind: 'pine' },
+    { col: 196, row: 8, kind: 'oak' },
+    { col: 196, row: 12, kind: 'pine' },
+    { col: 196, row: 16, kind: 'oak' },
+    { col: 196, row: 20, kind: 'pine' },
+    { col: 196, row: 24, kind: 'oak' },
+    { col: 196, row: 28, kind: 'pine' },
+    { col: 196, row: 32, kind: 'oak' },
+    { col: 196, row: 36, kind: 'pine' },
+    { col: 196, row: 44, kind: 'pine' },
+    { col: 196, row: 48, kind: 'oak' },
+    { col: 196, row: 52, kind: 'pine' },
+    { col: 196, row: 56, kind: 'oak' },
+    { col: 196, row: 60, kind: 'pine' },
+    { col: 196, row: 64, kind: 'oak' },
+    { col: 196, row: 68, kind: 'pine' },
+    { col: 196, row: 72, kind: 'oak' },
+    { col: 196, row: 76, kind: 'pine' },
   ];
 
-  // 9. Rich Decorations, Destructible Obstacles & Trap Props
+  // 9. Decorations, Destructible Props & Containers
   const decorations: DecorationObject[] = [
-    // Zone 1: Ashen Campsite (Spawn) & Western Road
-    { col: 10, row: 24, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
-    { col: 12, row: 16, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 11, row: 18, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 16, row: 24, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 16, row: 16, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 12, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 8, row: 18, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 8, row: 20, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 18, row: 24, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 20, row: 24, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 14, row: 24, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 22, row: 16, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 16, row: 10, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 24, row: 12, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 20, row: 28, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 10, row: 28, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 22, row: 22, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 24, row: 16, key: TEXTURE.PROP_BUSH, solid: false },
-
-    // Zone 2: Lumberjack Sawmill (Timber barricades & storage yard)
-    { col: 38, row: 14, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
-    { col: 48, row: 14, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
-    { col: 42, row: 18, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 46, row: 22, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 40, row: 16, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 42, row: 16, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 50, row: 16, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 44, row: 26, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 35, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 50, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 36, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 50, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 50, row: 24, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 34, row: 24, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 34, row: 26, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 50, row: 26, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 36, row: 8, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 44, row: 10, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 32, row: 14, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 34, row: 22, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 46, row: 30, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 38, row: 28, key: TEXTURE.PROP_ROCK, solid: true },
-
-    // Zone 3: River Fisherman's Docks & Rapids
-    { col: 48, row: 26, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 46, row: 28, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 48, row: 28, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 50, row: 26, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 46, row: 22, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 48, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 60, row: 22, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 52, row: 34, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 50, row: 34, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 58, row: 16, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 60, row: 14, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 46, row: 30, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 62, row: 26, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 50, row: 30, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 54, row: 32, key: TEXTURE.PROP_ROCK, solid: true },
-
-    // Zone 4: Secret Island of Mists
-    { col: 68, row: 45, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 74, row: 45, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 67, row: 51, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-    { col: 75, row: 51, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 70, row: 44, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 72, row: 52, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 69, row: 47, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 65, row: 48, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 77, row: 48, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 73, row: 47, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-
-    // Zone 5: Witch's Herbal Glade
-    { col: 20, row: 36, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 24, row: 36, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 18, row: 42, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-    { col: 26, row: 42, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-    { col: 16, row: 38, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 28, row: 38, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 20, row: 44, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 16, row: 44, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 28, row: 46, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-    { col: 14, row: 36, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 24, row: 48, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 18, row: 52, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 10, row: 44, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-    { col: 26, row: 52, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-
-    // Zone 6: Forgotten Bandit Outpost & Palisade Fortress
-    { col: 96, row: 18, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.3 },
-    { col: 116, row: 18, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.3 },
-    { col: 100, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 102, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 110, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 112, row: 16, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 96, row: 32, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 122, row: 32, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 104, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 106, row: 22, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 108, row: 22, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 114, row: 24, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 120, row: 28, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 100, row: 34, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 116, row: 34, key: TEXTURE.PROP_WORKBENCH, solid: true },
-    { col: 122, row: 22, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 108, row: 36, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 114, row: 36, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 98, row: 12, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 118, row: 12, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 126, row: 20, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 126, row: 32, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 94, row: 26, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 120, row: 36, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 104, row: 38, key: TEXTURE.PROP_ROCK, solid: true },
-    // Bandit Outpost Floor Spike Traps (Tactical Bottlenecks)
-    { col: 98, row: 20, key: TEXTURE.PROP_SPIKES, solid: false },
-    { col: 98, row: 32, key: TEXTURE.PROP_SPIKES, solid: false },
-
-    // Zone 7: Druidic Necropolis & Mausoleum
-    { col: 20, row: 56, key: PROP.TOMBSTONE, solid: false },
-    { col: 24, row: 56, key: PROP.TOMBSTONE, solid: false },
-    { col: 28, row: 56, key: PROP.TOMBSTONE, solid: false },
-    { col: 36, row: 56, key: PROP.TOMBSTONE, solid: false },
-    { col: 40, row: 56, key: PROP.TOMBSTONE, solid: false },
-    { col: 20, row: 62, key: PROP.TOMBSTONE, solid: false },
-    { col: 40, row: 62, key: PROP.TOMBSTONE, solid: false },
-    { col: 20, row: 70, key: PROP.TOMBSTONE, solid: false },
-    { col: 28, row: 70, key: PROP.TOMBSTONE, solid: false },
-    { col: 36, row: 70, key: PROP.TOMBSTONE, solid: false },
-    { col: 40, row: 70, key: PROP.TOMBSTONE, solid: false },
-    { col: 28, row: 60, key: TEXTURE.PROP_PRISON_BARS, solid: true },
-    { col: 34, row: 60, key: TEXTURE.PROP_PRISON_BARS, solid: true },
-    { col: 30, row: 64, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
-    { col: 22, row: 76, key: PROP.TOMBSTONE, solid: false },
-    { col: 38, row: 76, key: PROP.TOMBSTONE, solid: false },
-    { col: 26, row: 78, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-    { col: 34, row: 78, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 14, row: 58, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 14, row: 66, key: PROP.TOMBSTONE, solid: false },
-    { col: 14, row: 74, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-    { col: 42, row: 58, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 42, row: 66, key: PROP.TOMBSTONE, solid: false },
-    { col: 44, row: 72, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
-    { col: 30, row: 78, key: TEXTURE.PROP_BUSH, solid: false },
-    // Necropolis Floor Spike Traps (Crypt Threshold)
-    { col: 30, row: 58, key: TEXTURE.PROP_SPIKES, solid: false },
-    { col: 34, row: 58, key: TEXTURE.PROP_SPIKES, solid: false },
-
-    // Zone 8: Smuggler's Hidden Grotto
-    { col: 94, row: 76, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 100, row: 76, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 94, row: 80, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 96, row: 80, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 98, row: 80, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 100, row: 80, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 92, row: 80, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 88, row: 78, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 102, row: 82, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 90, row: 82, key: TEXTURE.PROP_REEDS, solid: false },
-
-    // Zone 9: Ancient Sunken Ruin & Angel Sanctuary
-    { col: 58, row: 68, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 52, row: 70, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 64, row: 70, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 54, row: 76, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 62, row: 76, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 58, row: 78, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 50, row: 72, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 66, row: 72, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 56, row: 64, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 60, row: 64, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 52, row: 78, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 64, row: 78, key: TEXTURE.PROP_LUPINE, solid: false },
-
-    // Zone 10: Orc Warchief Arena («Бойцовский круг Орды»)
-    // Palisade Ring enclosing the arena
-    // Top Arc
-    { col: 108, row: 61, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 110, row: 60, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 112, row: 60, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 114, row: 60, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 116, row: 61, key: TEXTURE.PROP_FENCE, solid: true },
-    // Top-Right & Right Arc
-    { col: 118, row: 62, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 120, row: 64, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 121, row: 67, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 121, row: 73, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 120, row: 76, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 118, row: 78, key: TEXTURE.PROP_FENCE, solid: true },
-    // Bottom Arc
-    { col: 116, row: 79, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 114, row: 80, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 112, row: 80, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 110, row: 80, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 108, row: 79, key: TEXTURE.PROP_FENCE, solid: true },
-    // Bottom-Left & Left Arc
-    { col: 106, row: 78, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 104, row: 76, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 103, row: 73, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 103, row: 67, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 104, row: 64, key: TEXTURE.PROP_FENCE, solid: true },
-    { col: 106, row: 62, key: TEXTURE.PROP_FENCE, solid: true },
-    // Arena West Gate Totems & Entrance
-    { col: 102, row: 67, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 102, row: 73, key: TEXTURE.PROP_STATUE, solid: true },
-    // Arena East Exit Gate Totems
-    { col: 122, row: 67, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 122, row: 73, key: TEXTURE.PROP_STATUE, solid: true },
-    // Battle Arena ground bloodstains
-    { col: 109, row: 68, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
-    { col: 115, row: 72, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
-
-    // Roadside Props, Bridge Obstacles & Spike Traps
-    { col: 25, row: 22, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 44, row: 48, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 91, row: 48, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 88, row: 68, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 78, row: 72, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 92, row: 72, key: TEXTURE.PROP_REEDS, solid: false },
-    { col: 88, row: 66, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
-    { col: 86, row: 58, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 94, row: 52, key: TEXTURE.PROP_LUPINE, solid: false },
-    { col: 96, row: 50, key: TEXTURE.PROP_ROCK, solid: true },
-    { col: 116, row: 50, key: TEXTURE.PROP_BUSH, solid: false },
-    { col: 128, row: 52, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 128, row: 58, key: TEXTURE.PROP_BARREL, solid: true },
-    // South Approach Spike Traps
-    { col: 76, row: 72, key: TEXTURE.PROP_SPIKES, solid: false },
-    { col: 90, row: 72, key: TEXTURE.PROP_SPIKES, solid: false },
+    { col: 12, row: 18, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 16, row: 24, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 12, row: 22, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 18, row: 22, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 20, row: 16, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 28, row: 14, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 36, row: 12, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 38, row: 20, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 16, row: 62, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 20, row: 66, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 28, row: 56, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 32, row: 64, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 20, row: 54, key: TEXTURE.PROP_BUSH, solid: false },
+    { col: 34, row: 68, key: TEXTURE.PROP_ROCK, solid: true },
+    { col: 66, row: 12, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 58, row: 14, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 74, row: 14, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 60, row: 26, key: TEXTURE.PROP_CHAINS, solid: false },
+    { col: 72, row: 26, key: TEXTURE.PROP_PRISON_BARS, solid: true },
+    { col: 66, row: 24, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 58, row: 58, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 74, row: 58, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 60, row: 64, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 72, row: 64, key: TEXTURE.PROP_CHAINS, solid: false },
+    { col: 66, row: 68, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 56, row: 68, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 76, row: 68, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 90, row: 30, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 90, row: 60, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 124, row: 24, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 124, row: 60, key: TEXTURE.PROP_REEDS, solid: false },
+    { col: 110, row: 36, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 104, row: 40, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 116, row: 40, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 106, row: 46, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 114, row: 46, key: TEXTURE.PROP_LUPINE, solid: false },
+    { col: 110, row: 48, key: TEXTURE.PROP_MUSHROOM_GIANT, solid: false },
+    { col: 144, row: 12, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
+    { col: 148, row: 12, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
+    { col: 140, row: 18, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    { col: 152, row: 18, key: TEXTURE.PROP_WORKBENCH, solid: true },
+    { col: 136, row: 20, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 156, row: 20, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 144, row: 24, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 148, row: 24, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 144, row: 54, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
+    { col: 148, row: 54, key: TEXTURE.PROP_CABIN, solid: true, scale: 1.2 },
+    { col: 136, row: 58, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 156, row: 58, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 140, row: 64, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 152, row: 64, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 144, row: 68, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 148, row: 68, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 164, row: 34, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 164, row: 48, key: TEXTURE.PROP_FENCE, solid: true },
+    { col: 168, row: 34, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 168, row: 48, key: TEXTURE.PROP_ROCK_LARGE, solid: true },
+    { col: 174, row: 36, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 174, row: 46, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 180, row: 32, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 188, row: 32, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 180, row: 50, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 188, row: 50, key: TEXTURE.PROP_BLOOD_SPILL, solid: false },
+    { col: 192, row: 38, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 192, row: 44, key: TEXTURE.PROP_BARREL, solid: true },
   ];
 
-  // 10. Atmospheric Torches
+  // 10. Torches for Crossroads, Bridges & Gateposts
   const torches = [
-    // Campsite
-    { col: 8, row: 14 }, { col: 24, row: 14 }, { col: 8, row: 28 }, { col: 24, row: 28 },
-    { col: 16, row: 18 }, { col: 20, row: 22 },
-    // Sawmill
-    { col: 34, row: 10 }, { col: 52, row: 10 }, { col: 34, row: 28 }, { col: 52, row: 28 },
-    { col: 40, row: 20 },
-    // River Docks & North Bridge
-    { col: 49, row: 18 }, { col: 58, row: 18 }, { col: 48, row: 24 },
-    { col: 54, row: 28 }, { col: 64, row: 28 },
-    // Secret Island
-    { col: 66, row: 44 }, { col: 76, row: 44 }, { col: 66, row: 52 }, { col: 76, row: 52 },
-    // Witch Glade
-    { col: 16, row: 34 }, { col: 28, row: 34 }, { col: 22, row: 48 },
-    // Bandit Outpost
-    { col: 94, row: 14 }, { col: 122, row: 14 }, { col: 94, row: 42 }, { col: 122, row: 42 },
-    { col: 108, row: 24 }, { col: 108, row: 34 },
-    // Necropolis
-    { col: 18, row: 54 }, { col: 44, row: 54 }, { col: 18, row: 80 }, { col: 44, row: 80 },
-    { col: 32, row: 58 }, { col: 32, row: 74 },
-    // Smuggler Grotto & Sunken Ruin
-    { col: 92, row: 74 }, { col: 102, row: 74 }, { col: 52, row: 64 }, { col: 64, row: 64 },
-    { col: 58, row: 76 },
-    // South Bridge
-    { col: 79, row: 72 }, { col: 89, row: 72 },
-    // Crossroads & Trails
-    { col: 30, row: 20 }, { col: 44, row: 44 }, { col: 88, row: 50 }, { col: 96, row: 48 },
-    // Orc Arena Gate & Perimeter Torches
-    { col: 101, row: 68 }, { col: 101, row: 72 }, // West Gate
-    { col: 123, row: 68 }, { col: 123, row: 72 }, // East Exit Gate
-    { col: 106, row: 64 }, { col: 118, row: 64 }, // North Corners
-    { col: 106, row: 76 }, { col: 118, row: 76 }, // South Corners
-    { col: 112, row: 61 }, { col: 112, row: 79 }, // North & South Apex
-    { col: 104, row: 70 }, { col: 120, row: 70 }, // West & East Mid Flanks
+    { col: 10, row: 18 },
+    { col: 18, row: 18 },
+    { col: 10, row: 24 },
+    { col: 18, row: 24 },
+    { col: 32, row: 18 },
+    { col: 24, row: 52 },
+    { col: 24, row: 68 },
+    { col: 38, row: 41 },
+    { col: 54, row: 12 },
+    { col: 78, row: 12 },
+    { col: 54, row: 22 },
+    { col: 78, row: 22 },
+    { col: 54, row: 56 },
+    { col: 78, row: 56 },
+    { col: 54, row: 68 },
+    { col: 78, row: 68 },
+    { col: 90, row: 15 },
+    { col: 102, row: 15 },
+    { col: 91, row: 40 },
+    { col: 101, row: 40 },
+    { col: 117, row: 40 },
+    { col: 127, row: 40 },
+    { col: 108, row: 65 },
+    { col: 120, row: 65 },
+    { col: 104, row: 36 },
+    { col: 116, row: 36 },
+    { col: 104, row: 46 },
+    { col: 116, row: 46 },
+    { col: 132, row: 12 },
+    { col: 158, row: 12 },
+    { col: 132, row: 24 },
+    { col: 158, row: 24 },
+    { col: 132, row: 54 },
+    { col: 158, row: 54 },
+    { col: 132, row: 66 },
+    { col: 158, row: 66 },
+    { col: 164, row: 36 },
+    { col: 164, row: 46 },
+    { col: 174, row: 34 },
+    { col: 174, row: 48 },
+    { col: 184, row: 30 },
+    { col: 184, row: 52 },
+    { col: 194, row: 38 },
+    { col: 194, row: 44 },
   ];
 
   // 11. Bonfires
   const bonfires = [
-    { col: 14, row: 20 },  // Zone 1: Campsite
-    { col: 44, row: 20 },  // Zone 2: Sawmill
-    { col: 108, row: 28 }, // Zone 6: Bandit Outpost
-    { col: 32, row: 64 },  // Zone 7: Necropolis
-    { col: 58, row: 74 },  // Zone 9: Sunken Ruin
-    { col: 108, row: 66 }, // Zone 10: Orc Arena North-West Ritual Fire
-    { col: 116, row: 66 }, // Zone 10: Orc Arena North-East Ritual Fire
-    { col: 108, row: 74 }, // Zone 10: Orc Arena South-West Ritual Fire
-    { col: 116, row: 74 }, // Zone 10: Orc Arena South-East Ritual Fire
+    { col: 14, row: 20 },
+    { col: 66, row: 20 },
+    { col: 110, row: 46 },
+    { col: 146, row: 16 },
+    { col: 146, row: 60 },
+    { col: 176, row: 41 },
   ];
 
-  // 12. Strategic Chests
+  // 12. Strategic Reward Chests
   const chests = [
-    { col: 48, row: 24 },  // Zone 2: Sawmill Stash
-    { col: 71, row: 48 },  // Zone 4: Secret Island Relic
-    { col: 118, row: 24 }, // Zone 6: Bandit Stronghold Hoard
-    { col: 24, row: 74 },  // Zone 7: Necropolis Crypt
-    { col: 98, row: 78 },  // Zone 8: Smuggler Grotto Cache
+    { col: 32, row: 14 },
+    { col: 66, row: 16 },
+    { col: 110, row: 41 },
+    { col: 148, row: 60 },
   ];
 
-  // 13. Shrines
+  // 13. Elemental Shrines
   const shrines = [
-    { col: 38, row: 24, kind: 'chance' as const }, // Zone 2: Fortune Shrine
-    { col: 32, row: 66, kind: 'blood' as const },  // Zone 7: Blood Shrine
-    { col: 58, row: 72, kind: 'chance' as const }, // Zone 9: Sunken Ruin Angel Shrine
+    { col: 24, row: 60, kind: 'chance' as const },
+    { col: 66, row: 62, kind: 'blood' as const },
+    { col: 166, row: 34, kind: 'chance' as const },
   ];
 
   // 14. Supply Flasks
   const flasks = [
-    { col: 18, row: 18, key: PROP.FLASK_RED },  // Zone 1: Campsite HP Flask
-    { col: 48, row: 30, key: PROP.FLASK_BLUE }, // Zone 3: River Docks Mana Flask
-    { col: 22, row: 40, key: PROP.FLASK_RED },  // Zone 5: Witch Glade Elixir
-    { col: 104, row: 36, key: PROP.FLASK_BLUE }, // Zone 6: Bandit Outpost Mana Flask
+    { col: 42, row: 41, key: PROP.FLASK_RED },
+    { col: 58, row: 62, key: PROP.FLASK_BLUE },
+    { col: 106, row: 38, key: PROP.FLASK_RED },
+    { col: 114, row: 44, key: PROP.FLASK_BLUE },
+    { col: 154, row: 56, key: PROP.FLASK_RED },
   ];
 
-  // 15. Tactical Enemies (65+ enemies in dense tactical squads and wolf packs across 10 POIs)
+  // 15. Enemies in Thematic Habitats (Wolves in Lairs, Skeletons in Crypts, Orcs in Forts)
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
-    // Zone 1 -> Zone 2 Trail: Roaming Wolf Pack (4)
-    { col: 20, row: 18, kind: 'wolf' }, { col: 24, row: 22, kind: 'wolf' },
-    { col: 22, row: 20, kind: 'wolf' }, { col: 28, row: 20, kind: 'wolf' },
-
-    // Zone 2: Sawmill (4 orc grunts + 3 wolves + 2 skeletons)
-    { col: 38, row: 18, kind: 'orc_grunt' }, { col: 46, row: 18, kind: 'orc_grunt' },
-    { col: 36, row: 24, kind: 'orc_grunt' }, { col: 44, row: 22, kind: 'orc_grunt' },
-    { col: 40, row: 26, kind: 'wolf' }, { col: 42, row: 26, kind: 'wolf' }, { col: 44, row: 28, kind: 'wolf' },
-    { col: 48, row: 24, kind: 'skeleton' }, { col: 50, row: 20, kind: 'skeleton' },
-
-    // Zone 3: River Docks & North Bridge (3 skeletons + 3 wolves)
-    { col: 46, row: 24, kind: 'skeleton' }, { col: 50, row: 32, kind: 'skeleton' }, { col: 52, row: 28, kind: 'skeleton' },
-    { col: 48, row: 20, kind: 'wolf' }, { col: 54, row: 18, kind: 'wolf' }, { col: 62, row: 19, kind: 'wolf' },
-
-    // Zone 4: Secret Island (3 champions: 2 skeletons + 1 orc grunt)
-    { col: 69, row: 49, kind: 'skeleton' }, { col: 73, row: 49, kind: 'orc_grunt' }, { col: 71, row: 51, kind: 'skeleton' },
-
-    // Zone 5: Witch Glade (4 orc grunts + 2 wolves)
-    { col: 18, row: 38, kind: 'orc_grunt' }, { col: 24, row: 38, kind: 'orc_grunt' },
-    { col: 22, row: 44, kind: 'orc_grunt' }, { col: 20, row: 46, kind: 'orc_grunt' },
-    { col: 16, row: 42, kind: 'wolf' }, { col: 26, row: 44, kind: 'wolf' },
-
-    // Zone 6: Bandit Outpost (14 fortress defenders: 7 orc grunts + 7 skeletons)
-    { col: 100, row: 22, kind: 'orc_grunt' }, { col: 112, row: 22, kind: 'skeleton' },
-    { col: 106, row: 26, kind: 'orc_grunt' }, { col: 114, row: 26, kind: 'skeleton' },
-    { col: 102, row: 30, kind: 'skeleton' }, { col: 110, row: 30, kind: 'orc_grunt' },
-    { col: 118, row: 30, kind: 'orc_grunt' }, { col: 104, row: 36, kind: 'skeleton' },
-    { col: 112, row: 36, kind: 'skeleton' }, { col: 118, row: 36, kind: 'orc_grunt' },
-    { col: 98, row: 26, kind: 'orc_grunt' }, { col: 108, row: 20, kind: 'orc_grunt' },
-    { col: 120, row: 24, kind: 'skeleton' }, { col: 116, row: 32, kind: 'skeleton' },
-
-    // Zone 7: Necropolis (8 crypt skeletons + 3 wolves)
-    { col: 24, row: 60, kind: 'skeleton' }, { col: 36, row: 60, kind: 'skeleton' },
-    { col: 26, row: 66, kind: 'skeleton' }, { col: 38, row: 66, kind: 'skeleton' },
-    { col: 28, row: 74, kind: 'skeleton' }, { col: 36, row: 74, kind: 'skeleton' },
-    { col: 32, row: 62, kind: 'skeleton' }, { col: 32, row: 72, kind: 'skeleton' },
-    { col: 20, row: 66, kind: 'wolf' }, { col: 44, row: 68, kind: 'wolf' }, { col: 22, row: 72, kind: 'wolf' },
-
-    // Zone 8: Smuggler Grotto (4 orc grunts)
-    { col: 94, row: 78, kind: 'orc_grunt' }, { col: 96, row: 76, kind: 'orc_grunt' },
-    { col: 100, row: 78, kind: 'orc_grunt' }, { col: 98, row: 78, kind: 'orc_grunt' },
-
-    // Zone 9: Sunken Ruin (5 skeletons + 2 wolves)
-    { col: 54, row: 68, kind: 'skeleton' }, { col: 62, row: 68, kind: 'skeleton' },
-    { col: 54, row: 76, kind: 'skeleton' }, { col: 62, row: 76, kind: 'skeleton' },
-    { col: 58, row: 74, kind: 'skeleton' }, { col: 50, row: 74, kind: 'wolf' }, { col: 64, row: 74, kind: 'wolf' },
-
-    // Zone 10: Outer Approaches & Sentry Posts around Orc Arena (13 relocated enemies)
-    // 1. West Gate Outpost / Entrance Guard (3)
-    { col: 98, row: 68, kind: 'skeleton' },
-    { col: 98, row: 72, kind: 'skeleton' },
-    { col: 96, row: 70, kind: 'orc_grunt' },
-
-    // 2. North Trail from Bandit Outpost (4)
-    { col: 108, row: 44, kind: 'wolf' },
-    { col: 112, row: 46, kind: 'wolf' },
-    { col: 110, row: 48, kind: 'skeleton' },
-    { col: 112, row: 52, kind: 'skeleton' },
-
-    // 3. South Approach from Bridge & Grotto (4)
-    { col: 90, row: 74, kind: 'wolf' },
-    { col: 94, row: 72, kind: 'wolf' },
-    { col: 92, row: 76, kind: 'orc_grunt' },
-    { col: 96, row: 78, kind: 'orc_grunt' },
-
-    // 4. North-East Ridge Sentry (2)
-    { col: 122, row: 50, kind: 'orc_grunt' },
-    { col: 124, row: 54, kind: 'skeleton' },
+    { col: 20, row: 18, kind: 'wolf' },
+    { col: 22, row: 16, kind: 'wolf' },
+    { col: 26, row: 20, kind: 'wolf' },
+    { col: 28, row: 18, kind: 'wolf' },
+    { col: 30, row: 12, kind: 'wolf' },
+    { col: 34, row: 12, kind: 'wolf' },
+    { col: 36, row: 16, kind: 'wolf' },
+    { col: 34, row: 18, kind: 'direwolf' },
+    { col: 18, row: 56, kind: 'wolf' },
+    { col: 22, row: 64, kind: 'wolf' },
+    { col: 28, row: 62, kind: 'wolf' },
+    { col: 22, row: 58, kind: 'direwolf' },
+    { col: 60, row: 12, kind: 'skeleton' },
+    { col: 64, row: 12, kind: 'skeleton' },
+    { col: 70, row: 12, kind: 'skeleton' },
+    { col: 74, row: 12, kind: 'skeleton' },
+    { col: 60, row: 22, kind: 'skeleton' },
+    { col: 64, row: 22, kind: 'skeleton' },
+    { col: 70, row: 22, kind: 'skeleton' },
+    { col: 74, row: 22, kind: 'skeleton' },
+    { col: 42, row: 39, kind: 'skeleton' },
+    { col: 44, row: 43, kind: 'skeleton' },
+    { col: 60, row: 56, kind: 'skeleton' },
+    { col: 64, row: 56, kind: 'skeleton' },
+    { col: 72, row: 56, kind: 'skeleton' },
+    { col: 76, row: 56, kind: 'skeleton' },
+    { col: 60, row: 68, kind: 'skeleton' },
+    { col: 72, row: 68, kind: 'skeleton' },
+    { col: 88, row: 16, kind: 'wolf' },
+    { col: 90, row: 20, kind: 'wolf' },
+    { col: 88, row: 62, kind: 'skeleton' },
+    { col: 90, row: 66, kind: 'skeleton' },
+    { col: 106, row: 36, kind: 'wolf' },
+    { col: 114, row: 36, kind: 'wolf' },
+    { col: 108, row: 44, kind: 'direwolf' },
+    { col: 106, row: 44, kind: 'skeleton' },
+    { col: 114, row: 44, kind: 'skeleton' },
+    { col: 126, row: 62, kind: 'wolf' },
+    { col: 126, row: 20, kind: 'wolf' },
+    { col: 138, row: 12, kind: 'orc_grunt' },
+    { col: 142, row: 12, kind: 'orc_grunt' },
+    { col: 150, row: 12, kind: 'orc_grunt' },
+    { col: 154, row: 12, kind: 'orc_grunt' },
+    { col: 138, row: 22, kind: 'orc_grunt' },
+    { col: 142, row: 22, kind: 'orc_grunt' },
+    { col: 150, row: 22, kind: 'orc_grunt' },
+    { col: 154, row: 22, kind: 'orc_grunt' },
+    { col: 134, row: 16, kind: 'orc_archer' },
+    { col: 146, row: 8, kind: 'orc_archer' },
+    { col: 158, row: 16, kind: 'orc_archer' },
+    { col: 138, row: 56, kind: 'orc_grunt' },
+    { col: 142, row: 56, kind: 'orc_grunt' },
+    { col: 150, row: 56, kind: 'orc_grunt' },
+    { col: 154, row: 56, kind: 'orc_grunt' },
+    { col: 138, row: 66, kind: 'orc_grunt' },
+    { col: 142, row: 66, kind: 'orc_grunt' },
+    { col: 150, row: 66, kind: 'orc_grunt' },
+    { col: 154, row: 66, kind: 'orc_grunt' },
+    { col: 134, row: 60, kind: 'orc_archer' },
+    { col: 146, row: 72, kind: 'orc_archer' },
+    { col: 158, row: 60, kind: 'orc_archer' },
+    { col: 162, row: 38, kind: 'orc_archer' },
+    { col: 162, row: 44, kind: 'orc_archer' },
+    { col: 168, row: 38, kind: 'orc_shield' },
+    { col: 168, row: 44, kind: 'orc_shield' },
+    { col: 172, row: 36, kind: 'orc_archer' },
+    { col: 172, row: 46, kind: 'orc_archer' },
+    { col: 176, row: 38, kind: 'orc_shield' },
+    { col: 176, row: 44, kind: 'orc_shield' },
+    { col: 178, row: 36, kind: 'orc_grunt' },
+    { col: 178, row: 46, kind: 'orc_grunt' },
   ];
 
   return {
@@ -853,15 +1117,12 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
     flasks,
     chests,
     shrines,
-    altar: { col: 112, row: 70 },
-    exit: { col: 124, row: 70 },
+    altar: { col: 184, row: 41 },
+    exit: { col: 194, row: 41 },
     enemies,
   };
 }
 
-// =========================================================================
-// LEVEL 2: «Руины» (Sunken Fortress, Overgrown Cobblestone, Chapel & Crypts)
-// =========================================================================
 function buildAncientRuinsLevel(biome: BiomeConfig, depth: number): LevelData {
   const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(FLOOR));
 

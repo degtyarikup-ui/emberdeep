@@ -15,8 +15,8 @@ describe.each(DEPTHS)('buildLevel1(%i)', (depth) => {
   const level = buildLevel1(depth);
 
   it('produces a grid of the declared dimensions', () => {
-    expect(level.rows).toBe(depth === 1 ? 90 : 38);
-    expect(level.cols).toBe(depth === 1 ? 140 : 60);
+    expect(level.rows).toBe(depth === 1 ? 80 : 38);
+    expect(level.cols).toBe(depth === 1 ? 200 : 60);
     expect(level.data).toHaveLength(level.rows);
     for (const row of level.data) expect(row).toHaveLength(level.cols);
   });

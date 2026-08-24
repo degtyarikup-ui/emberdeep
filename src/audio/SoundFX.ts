@@ -1132,23 +1132,23 @@ class SoundFXManager {
   // --- UI & Menu ---
 
   public playButtonHover(): void {
-    this.playClip(SFX_CLIP.BUTTON_HOVER, { volume: 0.45, isUi: true, fallbackFn: () => this.synthButtonHover() });
+    this.playClip(SFX_CLIP.BUTTON_HOVER, { volume: 0.2, isUi: true, fallbackFn: () => this.synthButtonHover() });
   }
 
   public playMenuClick(): void {
-    this.playClip(SFX_CLIP.MENU_CLICK, { volume: 0.7, isUi: true, fallbackFn: () => this.synthMenuClick() });
+    this.playClip(SFX_CLIP.MENU_CLICK, { volume: 0.32, isUi: true, fallbackFn: () => this.synthMenuClick() });
   }
 
   public playSliderTick(): void {
-    this.playMenuClick();
+    this.playClip(SFX_CLIP.BUTTON_HOVER, { volume: 0.25, pitch: 1.15, isUi: true, fallbackFn: () => this.synthButtonHover() });
   }
 
   public playModalOpen(): void {
-    this.playClip(SFX_CLIP.MODAL_OPEN, { volume: 0.8, isUi: true, fallbackFn: () => this.synthModalOpen() });
+    this.playClip(SFX_CLIP.MODAL_OPEN, { volume: 0.35, isUi: true, fallbackFn: () => this.synthModalOpen() });
   }
 
   public playModalClose(): void {
-    this.playModalOpen();
+    this.playClip(SFX_CLIP.MODAL_OPEN, { volume: 0.3, pitch: 0.92, isUi: true, fallbackFn: () => this.synthModalOpen() });
   }
 
   public playAchievementUnlocked(): void {

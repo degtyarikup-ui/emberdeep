@@ -2163,8 +2163,8 @@ export class MapEditor {
       this.handleBakeSuccess(btn, originalText);
     } else {
       if (btn) btn.innerHTML = originalText;
-      if (result.error?.includes('Bad credentials') || result.error?.includes('401') || result.error?.includes('403')) {
-        this.showToast('Неверный или устаревший GitHub Token. Укажите новый токен.', false);
+      if (result.isAuthError) {
+        this.showToast(result.error || 'Ошибка доступа GitHub', false);
         this.promptForGitHubToken();
       } else {
         this.showToast(`Ошибка GitHub: ${result.error}`, false);
@@ -2194,24 +2194,30 @@ export class MapEditor {
     backdrop.id = 'me-token-modal';
     backdrop.className = 'me-modal-backdrop';
     backdrop.innerHTML = `
-      <div class="me-modal-window" style="max-width: 440px;">
+      <div class="me-modal-window" style="max-width: 480px;">
         <div class="me-modal-header">
           <span style="font-weight: 600; color: var(--text-primary);">GitHub Token для вшивания</span>
           <button id="me-token-close" class="me-btn me-btn-danger">&times;</button>
         </div>
-        <div class="me-modal-body" style="display:flex; flex-direction:column; gap:10px;">
+        <div class="me-modal-body" style="display:flex; flex-direction:column; gap:12px;">
           <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
-            Вы открыли сайт на GitHub Pages. Чтобы вшивать уровни в прод прямо из браузера в 1 клик, введите один раз ваш <b>GitHub Personal Access Token</b> (с правами <code>repo</code>). Он сохранится в браузере.
+            Вы открыли сайт на GitHub Pages. Чтобы сохранять уровни в прод прямо из браузера в 1 клик, нужен ваш <b>GitHub Personal Access Token</b> (с правами на запись в репозиторий <code>repo</code>).
+          </div>
+          <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 6px; padding: 10px; font-size: 11px; line-height: 1.4;">
+            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Emberdeep+Level+Bake" target="_blank" rel="noopener noreferrer" style="color: #60a5fa; font-weight: 600; text-decoration: underline; display: flex; align-items: center; gap: 6px;">
+              <span>1. Нажмите сюда для создания токена на GitHub (галочка repo уже выбрана)</span>
+            </a>
+            <div style="color: var(--text-tertiary); margin-top: 4px;">2. Нажмите внизу страницы GitHub зеленую кнопку «Generate token», скопируйте его и вставьте ниже:</div>
           </div>
           <input
             id="me-token-input"
             type="password"
             class="me-input"
-            style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-family: var(--font-mono, monospace);"
-            placeholder="ghp_..."
+            style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-family: var(--font-mono, monospace);"
+            placeholder="ghp_... или github_pat_..."
             value="${localStorage.getItem(TOKEN_KEY) || ''}"
           />
-          <button id="me-token-submit" class="me-btn me-btn-primary" style="padding: 8px; justify-content: center; font-weight: 600;">
+          <button id="me-token-submit" class="me-btn me-btn-primary" style="padding: 9px; justify-content: center; font-weight: 600; background: #4f46e5; border-color: #6366f1;">
             ${ICONS.sparkles} Сохранить и вшить в игру
           </button>
         </div>
@@ -2225,7 +2231,7 @@ export class MapEditor {
       const input = backdrop.querySelector('#me-token-input') as HTMLInputElement | null;
       const val = input?.value.trim() || '';
       if (!val) {
-        alert('Пожалуйста, введите токен');
+        alert('Пожалуйста, вставьте GitHub Token');
         return;
       }
       localStorage.setItem(TOKEN_KEY, val);

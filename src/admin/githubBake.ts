@@ -14,18 +14,24 @@ function utf8ToBase64(str: string): string {
   return btoa(binary);
 }
 
-export async function bakeLevelViaGitHubApi(level: LevelData, token: string): Promise<{ success: boolean; error?: string }> {
+export async function bakeLevelViaGitHubApi(level: LevelData, token: string): Promise<{ success: boolean; error?: string; isAuthError?: boolean }> {
   try {
+    const cleanToken = token.replace(/^(Bearer|token)\s+/i, '').trim();
+    if (!cleanToken) {
+      return { success: false, error: 'GitHub токен пустой', isAuthError: true };
+    }
+
     const filePath = 'src/world/customLevelPreset.ts';
     const contentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`;
 
-    // 1. Get current file SHA if exists
+    // 1. Get current file SHA on main branch
     let currentSha: string | undefined;
     try {
-      const getRes = await fetch(contentsUrl, {
+      const getRes = await fetch(`${contentsUrl}?ref=main`, {
         headers: {
           Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${token.trim()}`,
+          Authorization: `Bearer ${cleanToken}`,
+          'X-GitHub-Api-Version': '2022-11-28',
         },
       });
       if (getRes.ok) {
@@ -45,8 +51,9 @@ export async function bakeLevelViaGitHubApi(level: LevelData, token: string): Pr
       method: 'PUT',
       headers: {
         Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token.trim()}`,
+        Authorization: `Bearer ${cleanToken}`,
         'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
       },
       body: JSON.stringify({
         message: 'feat(level): update official Level 1 preset from map editor',
@@ -59,6 +66,15 @@ export async function bakeLevelViaGitHubApi(level: LevelData, token: string): Pr
     if (!putRes.ok) {
       const errData = (await putRes.json().catch(() => ({}))) as { message?: string };
       const msg = errData?.message || `HTTP ${putRes.status} ${putRes.statusText}`;
+
+      if (putRes.status === 404 || putRes.status === 401 || putRes.status === 403) {
+        return {
+          success: false,
+          error: `GitHub отклонил запись (${msg}). У вашего токена нет прав на запись в репозиторий. Укажите токен с правами 'repo' или 'Contents: Read and write'.`,
+          isAuthError: true,
+        };
+      }
+
       return { success: false, error: `GitHub API: ${msg}` };
     }
 
@@ -68,8 +84,9 @@ export async function bakeLevelViaGitHubApi(level: LevelData, token: string): Pr
         method: 'POST',
         headers: {
           Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${token.trim()}`,
+          Authorization: `Bearer ${cleanToken}`,
           'Content-Type': 'application/json',
+          'X-GitHub-Api-Version': '2022-11-28',
         },
         body: JSON.stringify({ ref: 'main' }),
       });

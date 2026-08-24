@@ -2370,12 +2370,17 @@ export class MapEditor {
   }
 
   private downloadJson(): void {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(serializeLevelToJson(this.level));
+    const jsonText = serializeLevelToJson(this.level);
+    const blob = new Blob([jsonText], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.setAttribute('href', dataStr);
-    a.setAttribute('download', `emberdeep_map_${this.level.biome.id}_${Date.now()}.json`);
+    a.href = url;
+    a.download = `emberdeep_map_${this.level.biome.id}_${Date.now()}.json`;
     document.body.appendChild(a);
     a.click();
-    a.remove();
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 200);
   }
 }

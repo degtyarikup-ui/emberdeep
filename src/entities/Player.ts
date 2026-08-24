@@ -577,7 +577,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const pierce = 2 + this.projectilePierceBonus;
 
     if (this.heroClass === 'ranger') {
-      SoundFX.playArrowShoot();
+      SoundFX.playArrowVolley();
       const dir = this.flipX ? -1 : 1;
       let baseAngle = dir < 0 ? Math.PI : 0;
       if (targetX !== undefined && targetY !== undefined) {

@@ -717,11 +717,30 @@ class SoundFXManager {
 
   public playArrowShoot(x?: number, y?: number, lx?: number, ly?: number): void {
     this.playClip(SFX_CLIP.ARROW_SHOOT, {
-      volume: 0.95,
+      volume: 1.05,
       pitchVariance: 0.05,
-      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 400 } : undefined,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
       fallbackFn: () => this.synthArrowShoot(),
     });
+  }
+
+  public playArrowVolley(x?: number, y?: number, lx?: number, ly?: number): void {
+    // Cascading multi-arrow release for Ranger special attack (5 arrows fan)
+    this.playArrowShoot(x, y, lx, ly);
+    setTimeout(() => {
+      this.playClip(SFX_CLIP.ARROW_SHOOT, {
+        volume: 0.9,
+        pitch: 1.08,
+        spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      });
+    }, 35);
+    setTimeout(() => {
+      this.playClip(SFX_CLIP.ARROW_SHOOT, {
+        volume: 0.8,
+        pitch: 0.94,
+        spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      });
+    }, 70);
   }
 
   public playArrowHit(x?: number, y?: number, lx?: number, ly?: number): void {
@@ -735,7 +754,7 @@ class SoundFXManager {
 
   public playStaffCast(x?: number, y?: number, lx?: number, ly?: number): void {
     this.playClip(SFX_CLIP.STAFF_CAST, {
-      volume: 0.9,
+      volume: 0.95,
       pitchVariance: 0.05,
       spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 400 } : undefined,
       fallbackFn: () => this.synthStaffCast(),
@@ -756,7 +775,7 @@ class SoundFXManager {
   }
 
   public playDash(): void {
-    this.playClip(SFX_CLIP.DASH, { volume: 0.85, pitchVariance: 0.04, fallbackFn: () => this.synthDash() });
+    this.playClip(SFX_CLIP.DASH, { volume: 0.5, pitch: 0.92, pitchVariance: 0.03, fallbackFn: () => this.synthDash() });
   }
 
   public playFootstep(surface: SurfaceType = 'stone', isSprinting = false, x?: number, y?: number, lx?: number, ly?: number): void {
@@ -776,7 +795,7 @@ class SoundFXManager {
 
   // --- Impacts, Damage & Deaths ---
 
-    public playEnemyHit(kind?: string | number, x?: number, y?: number, lx?: number, ly?: number): void {
+  public playEnemyHit(kind?: string | number, x?: number, y?: number, lx?: number, ly?: number): void {
     const posX = typeof kind === 'number' ? kind : x;
     const posY = typeof kind === 'number' ? x : y;
     const listX = typeof kind === 'number' ? y : lx;
@@ -834,17 +853,17 @@ class SoundFXManager {
 
   public playWolfSnarl(x?: number, y?: number, lx?: number, ly?: number): void {
     this.playClip(SFX_CLIP.WOLF_SNARL, {
-      volume: 1.0,
+      volume: 0.55,
       pitchVariance: 0.04,
-      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 450 } : undefined,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 360 } : undefined,
       fallbackFn: () => this.synthWolfSnarl(),
     });
   }
 
   public playWolfHowl(x?: number, y?: number, lx?: number, ly?: number): void {
     this.playClip(SFX_CLIP.WOLF_HOWL, {
-      volume: 1.0,
-      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 600 } : undefined,
+      volume: 0.6,
+      spatial: (typeof x === 'number' && typeof y === 'number') ? { x, y, listenerX: lx, listenerY: ly, maxDist: 480 } : undefined,
       fallbackFn: () => this.synthWolfHowl(),
     });
   }

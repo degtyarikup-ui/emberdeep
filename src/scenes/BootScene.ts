@@ -46,6 +46,15 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet(TEXTURE.BONFIRE, asset('bonfire-sheet.png'), { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet(TEXTURE.TORCH, asset('torch-sheet.png'), { frameWidth: 16, frameHeight: 16 });
     this.load.image(TEXTURE.PROP_CABIN, asset('prop_cabin.png'));
+    this.load.image(TEXTURE.PROP_STATION_ANVIL, asset('structures/prop_station_anvil.png'));
+    this.load.image(TEXTURE.PROP_STATION_FURNACE, asset('structures/prop_station_furnace.png'));
+    this.load.image(TEXTURE.PROP_STATION_ALCHEMY, asset('structures/prop_station_alchemy.png'));
+    this.load.image(TEXTURE.PROP_STATION_SPIT_FIRE, asset('structures/prop_station_spit_fire.png'));
+    this.load.image(TEXTURE.PROP_STATION_BUTCHER, asset('structures/prop_station_butcher.png'));
+    this.load.image(TEXTURE.PROP_STATION_STONE_ARCH, asset('structures/prop_station_stone_arch.png'));
+    this.load.image(TEXTURE.PROP_STATION_SARCOPHAGUS, asset('structures/prop_station_sarcophagus.png'));
+    this.load.image(TEXTURE.PROP_STATION_COFFIN, asset('structures/prop_station_coffin.png'));
+    this.load.image(TEXTURE.PROP_STATION_LOG_PILE, asset('structures/prop_station_log_pile.png'));
     this.load.image(TEXTURE.PROP_FENCE, asset('prop_fence.png'));
     this.load.image(TEXTURE.PROP_WORKBENCH, asset('prop_workbench.png'));
     this.load.image(TEXTURE.PROP_PRISON_BARS, asset('prop_prison_bars.png'));

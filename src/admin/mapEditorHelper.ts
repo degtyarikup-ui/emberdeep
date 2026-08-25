@@ -169,14 +169,27 @@ export const DEFAULT_CUSTOM_BRUSHES: CustomBrush[] = [
     ],
   },
   {
-    id: 'cobble_plaza_3x3',
-    name: 'Каменная площадь 3x3',
-    width: 3,
-    height: 3,
+    id: 'wood_lodge_4x4',
+    name: 'Лесная хижина 4x4 (стены + пол)',
+    width: 4,
+    height: 4,
     grid: [
-      [{ tileId: TILE_INDEX.COBBLE_TL, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_T, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_TR, rotation: 0 }],
-      [{ tileId: TILE_INDEX.COBBLE_L, rotation: 0 }, { tileId: TILE_INDEX.RUIN_STONE, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_R, rotation: 0 }],
-      [{ tileId: TILE_INDEX.COBBLE_BL, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_B, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_BR, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WALL_CORNER_TL, rotation: 0 }, { tileId: TILE_INDEX.WALL_DUNGEON, rotation: 0 }, { tileId: TILE_INDEX.WALL_DUNGEON, rotation: 0 }, { tileId: TILE_INDEX.WALL_CORNER_TR, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WALL_SIDE_L, rotation: 0 }, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, { tileId: TILE_INDEX.DIRT_2, rotation: 0 }, { tileId: TILE_INDEX.WALL_SIDE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WALL_SIDE_L, rotation: 0 }, { tileId: TILE_INDEX.DIRT_2, rotation: 0 }, { tileId: TILE_INDEX.DIRT_1, rotation: 0 }, { tileId: TILE_INDEX.WALL_SIDE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.WALL_CORNER_BL, rotation: 0 }, { tileId: TILE_INDEX.PATH_T, rotation: 0 }, { tileId: TILE_INDEX.PATH_T, rotation: 0 }, { tileId: TILE_INDEX.WALL_CORNER_BR, rotation: 0 }],
+    ],
+  },
+  {
+    id: 'stone_shrine_ruins_4x4',
+    name: 'Каменное святилище 4x4',
+    width: 4,
+    height: 4,
+    grid: [
+      [{ tileId: TILE_INDEX.COBBLE_TL, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_T, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_T, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_TR, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_L, rotation: 0 }, { tileId: TILE_INDEX.RUIN_STONE, rotation: 0 }, { tileId: TILE_INDEX.RUIN_STONE, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_L, rotation: 0 }, { tileId: TILE_INDEX.RUIN_STONE, rotation: 0 }, { tileId: TILE_INDEX.RUIN_STONE, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_R, rotation: 0 }],
+      [{ tileId: TILE_INDEX.COBBLE_BL, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_B, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_B, rotation: 0 }, { tileId: TILE_INDEX.COBBLE_BR, rotation: 0 }],
     ],
   },
   {
@@ -457,7 +470,17 @@ export const ENTITY_PALETTE: EditorEntityItem[] = [
   { category: 'pickup', id: 'coin_gold', name: 'Золотая монета', icon: 'CN', color: '#eab308' },
   { category: 'pickup', id: 'bomb', name: 'Бомба с фитилем', icon: 'BB', color: '#71717a' },
 
-  // Props & Dungeon Obstacles
+  // Props, Structures & Crafting Stations
+  { category: 'prop', id: 'station_anvil', name: 'Кузница с наковальней', icon: 'AN', color: '#f97316' },
+  { category: 'prop', id: 'station_furnace', name: 'Печь / Горн', icon: 'FN', color: '#ea580c' },
+  { category: 'prop', id: 'station_alchemy', name: 'Стол алхимика', icon: 'AL', color: '#a855f7' },
+  { category: 'prop', id: 'station_spit_fire', name: 'Костер с вертелом', icon: 'SF', color: '#f59e0b' },
+  { category: 'prop', id: 'station_butcher', name: 'Стол мясника', icon: 'BT', color: '#ef4444' },
+  { category: 'prop', id: 'station_stone_arch', name: 'Каменные арочные врата', icon: 'AR', color: '#94a3b8' },
+  { category: 'prop', id: 'station_sarcophagus', name: 'Каменный саркофаг', icon: 'SC', color: '#64748b' },
+  { category: 'prop', id: 'station_coffin', name: 'Деревянный гроб', icon: 'CF', color: '#78350f' },
+  { category: 'prop', id: 'station_log_pile', name: 'Штабель брёвен', icon: 'LP', color: '#a16207' },
+
   { category: 'prop', id: 'torch', name: 'Факел', icon: 'TC', color: '#f97316' },
   { category: 'prop', id: 'bonfire', name: 'Костер лагеря', icon: 'BF', color: '#fb923c' },
   { category: 'prop', id: 'spikes', name: 'Шипы-ловушка', icon: 'SK', color: '#dc2626' },
@@ -468,7 +491,6 @@ export const ENTITY_PALETTE: EditorEntityItem[] = [
   { category: 'prop', id: 'rock_large', name: 'Большой валун', icon: 'RL', color: '#475569' },
   { category: 'prop', id: 'bush', name: 'Куст', icon: 'BS', color: '#15803d' },
   { category: 'prop', id: 'reeds', name: 'Тростник', icon: 'RD', color: '#166534' },
-  { category: 'prop', id: 'cabin', name: 'Лесная хижина', icon: 'CB', color: '#78350f' },
   { category: 'prop', id: 'statue', name: 'Каменная статуя', icon: 'ST', color: '#94a3b8' },
   { category: 'prop', id: 'workbench', name: 'Верстак', icon: 'WB', color: '#a16207' },
   { category: 'prop', id: 'tombstone', name: 'Могильная плита', icon: 'TB', color: '#94a3b8' },

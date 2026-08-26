@@ -101,6 +101,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public knightShieldTimer = 0;
   public knightShieldHits = 0;
   private knightShieldCont?: Phaser.GameObjects.Container;
+  private knightShieldArc?: Phaser.GameObjects.Graphics;
 
   private invuln = 0;
   private attackCooldown = 0;
@@ -377,6 +378,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.knightShieldCont) {
       this.knightShieldCont.destroy();
     }
+    if (this.knightShieldArc) {
+      this.knightShieldArc.destroy();
+      this.knightShieldArc = undefined;
+    }
 
     const offX = this.flipX ? -14 : 14;
     const cont = this.scene.add.container(this.x + offX, this.y - 12);
@@ -390,20 +395,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     shieldSpr.setFlipX(this.flipX);
     cont.add(shieldSpr);
 
-    // 2. Frontal Protective Arc Glow
-    const arcGlow = this.scene.add.circle(0, 0, 16, 0xfacc15, 0.25);
-    arcGlow.setStrokeStyle(2, 0xfde047, 0.9);
-    cont.add(arcGlow);
-
     const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
     if (worldLayer) worldLayer.add(cont);
 
     this.knightShieldCont = cont;
 
+    // 2. Subtle 160-degree Arc Hint (soft, delicate line indicating frontal block angle)
+    this.knightShieldArc = this.scene.add.graphics();
+    if (worldLayer) worldLayer.add(this.knightShieldArc);
+    this.redrawKnightShieldArc();
+
     this.scene.tweens.add({
-      targets: [arcGlow, shieldSpr],
-      scaleX: '+=0.1',
-      scaleY: '+=0.1',
+      targets: shieldSpr,
+      scaleX: '+=0.08',
+      scaleY: '+=0.08',
       duration: 300,
       yoyo: true,
       repeat: -1,
@@ -411,10 +416,43 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
+  private redrawKnightShieldArc(): void {
+    if (!this.knightShieldArc || !this.scene) return;
+    this.knightShieldArc.clear();
+    this.knightShieldArc.setDepth(DEPTH.YSORT_BASE + this.y + 19);
+
+    const cx = this.x;
+    const cy = this.y - 12;
+    const r = 24;
+
+    // 160-degree sector (-80 deg to +80 deg from facing)
+    const arcHalfRad = (80 * Math.PI) / 180;
+    const facingAngle = this.flipX ? Math.PI : 0;
+    const startAngle = facingAngle - arcHalfRad;
+    const endAngle = facingAngle + arcHalfRad;
+
+    // Soft outer gold glow
+    this.knightShieldArc.lineStyle(2.5, 0xfef08a, 0.15);
+    this.knightShieldArc.beginPath();
+    this.knightShieldArc.arc(cx, cy, r, startAngle, endAngle, false);
+    this.knightShieldArc.strokePath();
+
+    // Subtle crisp gold arc line
+    this.knightShieldArc.lineStyle(1.5, 0xfde047, 0.38);
+    this.knightShieldArc.beginPath();
+    this.knightShieldArc.arc(cx, cy, r, startAngle, endAngle, false);
+    this.knightShieldArc.strokePath();
+  }
+
   public destroyKnightShield(withShatter = false): void {
     this.knightShieldActive = false;
     this.knightShieldTimer = 0;
     this.knightShieldHits = 0;
+
+    if (this.knightShieldArc) {
+      this.knightShieldArc.destroy();
+      this.knightShieldArc = undefined;
+    }
 
     if (this.knightShieldCont) {
       if (withShatter && this.scene) {
@@ -1335,12 +1373,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.knightShieldTimer -= delta;
       if (this.knightShieldTimer <= 0) {
         this.destroyKnightShield(false);
-      } else if (this.knightShieldCont) {
-        const offX = this.flipX ? -14 : 14;
-        this.knightShieldCont.setPosition(this.x + offX, this.y - 12);
-        this.knightShieldCont.setDepth(DEPTH.YSORT_BASE + this.y + 20);
-        const shieldSpr = this.knightShieldCont.getAt(0) as Phaser.GameObjects.Sprite;
-        if (shieldSpr) shieldSpr.setFlipX(this.flipX);
+      } else {
+        if (this.knightShieldCont) {
+          const offX = this.flipX ? -14 : 14;
+          this.knightShieldCont.setPosition(this.x + offX, this.y - 12);
+          this.knightShieldCont.setDepth(DEPTH.YSORT_BASE + this.y + 20);
+          const shieldSpr = this.knightShieldCont.getAt(0) as Phaser.GameObjects.Sprite;
+          if (shieldSpr) shieldSpr.setFlipX(this.flipX);
+        }
+        if (this.knightShieldArc) {
+          this.redrawKnightShieldArc();
+        }
       }
     }
 

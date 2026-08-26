@@ -1876,8 +1876,8 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
 }
 
 function buildAncientRuinsLevel(biome: BiomeConfig, depth: number): LevelData {
-  const COLS = 200;
-  const ROWS = 80;
+  const COLS = 180;
+  const ROWS = 120;
   const binary: number[][] = Array.from({ length: ROWS }, () => new Array(COLS).fill(FLOOR));
 
   // Outer fortified boundary walls
@@ -1917,74 +1917,76 @@ function buildAncientRuinsLevel(biome: BiomeConfig, depth: number): LevelData {
   };
 
   // 1. Spawn Outpost (West Gates)
-  carveRect(binary, 6, 32, 22, 16, RUIN_FLOOR);
+  carveRect(binary, 6, 50, 24, 20, RUIN_FLOOR);
 
   // 2. Main Hub Avenues
-  carveRoadH(binary, 26, 62, 40, 2);
-  carveRoadV(binary, 60, 16, 64, 2);
+  carveRoadH(binary, 28, 54, 60, 3);
+  carveRoadV(binary, 52, 20, 100, 3);
 
-  // 3. Northern Wing (Necropolis & Crypts)
-  carveRect(binary, 66, 10, 26, 18, RUIN_FLOOR);
-  carveRect(binary, 98, 8, 26, 16, RUIN_FLOOR);
-  carveRect(binary, 130, 12, 26, 18, RUIN_FLOOR);
-  carveRoadH(binary, 88, 134, 18, 2);
-  carveRoadV(binary, 110, 22, 38, 2);
+  // 3. Northern Wing (Necropolis & Crypts: rows 10..52)
+  carveRect(binary, 48, 12, 26, 20, RUIN_FLOOR);
+  carveRect(binary, 82, 10, 28, 20, RUIN_FLOOR);
+  carveRect(binary, 118, 14, 26, 20, RUIN_FLOOR);
+  carveRect(binary, 78, 34, 34, 16, RUIN_FLOOR);
+  carveRoadH(binary, 72, 122, 20, 2);
+  carveRoadV(binary, 96, 28, 54, 2);
 
-  // 4. Central Wing (Colonnade & Council Hall)
-  carveRect(binary, 74, 34, 30, 14, RUIN_FLOOR);
-  carveRect(binary, 110, 32, 34, 16, RUIN_FLOOR);
-  carveRoadH(binary, 102, 166, 40, 2);
+  // 4. Central Wing (Colonnade & Council Hall: rows 52..68)
+  carveRect(binary, 64, 52, 32, 16, RUIN_FLOOR);
+  carveRect(binary, 104, 50, 36, 20, RUIN_FLOOR);
+  carveRoadH(binary, 94, 152, 60, 3);
 
-  // 5. Southern Wing (Gardens & Chapel)
-  carveRect(binary, 68, 52, 26, 18, RUIN_FLOOR);
-  carveRect(binary, 100, 54, 28, 16, RUIN_FLOOR);
-  carveRect(binary, 132, 50, 24, 18, RUIN_FLOOR);
-  carveRoadH(binary, 92, 134, 60, 2);
-  carveRoadV(binary, 112, 46, 56, 2);
+  // 5. Southern Wing (Gardens & Chapel: rows 68..112)
+  carveRect(binary, 48, 74, 28, 20, RUIN_FLOOR);
+  carveRect(binary, 84, 76, 30, 20, RUIN_FLOOR);
+  carveRect(binary, 120, 72, 24, 20, RUIN_FLOOR);
+  carveRect(binary, 76, 98, 36, 14, RUIN_FLOOR);
+  carveRoadH(binary, 74, 124, 84, 2);
+  carveRoadV(binary, 98, 66, 100, 2);
 
-  // 6. Eastern Wing (Great Altar Arena)
-  carveRoadH(binary, 144, 166, 40, 3);
-  carveRect(binary, 166, 26, 28, 28, RUIN_FLOOR);
+  // 6. Eastern Wing (Great Altar Arena: rows 46..74, cols 146..176)
+  carveRoadH(binary, 138, 152, 60, 3);
+  carveRect(binary, 150, 46, 26, 28, RUIN_FLOOR);
 
-  // Wall boundaries inside ruins (Necropolis, Chapel, Arena perimeters)
-  for (let c = 66; c <= 91; c++) {
-    binary[10][c] = WALL;
-    binary[27][c] = WALL;
+  // Inner perimeter walls with doors
+  for (let c = 48; c <= 73; c++) {
+    binary[12][c] = WALL;
+    binary[31][c] = WALL;
   }
-  for (let r = 10; r <= 27; r++) {
-    binary[r][66] = WALL;
-    binary[r][91] = WALL;
+  for (let r = 12; r <= 31; r++) {
+    binary[r][48] = WALL;
+    binary[r][73] = WALL;
   }
-  binary[10][79] = RUIN_FLOOR;
-  binary[10][80] = RUIN_FLOOR;
-  binary[27][79] = RUIN_FLOOR;
-  binary[27][80] = RUIN_FLOOR;
-  binary[18][66] = RUIN_FLOOR;
-  binary[18][91] = RUIN_FLOOR;
+  binary[12][60] = RUIN_FLOOR;
+  binary[12][61] = RUIN_FLOOR;
+  binary[31][60] = RUIN_FLOOR;
+  binary[31][61] = RUIN_FLOOR;
+  binary[20][48] = RUIN_FLOOR;
+  binary[20][73] = RUIN_FLOOR;
 
-  for (let c = 100; c <= 127; c++) {
-    binary[54][c] = WALL;
-    binary[69][c] = WALL;
+  for (let c = 84; c <= 113; c++) {
+    binary[76][c] = WALL;
+    binary[95][c] = WALL;
   }
-  for (let r = 54; r <= 69; r++) {
-    binary[r][100] = WALL;
-    binary[r][127] = WALL;
+  for (let r = 76; r <= 95; r++) {
+    binary[r][84] = WALL;
+    binary[r][113] = WALL;
   }
-  binary[54][113] = RUIN_FLOOR;
-  binary[54][114] = RUIN_FLOOR;
-  binary[69][113] = RUIN_FLOOR;
-  binary[69][114] = RUIN_FLOOR;
-  binary[62][100] = RUIN_FLOOR;
-  binary[62][127] = RUIN_FLOOR;
+  binary[76][98] = RUIN_FLOOR;
+  binary[76][99] = RUIN_FLOOR;
+  binary[95][98] = RUIN_FLOOR;
+  binary[95][99] = RUIN_FLOOR;
+  binary[86][84] = RUIN_FLOOR;
+  binary[86][113] = RUIN_FLOOR;
 
-  for (let c = 166; c <= 193; c++) {
-    binary[26][c] = WALL;
-    binary[53][c] = WALL;
+  for (let c = 150; c <= 175; c++) {
+    binary[46][c] = WALL;
+    binary[73][c] = WALL;
   }
-  for (let r = 26; r <= 53; r++) {
-    binary[r][193] = WALL;
-    if (r < 36 || r > 44) {
-      binary[r][166] = WALL;
+  for (let r = 46; r <= 73; r++) {
+    binary[r][175] = WALL;
+    if (r < 56 || r > 64) {
+      binary[r][150] = WALL;
     }
   }
 
@@ -2037,126 +2039,131 @@ function buildAncientRuinsLevel(biome: BiomeConfig, depth: number): LevelData {
   }
 
   const bonfires = [
-    { col: 16, row: 40 },
-    { col: 170, row: 30 },
-    { col: 170, row: 50 },
-    { col: 190, row: 30 },
-    { col: 190, row: 50 },
+    { col: 18, row: 60 },
+    { col: 154, row: 50 },
+    { col: 154, row: 70 },
+    { col: 172, row: 50 },
+    { col: 172, row: 70 },
   ];
 
   const torches = [
-    { col: 8, row: 34 }, { col: 8, row: 46 }, { col: 24, row: 34 }, { col: 24, row: 46 },
-    { col: 60, row: 20 }, { col: 60, row: 60 },
-    { col: 78, row: 12 }, { col: 88, row: 12 }, { col: 78, row: 26 }, { col: 88, row: 26 },
-    { col: 102, row: 10 }, { col: 120, row: 10 }, { col: 102, row: 22 }, { col: 120, row: 22 },
-    { col: 134, row: 14 }, { col: 152, row: 14 }, { col: 134, row: 28 }, { col: 152, row: 28 },
-    { col: 76, row: 36 }, { col: 100, row: 36 }, { col: 76, row: 46 }, { col: 100, row: 46 },
-    { col: 114, row: 34 }, { col: 140, row: 34 }, { col: 114, row: 46 }, { col: 140, row: 46 },
-    { col: 72, row: 54 }, { col: 90, row: 54 }, { col: 72, row: 68 }, { col: 90, row: 68 },
-    { col: 104, row: 56 }, { col: 124, row: 56 }, { col: 104, row: 68 }, { col: 124, row: 68 },
-    { col: 136, row: 52 }, { col: 152, row: 52 }, { col: 136, row: 66 }, { col: 152, row: 66 },
-    { col: 168, row: 28 }, { col: 190, row: 28 }, { col: 168, row: 52 }, { col: 190, row: 52 },
+    { col: 8, row: 52 }, { col: 8, row: 68 }, { col: 26, row: 52 }, { col: 26, row: 68 },
+    { col: 52, row: 30 }, { col: 52, row: 90 },
+    { col: 58, row: 14 }, { col: 70, row: 14 }, { col: 58, row: 30 }, { col: 70, row: 30 },
+    { col: 86, row: 12 }, { col: 106, row: 12 }, { col: 86, row: 28 }, { col: 106, row: 28 },
+    { col: 122, row: 16 }, { col: 140, row: 16 }, { col: 122, row: 32 }, { col: 140, row: 32 },
+    { col: 82, row: 36 }, { col: 108, row: 36 }, { col: 82, row: 48 }, { col: 108, row: 48 },
+    { col: 68, row: 54 }, { col: 92, row: 54 }, { col: 68, row: 66 }, { col: 92, row: 66 },
+    { col: 108, row: 52 }, { col: 136, row: 52 }, { col: 108, row: 68 }, { col: 136, row: 68 },
+    { col: 52, row: 76 }, { col: 72, row: 76 }, { col: 52, row: 92 }, { col: 72, row: 92 },
+    { col: 88, row: 78 }, { col: 110, row: 78 }, { col: 88, row: 94 }, { col: 110, row: 94 },
+    { col: 124, row: 74 }, { col: 140, row: 74 }, { col: 124, row: 90 }, { col: 140, row: 90 },
+    { col: 80, row: 100 }, { col: 108, row: 100 }, { col: 80, row: 110 }, { col: 108, row: 110 },
+    { col: 152, row: 48 }, { col: 172, row: 48 }, { col: 152, row: 72 }, { col: 172, row: 72 },
   ];
 
   const decorations: DecorationObject[] = [
     // Stone Arches (non-solid, walk-through portals)
-    { col: 26, row: 40, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
-    { col: 60, row: 40, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
-    { col: 110, row: 40, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
-    { col: 164, row: 40, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
-    { col: 110, row: 24, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
-    { col: 112, row: 54, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
+    { col: 28, row: 60, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
+    { col: 52, row: 60, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
+    { col: 96, row: 60, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
+    { col: 148, row: 60, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
+    { col: 96, row: 32, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
+    { col: 98, row: 74, key: TEXTURE.PROP_STATION_STONE_ARCH, solid: false },
     // Sarcophagi & Tombs (solid)
-    { col: 74, row: 16, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
-    { col: 84, row: 16, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
-    { col: 74, row: 22, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
-    { col: 84, row: 22, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
-    { col: 106, row: 12, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
-    { col: 116, row: 12, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
-    { col: 138, row: 16, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
-    { col: 146, row: 24, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
+    { col: 54, row: 18, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
+    { col: 66, row: 18, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
+    { col: 54, row: 26, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
+    { col: 66, row: 26, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
+    { col: 90, row: 16, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
+    { col: 102, row: 16, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
+    { col: 126, row: 20, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
+    { col: 136, row: 26, key: TEXTURE.PROP_STATION_SARCOPHAGUS, solid: true },
     // Statues (solid)
-    { col: 88, row: 36, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 88, row: 44, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 126, row: 34, key: TEXTURE.PROP_STATUE, solid: true },
-    { col: 126, row: 46, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 80, row: 56, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 80, row: 64, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 120, row: 54, key: TEXTURE.PROP_STATUE, solid: true },
+    { col: 120, row: 66, key: TEXTURE.PROP_STATUE, solid: true },
     // Fountains (solid)
-    { col: 118, row: 40, key: TEXTURE.FOUNTAIN_BLUE, solid: true },
-    { col: 134, row: 40, key: TEXTURE.FOUNTAIN_BLUE, solid: true },
-    { col: 174, row: 34, key: TEXTURE.FOUNTAIN_RED, solid: true },
-    { col: 174, row: 46, key: TEXTURE.FOUNTAIN_RED, solid: true },
+    { col: 110, row: 60, key: TEXTURE.FOUNTAIN_BLUE, solid: true },
+    { col: 130, row: 60, key: TEXTURE.FOUNTAIN_BLUE, solid: true },
+    { col: 158, row: 54, key: TEXTURE.FOUNTAIN_RED, solid: true },
+    { col: 158, row: 66, key: TEXTURE.FOUNTAIN_RED, solid: true },
     // Floor Spikes (non-solid)
-    { col: 86, row: 60, key: TEXTURE.PROP_SPIKES, solid: false },
-    { col: 94, row: 60, key: TEXTURE.PROP_SPIKES, solid: false },
-    { col: 122, row: 60, key: TEXTURE.PROP_SPIKES, solid: false },
-    { col: 130, row: 60, key: TEXTURE.PROP_SPIKES, solid: false },
-    // Crates and Barrels
-    { col: 10, row: 35, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 10, row: 45, key: TEXTURE.PROP_BARREL, solid: true },
-    { col: 22, row: 35, key: TEXTURE.PROP_CRATE, solid: true },
-    { col: 22, row: 45, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 68, row: 84, key: TEXTURE.PROP_SPIKES, solid: false },
+    { col: 80, row: 84, key: TEXTURE.PROP_SPIKES, solid: false },
+    { col: 116, row: 84, key: TEXTURE.PROP_SPIKES, solid: false },
+    { col: 128, row: 84, key: TEXTURE.PROP_SPIKES, solid: false },
+    // Barrels & Crates
+    { col: 10, row: 54, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 10, row: 66, key: TEXTURE.PROP_BARREL, solid: true },
+    { col: 24, row: 54, key: TEXTURE.PROP_CRATE, solid: true },
+    { col: 24, row: 66, key: TEXTURE.PROP_BARREL, solid: true },
   ];
 
   const chests = [
-    { col: 70, row: 12 },
-    { col: 88, row: 24 },
-    { col: 110, row: 10 },
-    { col: 150, row: 14 },
-    { col: 76, row: 42 },
-    { col: 142, row: 36 },
-    { col: 70, row: 66 },
-    { col: 124, row: 66 },
-    { col: 150, row: 66 },
-    { col: 184, row: 28 },
+    { col: 50, row: 14 },
+    { col: 70, row: 28 },
+    { col: 96, row: 12 },
+    { col: 138, row: 16 },
+    { col: 96, row: 44 },
+    { col: 66, row: 62 },
+    { col: 138, row: 56 },
+    { col: 52, row: 90 },
+    { col: 108, row: 92 },
+    { col: 138, row: 88 },
+    { col: 96, row: 108 },
+    { col: 168, row: 48 },
   ];
 
   const shrines: { col: number; row: number; kind: 'blood' | 'chance' }[] = [
-    { col: 110, row: 16, kind: 'blood' },
-    { col: 78, row: 60, kind: 'chance' },
-    { col: 114, row: 62, kind: 'blood' },
+    { col: 96, row: 20, kind: 'blood' },
+    { col: 62, row: 84, kind: 'chance' },
+    { col: 98, row: 86, kind: 'blood' },
   ];
 
   const flasks = [
-    { col: 14, row: 38, key: PROP.FLASK_RED },
-    { col: 80, row: 18, key: PROP.FLASK_YELLOW },
-    { col: 124, row: 16, key: PROP.FLASK_RED },
-    { col: 118, row: 38, key: PROP.FLASK_YELLOW },
-    { col: 82, row: 62, key: PROP.FLASK_RED },
-    { col: 120, row: 62, key: PROP.FLASK_YELLOW },
-    { col: 174, row: 40, key: PROP.FLASK_RED },
+    { col: 14, row: 58, key: PROP.FLASK_RED },
+    { col: 60, row: 22, key: PROP.FLASK_YELLOW },
+    { col: 132, row: 18, key: PROP.FLASK_RED },
+    { col: 110, row: 58, key: PROP.FLASK_YELLOW },
+    { col: 64, row: 86, key: PROP.FLASK_RED },
+    { col: 104, row: 86, key: PROP.FLASK_YELLOW },
+    { col: 132, row: 82, key: PROP.FLASK_RED },
+    { col: 158, row: 60, key: PROP.FLASK_YELLOW },
   ];
 
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
     // Spawn approach & West gate
-    { col: 32, row: 38, kind: 'skeleton' }, { col: 32, row: 42, kind: 'imp' },
-    { col: 44, row: 38, kind: 'skeleton' }, { col: 44, row: 42, kind: 'wolf' },
-    { col: 54, row: 40, kind: 'skeleton' },
+    { col: 34, row: 58, kind: 'skeleton' }, { col: 34, row: 62, kind: 'imp' },
+    { col: 44, row: 58, kind: 'skeleton' }, { col: 44, row: 62, kind: 'wolf' },
     // North Wing - Necropolis & Crypts
-    { col: 60, row: 28, kind: 'skeleton' }, { col: 60, row: 22, kind: 'imp' },
-    { col: 72, row: 14, kind: 'skeleton' }, { col: 86, row: 14, kind: 'skeleton' },
-    { col: 72, row: 24, kind: 'imp' }, { col: 86, row: 24, kind: 'skeleton' },
-    { col: 98, row: 18, kind: 'skeleton' }, { col: 104, row: 14, kind: 'skeleton' },
-    { col: 116, row: 16, kind: 'skeleton' }, { col: 118, row: 22, kind: 'imp' },
-    { col: 136, row: 14, kind: 'skeleton' }, { col: 148, row: 16, kind: 'skeleton' },
-    { col: 136, row: 24, kind: 'imp' }, { col: 148, row: 22, kind: 'skeleton' },
+    { col: 52, row: 40, kind: 'skeleton' }, { col: 52, row: 28, kind: 'imp' },
+    { col: 58, row: 16, kind: 'skeleton' }, { col: 68, row: 16, kind: 'skeleton' },
+    { col: 58, row: 26, kind: 'imp' }, { col: 68, row: 26, kind: 'skeleton' },
+    { col: 86, row: 20, kind: 'skeleton' }, { col: 92, row: 14, kind: 'skeleton' },
+    { col: 104, row: 14, kind: 'skeleton' }, { col: 104, row: 24, kind: 'imp' },
+    { col: 124, row: 18, kind: 'skeleton' }, { col: 136, row: 18, kind: 'skeleton' },
+    { col: 124, row: 28, kind: 'imp' }, { col: 134, row: 26, kind: 'skeleton' },
+    { col: 86, row: 40, kind: 'skeleton' }, { col: 106, row: 40, kind: 'wolf' },
     // Central Wing - Colonnade & Council Hall
-    { col: 80, row: 38, kind: 'skeleton' }, { col: 80, row: 42, kind: 'imp' },
-    { col: 94, row: 38, kind: 'skeleton' }, { col: 94, row: 42, kind: 'wolf' },
-    { col: 114, row: 36, kind: 'skeleton' }, { col: 114, row: 44, kind: 'imp' },
-    { col: 128, row: 38, kind: 'skeleton' }, { col: 128, row: 42, kind: 'skeleton' },
-    { col: 144, row: 38, kind: 'wolf' }, { col: 144, row: 42, kind: 'imp' },
+    { col: 70, row: 58, kind: 'skeleton' }, { col: 70, row: 62, kind: 'imp' },
+    { col: 86, row: 58, kind: 'skeleton' }, { col: 86, row: 62, kind: 'wolf' },
+    { col: 112, row: 56, kind: 'skeleton' }, { col: 112, row: 64, kind: 'imp' },
+    { col: 126, row: 58, kind: 'skeleton' }, { col: 126, row: 62, kind: 'skeleton' },
+    { col: 140, row: 58, kind: 'wolf' }, { col: 140, row: 62, kind: 'imp' },
     // South Wing - Gardens & Chapel
-    { col: 60, row: 52, kind: 'imp' }, { col: 60, row: 58, kind: 'wolf' },
-    { col: 74, row: 56, kind: 'imp' }, { col: 86, row: 56, kind: 'wolf' },
-    { col: 74, row: 66, kind: 'imp' }, { col: 86, row: 66, kind: 'skeleton' },
-    { col: 96, row: 60, kind: 'skeleton' }, { col: 106, row: 58, kind: 'skeleton' },
-    { col: 118, row: 58, kind: 'skeleton' }, { col: 106, row: 66, kind: 'imp' },
-    { col: 118, row: 66, kind: 'skeleton' }, { col: 138, row: 56, kind: 'wolf' },
-    { col: 148, row: 58, kind: 'skeleton' }, { col: 138, row: 64, kind: 'imp' },
-    { col: 148, row: 64, kind: 'skeleton' },
+    { col: 52, row: 78, kind: 'imp' }, { col: 52, row: 88, kind: 'wolf' },
+    { col: 58, row: 80, kind: 'imp' }, { col: 68, row: 80, kind: 'wolf' },
+    { col: 58, row: 90, kind: 'imp' }, { col: 68, row: 90, kind: 'skeleton' },
+    { col: 90, row: 82, kind: 'skeleton' }, { col: 106, row: 82, kind: 'skeleton' },
+    { col: 90, row: 90, kind: 'imp' }, { col: 106, row: 90, kind: 'skeleton' },
+    { col: 124, row: 78, kind: 'wolf' }, { col: 136, row: 78, kind: 'skeleton' },
+    { col: 124, row: 88, kind: 'imp' }, { col: 136, row: 86, kind: 'skeleton' },
+    { col: 84, row: 104, kind: 'skeleton' }, { col: 102, row: 104, kind: 'wolf' },
     // East Approach & Pre-Arena
-    { col: 156, row: 38, kind: 'skeleton' }, { col: 156, row: 42, kind: 'skeleton' },
-    { col: 162, row: 40, kind: 'wolf' },
+    { col: 144, row: 58, kind: 'skeleton' }, { col: 144, row: 62, kind: 'skeleton' },
+    { col: 148, row: 60, kind: 'wolf' },
   ];
 
   return {
@@ -2164,15 +2171,15 @@ function buildAncientRuinsLevel(biome: BiomeConfig, depth: number): LevelData {
     cols: COLS,
     rows: ROWS,
     data,
-    spawn: { col: 12, row: 40 },
+    spawn: { col: 12, row: 60 },
     bonfires,
     torches,
     decorations,
     flasks,
     chests,
     shrines,
-    altar: { col: 180, row: 40 },
-    exit: { col: 188, row: 40 },
+    altar: { col: 162, row: 60 },
+    exit: { col: 170, row: 60 },
     enemies,
   };
 }

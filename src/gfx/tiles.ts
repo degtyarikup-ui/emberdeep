@@ -4,7 +4,7 @@ import { TEXTURE } from './registry';
 export const TILE_SIZE = 32;
 export const TILE_MARGIN = 1;
 export const TILE_SPACING = 2;
-export const TOTAL_TILES = 75;
+export const TOTAL_TILES = 79;
 
 // Re-exported so existing importers keep working; the data itself lives in a
 // Phaser-free module so level generation can be unit-tested.

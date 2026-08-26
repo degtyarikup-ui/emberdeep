@@ -356,6 +356,10 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
         const bottom = isWaterCell(r + 1, c);
         const left = isWaterCell(r, c - 1);
         const right = isWaterCell(r, c + 1);
+        const tl = isWaterCell(r - 1, c - 1);
+        const tr = isWaterCell(r - 1, c + 1);
+        const bl = isWaterCell(r + 1, c - 1);
+        const br = isWaterCell(r + 1, c + 1);
 
         if (!left && !top) data[r][c] = TILE_INDEX.WATER_SHORE_TL;
         else if (!right && !top) data[r][c] = TILE_INDEX.WATER_SHORE_TR;
@@ -365,6 +369,10 @@ function buildDarkForestLevel(biome: BiomeConfig, depth: number): LevelData {
         else if (!right) data[r][c] = TILE_INDEX.WATER_SHORE_R;
         else if (!top) data[r][c] = TILE_INDEX.WATER_SHORE_T;
         else if (!bottom) data[r][c] = TILE_INDEX.WATER_SHORE_B;
+        else if (top && left && !tl) data[r][c] = TILE_INDEX.WATER_INNER_TL;
+        else if (top && right && !tr) data[r][c] = TILE_INDEX.WATER_INNER_TR;
+        else if (bottom && left && !bl) data[r][c] = TILE_INDEX.WATER_INNER_BL;
+        else if (bottom && right && !br) data[r][c] = TILE_INDEX.WATER_INNER_BR;
         else data[r][c] = TILE_INDEX.WATER_DEEP;
       } else if (cell === PATH) {
         const isGrassCell = (row: number, col: number) => {

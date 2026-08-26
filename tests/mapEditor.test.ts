@@ -282,10 +282,25 @@ describe('autotileHelper: Smart Autotiling Rules', () => {
     // (1,1) has T, B, L, R all path, but TL is grass -> PATH_INNER_TL
     expect(calculateAutotileCell(grid, 1, 1, 'path')).toBe(TILE_INDEX.PATH_INNER_TL);
 
-    // For water: (1,1) surrounded by water on all 4 sides stays WATER_DEEP
+    // For water: (1,1) surrounded by water on all 4 sides with missing TL corner is WATER_INNER_TL
     const waterGrid = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => TILE_INDEX.WATER_DEEP));
     waterGrid[0][0] = TILE_INDEX.GRASS_1;
-    expect(calculateAutotileCell(waterGrid, 1, 1, 'water')).toBe(TILE_INDEX.WATER_DEEP);
+    expect(calculateAutotileCell(waterGrid, 1, 1, 'water')).toBe(TILE_INDEX.WATER_INNER_TL);
+
+    // TR inner corner
+    const waterGridTR = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => TILE_INDEX.WATER_DEEP));
+    waterGridTR[0][2] = TILE_INDEX.GRASS_1;
+    expect(calculateAutotileCell(waterGridTR, 1, 1, 'water')).toBe(TILE_INDEX.WATER_INNER_TR);
+
+    // BL inner corner
+    const waterGridBL = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => TILE_INDEX.WATER_DEEP));
+    waterGridBL[2][0] = TILE_INDEX.GRASS_1;
+    expect(calculateAutotileCell(waterGridBL, 1, 1, 'water')).toBe(TILE_INDEX.WATER_INNER_BL);
+
+    // BR inner corner
+    const waterGridBR = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => TILE_INDEX.WATER_DEEP));
+    waterGridBR[2][2] = TILE_INDEX.GRASS_1;
+    expect(calculateAutotileCell(waterGridBR, 1, 1, 'water')).toBe(TILE_INDEX.WATER_INNER_BR);
   });
 });
 

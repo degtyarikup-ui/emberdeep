@@ -31,6 +31,7 @@ import {
   getFamilyForTile,
   getBaseTileForFamily,
   calculateAutotileCell,
+  isTileInFamily,
 } from './autotileHelper';
 import { bakeLevelViaGitHubApi, TOKEN_KEY } from './githubBake';
 
@@ -1264,15 +1265,25 @@ export class MapEditor {
         const minR = Math.max(0, row - half);
         const maxR = Math.min(this.level.rows - 1, row - half + this.brushSize - 1);
 
+        let entitiesCleared = false;
         for (let r = minR; r <= maxR; r++) {
           for (let c = minC; c <= maxC; c++) {
             this.level.data[r][c] = baseVal;
+            if (family === 'water') {
+              if (this.clearLandEntitiesAt(c, r)) {
+                entitiesCleared = true;
+              }
+            }
           }
+        }
+        if (entitiesCleared) {
+          this.broadcastEntities();
+          this.updateStatus();
         }
 
         const updates: TileUpdate[] = [];
-        for (let r = Math.max(0, minR - 1); r <= Math.min(this.level.rows - 1, maxR + 1); r++) {
-          for (let c = Math.max(0, minC - 1); c <= Math.min(this.level.cols - 1, maxC + 1); c++) {
+        for (let r = Math.max(0, minR - 2); r <= Math.min(this.level.rows - 1, maxR + 2); r++) {
+          for (let c = Math.max(0, minC - 2); c <= Math.min(this.level.cols - 1, maxC + 2); c++) {
             const cur = this.level.data[r][c];
             const fam = getFamilyForTile(cur);
             if (fam) {
@@ -1295,12 +1306,23 @@ export class MapEditor {
 
         const updates: TileUpdate[] = [];
         const rawVal = Number(this.activeItemId);
+        const isWater = isTileInFamily(rawVal, 'water');
+        let entitiesCleared = false;
 
         for (let r = minR; r <= maxR; r++) {
           for (let c = minC; c <= maxC; c++) {
             this.level.data[r][c] = rawVal;
+            if (isWater) {
+              if (this.clearLandEntitiesAt(c, r)) {
+                entitiesCleared = true;
+              }
+            }
             updates.push({ col: c, row: r, val: rawVal });
           }
+        }
+        if (entitiesCleared) {
+          this.broadcastEntities();
+          this.updateStatus();
         }
 
         if (this.collabClient && updates.length > 0) {
@@ -1411,14 +1433,24 @@ export class MapEditor {
       const smartDef = SMART_BRUSHES.find((b) => b.id === this.activeItemId) || SMART_BRUSHES[0];
       const family = smartDef.family;
       const baseVal = getBaseTileForFamily(family);
+      let entitiesCleared = false;
       for (let r = minR; r <= maxR; r++) {
         for (let c = minC; c <= maxC; c++) {
           this.level.data[r][c] = baseVal;
+          if (family === 'water') {
+            if (this.clearLandEntitiesAt(c, r)) {
+              entitiesCleared = true;
+            }
+          }
         }
       }
+      if (entitiesCleared) {
+        this.broadcastEntities();
+        this.updateStatus();
+      }
       const updates: TileUpdate[] = [];
-      for (let r = Math.max(0, minR - 1); r <= Math.min(this.level.rows - 1, maxR + 1); r++) {
-        for (let c = Math.max(0, minC - 1); c <= Math.min(this.level.cols - 1, maxC + 1); c++) {
+      for (let r = Math.max(0, minR - 2); r <= Math.min(this.level.rows - 1, maxR + 2); r++) {
+        for (let c = Math.max(0, minC - 2); c <= Math.min(this.level.cols - 1, maxC + 2); c++) {
           const cur = this.level.data[r][c];
           const fam = getFamilyForTile(cur);
           if (fam) {
@@ -1511,6 +1543,51 @@ export class MapEditor {
       const decCount = this.level.decorations.length;
       summary.textContent = `Врагов: ${enCount} · Сундуков: ${chCount} · Деревьев: ${trCount} · Декора: ${decCount}`;
     }
+  }
+
+  private clearLandEntitiesAt(c: number, r: number): boolean {
+    let removed = false;
+    if (this.level.trees && this.level.trees.length > 0) {
+      const before = this.level.trees.length;
+      this.level.trees = this.level.trees.filter((t) => t.col !== c || t.row !== r);
+      if (this.level.trees.length !== before) removed = true;
+    }
+    if (this.level.decorations && this.level.decorations.length > 0) {
+      const before = this.level.decorations.length;
+      this.level.decorations = this.level.decorations.filter((d) => d.col !== c || d.row !== r);
+      if (this.level.decorations.length !== before) removed = true;
+    }
+    if (this.level.enemies && this.level.enemies.length > 0) {
+      const before = this.level.enemies.length;
+      this.level.enemies = this.level.enemies.filter((e) => e.col !== c || e.row !== r);
+      if (this.level.enemies.length !== before) removed = true;
+    }
+    if (this.level.torches && this.level.torches.length > 0) {
+      const before = this.level.torches.length;
+      this.level.torches = this.level.torches.filter((t) => t.col !== c || t.row !== r);
+      if (this.level.torches.length !== before) removed = true;
+    }
+    if (this.level.bonfires && this.level.bonfires.length > 0) {
+      const before = this.level.bonfires.length;
+      this.level.bonfires = this.level.bonfires.filter((b) => b.col !== c || b.row !== r);
+      if (this.level.bonfires.length !== before) removed = true;
+    }
+    if (this.level.chests && this.level.chests.length > 0) {
+      const before = this.level.chests.length;
+      this.level.chests = this.level.chests.filter((ch) => ch.col !== c || ch.row !== r);
+      if (this.level.chests.length !== before) removed = true;
+    }
+    if (this.level.shrines && this.level.shrines.length > 0) {
+      const before = this.level.shrines.length;
+      this.level.shrines = this.level.shrines.filter((s) => s.col !== c || s.row !== r);
+      if (this.level.shrines.length !== before) removed = true;
+    }
+    if (this.level.flasks && this.level.flasks.length > 0) {
+      const before = this.level.flasks.length;
+      this.level.flasks = this.level.flasks.filter((f) => f.col !== c || f.row !== r);
+      if (this.level.flasks.length !== before) removed = true;
+    }
+    return removed;
   }
 
   private draw(): void {

@@ -74,6 +74,10 @@ const WATER_TILES = new Set<number>([
   TILE_INDEX.WATER_SHORE_TR,
   TILE_INDEX.WATER_SHORE_BL,
   TILE_INDEX.WATER_SHORE_BR,
+  TILE_INDEX.WATER_INNER_TL,
+  TILE_INDEX.WATER_INNER_TR,
+  TILE_INDEX.WATER_INNER_BL,
+  TILE_INDEX.WATER_INNER_BR,
   TILE_INDEX.WATER_DEEP,
   TILE_INDEX.WOOD_BRIDGE,
   TILE_INDEX.WOOD_BRIDGE_BOT,
@@ -209,17 +213,28 @@ export function calculateAutotileCell(grid: number[][], r: number, c: number, fa
     }
 
     case 'water': {
-      // 1. Outer 4 Corners
+      // 1. Isolated single cell or narrow 1-tile canal
+      if (!T && !B && !L && !R) return TILE_INDEX.WATER_DEEP;
+      if (!T && !B) return TILE_INDEX.WATER_SHORE_T;
+      if (!L && !R) return TILE_INDEX.WATER_SHORE_L;
+
+      // 2. Outer 4 Corners (Land on two orthogonal sides)
       if (!T && !L) return TILE_INDEX.WATER_SHORE_TL;
       if (!T && !R) return TILE_INDEX.WATER_SHORE_TR;
       if (!B && !L) return TILE_INDEX.WATER_SHORE_BL;
       if (!B && !R) return TILE_INDEX.WATER_SHORE_BR;
 
-      // 2. Straight Borders
+      // 3. Straight Borders (Land on one orthogonal side)
       if (!T) return TILE_INDEX.WATER_SHORE_T;
       if (!B) return TILE_INDEX.WATER_SHORE_B;
       if (!L) return TILE_INDEX.WATER_SHORE_L;
       if (!R) return TILE_INDEX.WATER_SHORE_R;
+
+      // 4. Inner 4 Corners (All orthogonal neighbors are water, but diagonal is land)
+      if (T && L && !TL) return TILE_INDEX.WATER_INNER_TL;
+      if (T && R && !TR) return TILE_INDEX.WATER_INNER_TR;
+      if (B && L && !BL) return TILE_INDEX.WATER_INNER_BL;
+      if (B && R && !BR) return TILE_INDEX.WATER_INNER_BR;
 
       return TILE_INDEX.WATER_DEEP;
     }

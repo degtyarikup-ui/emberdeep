@@ -57,6 +57,10 @@ export const TILE_METAS: Record<number, TileMeta> = {
   [TILE_INDEX.WATER_SHORE_TR]: { id: TILE_INDEX.WATER_SHORE_TR, name: 'Берег угол верх-право', color: '#3b82f6', solid: true, walkable: false, subCategory: 'water' },
   [TILE_INDEX.WATER_SHORE_BL]: { id: TILE_INDEX.WATER_SHORE_BL, name: 'Берег угол низ-лево', color: '#3b82f6', solid: true, walkable: false, subCategory: 'water' },
   [TILE_INDEX.WATER_SHORE_BR]: { id: TILE_INDEX.WATER_SHORE_BR, name: 'Берег угол низ-право', color: '#3b82f6', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_INNER_TL]: { id: TILE_INDEX.WATER_INNER_TL, name: 'Берег внутр. угол ВЛ', color: '#2563eb', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_INNER_TR]: { id: TILE_INDEX.WATER_INNER_TR, name: 'Берег внутр. угол ВП', color: '#2563eb', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_INNER_BL]: { id: TILE_INDEX.WATER_INNER_BL, name: 'Берег внутр. угол НЛ', color: '#2563eb', solid: true, walkable: false, subCategory: 'water' },
+  [TILE_INDEX.WATER_INNER_BR]: { id: TILE_INDEX.WATER_INNER_BR, name: 'Берег внутр. угол НП', color: '#2563eb', solid: true, walkable: false, subCategory: 'water' },
   [TILE_INDEX.WOOD_BRIDGE]: { id: TILE_INDEX.WOOD_BRIDGE, name: 'Мост деревянный верх', color: '#92400e', solid: false, walkable: true, subCategory: 'water' },
   [TILE_INDEX.WOOD_BRIDGE_BOT]: { id: TILE_INDEX.WOOD_BRIDGE_BOT, name: 'Мост деревянный низ', color: '#78350f', solid: false, walkable: true, subCategory: 'water' },
 

@@ -73,44 +73,6 @@ function carveRect(grid: number[][], x0: number, y0: number, w: number, h: numbe
   }
 }
 
-function carveRoadH(grid: number[][], x0: number, x1: number, yMid: number, width = 3, type = PATH): void {
-  const rows = grid.length;
-  const cols = grid[0].length;
-  const minX = Math.min(x0, x1);
-  const maxX = Math.max(x0, x1);
-  const half = Math.floor(width / 2);
-  for (let x = minX; x <= maxX; x++) {
-    for (let dy = -half; dy <= half; dy++) {
-      const y = yMid + dy;
-      if (y >= 0 && y < rows && x >= 0 && x < cols) {
-        const current = grid[y][x];
-        if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP && current !== RUIN_FLOOR) {
-          grid[y][x] = type;
-        }
-      }
-    }
-  }
-}
-
-function carveRoadV(grid: number[][], xMid: number, y0: number, y1: number, width = 3, type = PATH): void {
-  const rows = grid.length;
-  const cols = grid[0].length;
-  const minY = Math.min(y0, y1);
-  const maxY = Math.max(y0, y1);
-  const half = Math.floor(width / 2);
-  for (let y = minY; y <= maxY; y++) {
-    for (let dx = -half; dx <= half; dx++) {
-      const x = xMid + dx;
-      if (y >= 0 && y < rows && x >= 0 && x < cols) {
-        const current = grid[y][x];
-        if (current !== BRIDGE_TOP && current !== BRIDGE_BOT && current !== WATER_DEEP && current !== RUIN_FLOOR) {
-          grid[y][x] = type;
-        }
-      }
-    }
-  }
-}
-
 // =========================================================================
 // LEVEL 1: «Темный Лес» (Massive Primeval Forest, Winding River, Campsite & Ancient Altar)
 // =========================================================================

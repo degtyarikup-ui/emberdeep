@@ -370,7 +370,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   public activateKnightShield(): void {
     this.knightShieldActive = true;
-    this.knightShieldTimer = 2500;
+    this.knightShieldTimer = 1000;
     this.knightShieldHits = 2;
     SoundFX.playShieldBlock();
 
@@ -378,21 +378,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.knightShieldCont.destroy();
     }
 
-    const cont = this.scene.add.container(this.x, this.y - 14);
-    cont.setDepth(DEPTH.YSORT_BASE + this.y + 18);
+    const offX = this.flipX ? -14 : 14;
+    const cont = this.scene.add.container(this.x + offX, this.y - 12);
+    cont.setDepth(DEPTH.YSORT_BASE + this.y + 20);
 
-    // 1. Glowing Azure Aura Ring
-    const aura = this.scene.add.circle(0, 0, 22, 0x38bdf8, 0.22);
-    aura.setStrokeStyle(2, 0x93c5fd, 0.9);
-    cont.add(aura);
-
-    // 2. Shield Crest
+    // 1. Material Tower Shield with Gold Trim & Heraldry
     const shieldFrame = ITEM_SPRITE_MAP.shield.row * 11 + ITEM_SPRITE_MAP.shield.col;
-    const shieldSpr = this.scene.add.sprite(0, -2, TEXTURE.ITEMS_32ROGUES, shieldFrame);
-    shieldSpr.setScale(1.2);
-    shieldSpr.setAlpha(0.92);
-    shieldSpr.setTint(0xe0f2fe);
+    const shieldSpr = this.scene.add.sprite(0, 0, TEXTURE.ITEMS_32ROGUES, shieldFrame);
+    shieldSpr.setScale(1.55);
+    shieldSpr.setAlpha(0.98);
+    shieldSpr.setFlipX(this.flipX);
     cont.add(shieldSpr);
+
+    // 2. Frontal Protective Arc Glow
+    const arcGlow = this.scene.add.circle(0, 0, 16, 0xfacc15, 0.25);
+    arcGlow.setStrokeStyle(2, 0xfde047, 0.9);
+    cont.add(arcGlow);
 
     const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
     if (worldLayer) worldLayer.add(cont);
@@ -400,11 +401,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.knightShieldCont = cont;
 
     this.scene.tweens.add({
-      targets: [aura, shieldSpr],
-      scaleX: '+=0.15',
-      scaleY: '+=0.15',
-      alpha: 0.7,
-      duration: 500,
+      targets: [arcGlow, shieldSpr],
+      scaleX: '+=0.1',
+      scaleY: '+=0.1',
+      duration: 300,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -531,17 +531,28 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return false;
     }
 
-    // 1. Knight Active Shield Bastion Block
+    // 1. Knight Active Shield Bastion Block (Frontal 160-degree sector)
     if (this.knightShieldActive) {
-      this.knightShieldHits--;
-      SoundFX.playShieldBlock();
-      this.triggerShieldBlockEffect(fromX, fromY);
+      const facingAngle = this.flipX ? Math.PI : 0;
+      const attackerAngle =
+        fromX !== undefined && fromY !== undefined
+          ? Phaser.Math.Angle.Between(this.x, this.y, fromX, fromY)
+          : facingAngle;
 
-      if (this.knightShieldHits <= 0) {
-        this.destroyKnightShield(true);
+      const angleDiff = Math.abs(Phaser.Math.Angle.Wrap(attackerAngle - facingAngle));
+      // 160 degree frontal arc: angleDiff <= 80 deg (~1.396 rad)
+      if (angleDiff <= (80 * Math.PI) / 180) {
+        this.knightShieldHits--;
+        SoundFX.playShieldBlock();
+        this.triggerShieldBlockEffect(fromX, fromY);
+
+        if (this.knightShieldHits <= 0) {
+          this.destroyKnightShield(true);
+        }
+        this.invuln = 250;
+        return false; // Complete frontal block!
       }
-      this.invuln = 350;
-      return false; // Complete block!
+      // Attack comes from behind! Shield does not protect against backstabs.
     }
 
     // 2. Knight Active Melee Swing Guard
@@ -864,11 +875,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         kind: 'shield_bastion',
         x: this.x,
         y: this.y,
-        duration: 2500,
+        duration: 1000,
         element: this.elementalSlots.skill,
       };
     } else if (this.heroClass === 'ranger') {
-      this.activateShadowDodge(targetX, targetY);
+      this.activateShadowDodge();
       return {
         kind: 'shadow_dodge',
         x: this.x,
@@ -889,16 +900,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
-  public activateShadowDodge(targetX?: number, targetY?: number): void {
+  public activateShadowDodge(): void {
     SoundFX.playDash();
     this.invuln = 450; // 0.45s invulnerability frames!
     this.isSprinting = true;
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     let angle = this.flipX ? Math.PI : 0;
-    if (targetX !== undefined && targetY !== undefined) {
-      angle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
-    } else if (body.velocity.lengthSq() > 10) {
+    // Dash strictly along movement direction if moving, otherwise forward in facing direction
+    if (body.velocity.lengthSq() > 10) {
       angle = Math.atan2(body.velocity.y, body.velocity.x);
     }
 
@@ -1326,8 +1336,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (this.knightShieldTimer <= 0) {
         this.destroyKnightShield(false);
       } else if (this.knightShieldCont) {
-        this.knightShieldCont.setPosition(this.x, this.y - 14);
-        this.knightShieldCont.setDepth(DEPTH.YSORT_BASE + this.y + 18);
+        const offX = this.flipX ? -14 : 14;
+        this.knightShieldCont.setPosition(this.x + offX, this.y - 12);
+        this.knightShieldCont.setDepth(DEPTH.YSORT_BASE + this.y + 20);
+        const shieldSpr = this.knightShieldCont.getAt(0) as Phaser.GameObjects.Sprite;
+        if (shieldSpr) shieldSpr.setFlipX(this.flipX);
       }
     }
 

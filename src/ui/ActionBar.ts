@@ -257,8 +257,9 @@ export class ActionBar {
   }
 
   private createButtonBadge(label: string): Phaser.GameObjects.Container {
-    const cont = this.scene.add.container(0, 19);
-    const bg = this.scene.add.rectangle(0, 0, 32, 13, 0x050810, 0.95);
+    const cont = this.scene.add.container(0, 18);
+    const badgeW = label.length > 3 ? 34 : label.length > 1 ? 26 : 18;
+    const bg = this.scene.add.rectangle(0, 0, badgeW, 13, 0x050810, 0.95);
     bg.setStrokeStyle(1.5, 0x475569);
 
     const txt = this.scene.add.text(0, 0, label, {

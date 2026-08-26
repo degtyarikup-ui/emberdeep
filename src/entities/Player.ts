@@ -865,7 +865,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   /** Triggers class utility skill on [Q] (Knight Shield Bastion, Ranger Shadow Dodge, Wizard Healing Repulse). */
-  tryClassSkill(targetX?: number, targetY?: number): ClassSkillResult | null {
+  tryClassSkill(_targetX?: number, _targetY?: number): ClassSkillResult | null {
     if (this.classSkillCooldown > 0 || this.dying) return null;
     this.classSkillCooldown = this.classSkillMaxCooldown * this.specialCooldownMultiplier;
 

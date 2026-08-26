@@ -196,7 +196,7 @@ const RU: TranslationDict = {
   locked: 'Заблокировано',
 
   objectiveAltar: 'АЛТАРЬ БЕЗДНЫ',
-  objectiveBoss: 'АРХИДЕМОН',
+  objectiveBoss: 'БОСС',
   objectiveExit: 'СПУСК В ГЛУБИНЫ',
   distanceMeter: 'м',
 
@@ -305,7 +305,7 @@ const EN: TranslationDict = {
   locked: 'Locked',
 
   objectiveAltar: 'ABYSS ALTAR',
-  objectiveBoss: 'ARCHDEMON',
+  objectiveBoss: 'BOSS',
   objectiveExit: 'DESCENT STAIRS',
   distanceMeter: 'm',
 

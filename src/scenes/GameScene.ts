@@ -956,18 +956,19 @@ export class GameScene extends Phaser.Scene {
 
     const hintText = (this.isMapEditorTest || isCustomTest)
       ? 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ЛКМ/ПРОБЕЛ — АТАКА   ПКМ/Q — НАВЫК   E — ДЕЙСТВИЕ   ESC — В РЕДАКТОР'
-      : 'WASD — ДВИЖЕНИЕ   SHIFT — РЫВОК   ЛКМ/ПРОБЕЛ — АТАКА   ПКМ/Q — НАВЫК   E — ДЕЙСТВИЕ   ESC — МЕНЮ';
+      : t().footerControlsHint;
 
     this.hint = this.add
-      .text(this.scale.width / 2, this.scale.height - 20, hintText, {
+      .text(this.scale.width / 2, this.scale.height - 82, hintText, {
         fontFamily: FONT.UI,
         fontSize: '11px',
         color: '#cfc6dd',
       })
       .setOrigin(0.5, 1)
       .setDepth(DEPTH.UI);
+    this.hint.setStroke('#0a0710', 3);
     this.worldCam.ignore(this.hint);
-    this.tweens.add({ targets: this.hint, alpha: 0, delay: 3600, duration: 900 });
+    this.tweens.add({ targets: this.hint, alpha: 0, delay: 4000, duration: 900 });
 
     if (this.isMapEditorTest || isCustomTest) {
       const testBadge = this.add
@@ -2429,30 +2430,50 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showBiomeBanner(biome: { name: string; subtitle: string; depth: number }): void {
-    const banner = this.add.container(this.scale.width / 2, 50);
+    const bannerW = 440;
+    const bannerH = 52;
+    const banner = this.add.container(this.scale.width / 2, 45);
     banner.setDepth(DEPTH.UI + 90);
 
-    const bg = this.add.rectangle(0, 0, 360, 42, 0x090514, 0.92);
-    bg.setStrokeStyle(2, biome.depth === 1 ? 0x22c55e : biome.depth === 2 ? 0xa855f7 : 0xef4444);
+    const bg = PixelUI.createPanel(this, 0, 0, bannerW, bannerH);
+    banner.add(bg);
+
+    const themeColors: Record<number, { primary: string; stroke: number; badge: string }> = {
+      1: { primary: '#4ade80', stroke: 0x22c55e, badge: '✦ ТЕМНЫЙ ЛЕС ✦' },
+      2: { primary: '#c084fc', stroke: 0xa855f7, badge: '✦ ДРЕВНИЕ РУИНЫ ✦' },
+      3: { primary: '#f87171', stroke: 0xef4444, badge: '✦ КАТАКОМБЫ ✦' },
+      4: { primary: '#fb923c', stroke: 0xf97316, badge: '✦ ГЛУБИНЫ КАТАКОМБ ✦' },
+      5: { primary: '#38bdf8', stroke: 0x0284c7, badge: '✦ ЦИТАДЕЛЬ БЕЗДНЫ ✦' },
+    };
+    const theme = themeColors[biome.depth] || themeColors[5];
+
+    // Inner glowing highlight frame
+    const innerBorder = this.add.rectangle(0, 0, bannerW - 6, bannerH - 6, 0x000000, 0);
+    innerBorder.setStrokeStyle(1.5, theme.stroke, 0.75);
+    banner.add(innerBorder);
 
     const title = this.add
-      .text(0, -7, biome.name.toUpperCase(), {
+      .text(0, -9, biome.name.toUpperCase(), {
         fontFamily: FONT.TITLE,
         fontSize: '15px',
         fontStyle: '700',
         color: '#f0e2b8',
       })
       .setOrigin(0.5);
+    title.setStroke('#090514', 3);
+    title.setShadow(0, 2, '#000000', 3, true, true);
 
     const sub = this.add
-      .text(0, 10, biome.subtitle, {
+      .text(0, 11, biome.subtitle, {
         fontFamily: FONT.UI,
-        fontSize: '9px',
-        color: '#e2e8f0',
+        fontSize: '10px',
+        fontStyle: '700',
+        color: theme.primary,
       })
       .setOrigin(0.5);
+    sub.setStroke('#090514', 3);
 
-    banner.add([bg, title, sub]);
+    banner.add([title, sub]);
     banner.setScale(0.8);
     banner.setAlpha(0);
     this.worldCam.ignore(banner);
@@ -2461,16 +2482,78 @@ export class GameScene extends Phaser.Scene {
       targets: banner,
       scale: 1,
       alpha: 1,
-      y: 60,
-      duration: 350,
+      y: 56,
+      duration: 400,
       ease: 'Back.easeOut',
       onComplete: () => {
-        this.time.delayedCall(2800, () => {
+        this.time.delayedCall(3200, () => {
+          this.tweens.add({
+            targets: banner,
+            alpha: 0,
+            y: 38,
+            duration: 400,
+            ease: 'Cubic.easeIn',
+            onComplete: () => banner.destroy(),
+          });
+        });
+      },
+    });
+  }
+
+  private showBossIntroBanner(bossName: string, bossSubtitle: string): void {
+    const bannerW = 460;
+    const bannerH = 58;
+    const banner = this.add.container(this.scale.width / 2, 50);
+    banner.setDepth(DEPTH.UI + 95);
+
+    const bg = PixelUI.createPanel(this, 0, 0, bannerW, bannerH);
+    banner.add(bg);
+
+    const innerGlow = this.add.rectangle(0, 0, bannerW - 6, bannerH - 6, 0xef4444, 0.12);
+    innerGlow.setStrokeStyle(2, 0xef4444, 0.9);
+    banner.add(innerGlow);
+
+    const title = this.add
+      .text(0, -10, `✦ ${bossName.toUpperCase()} ✦`, {
+        fontFamily: FONT.TITLE,
+        fontSize: '16px',
+        fontStyle: '700',
+        color: '#f87171',
+      })
+      .setOrigin(0.5);
+    title.setStroke('#450a0a', 4);
+    title.setShadow(0, 2, '#000000', 4, true, true);
+
+    const sub = this.add
+      .text(0, 12, bossSubtitle, {
+        fontFamily: FONT.UI,
+        fontSize: '10px',
+        fontStyle: '700',
+        color: '#fef08a',
+      })
+      .setOrigin(0.5);
+    sub.setStroke('#000000', 3);
+
+    banner.add([title, sub]);
+    banner.setScale(0.7);
+    banner.setAlpha(0);
+    this.worldCam.ignore(banner);
+
+    this.tweens.add({
+      targets: banner,
+      scale: 1,
+      alpha: 1,
+      y: 65,
+      duration: 450,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(3600, () => {
           this.tweens.add({
             targets: banner,
             alpha: 0,
             y: 45,
-            duration: 350,
+            duration: 400,
+            ease: 'Cubic.easeIn',
             onComplete: () => banner.destroy(),
           });
         });
@@ -2617,6 +2700,7 @@ export class GameScene extends Phaser.Scene {
     if (this.depth === 1) {
       const bossHp = 60 + (this.players.length - 1) * 30 + Math.floor((this.elapsedRunTime / 60000) * 8);
       this.boss = new OrcBossEnemy(this, spawnX, spawnY, bossHp);
+      this.showBossIntroBanner("Грог'Нар, Вождь Орков", 'Владыка Тёмного Леса • Вожак Стаи');
 
       // Spawn Elite Bodyguards: Orc Shieldbearer (Left), Orc Archer (Right), Direwolf (Front)
       const guardShield = new Enemy(this, spawnX - 44, spawnY + 10, 'orc_shield', this.enemies.length + 101);
@@ -2632,6 +2716,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       const bossHp = 75 + (this.players.length - 1) * 35 + Math.floor((this.elapsedRunTime / 60000) * 12);
       this.boss = new BossEnemy(this, spawnX, spawnY, bossHp);
+      this.showBossIntroBanner('Архидемон Бездны', 'Двухфазный Страж Алтаря • Повелитель Тьмы');
     }
     this.worldLayer.add(this.boss);
 

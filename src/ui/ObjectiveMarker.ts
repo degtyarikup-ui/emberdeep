@@ -157,67 +157,61 @@ export class ObjectiveMarker {
     this.distText.setText(`${meters} ${t().distanceMeter}`);
 
     if (inView) {
-      // -------------------------------------------------------------
-      // ON-SCREEN: Plaque hovers directly above the target in world
-      // -------------------------------------------------------------
-      const bob = Math.sin(this.scene.time.now * 0.005) * 3;
-      const markerX = Phaser.Math.Clamp(screenX, 64, sw - 64);
-      const markerY = Phaser.Math.Clamp(screenY - 42 + bob, 24, sh - 24);
-
-      this.container.setPosition(markerX, markerY);
-
-      // Arrow sits at the bottom center of the badge pointing straight DOWN (▼) at the target
-      this.arrow.setPosition(0, 16);
-      this.arrow.setRotation(Math.PI);
-    } else {
-      // -------------------------------------------------------------
-      // OFF-SCREEN: Plaque clamps to the screen edge pointing toward target
-      // -------------------------------------------------------------
-      const cx = sw / 2;
-      const cy = sh / 2;
-      const angle = Math.atan2(dy, dx);
-
-      const padX = 72;
-      const padY = 48;
-      const halfW = sw / 2 - padX;
-      const halfH = sh / 2 - padY;
-
-      const cos = Math.cos(angle);
-      const sin = Math.sin(angle);
-
-      let edgeX: number;
-      let edgeY: number;
-
-      if (Math.abs(cos) * halfH > Math.abs(sin) * halfW) {
-        const signX = cos > 0 ? 1 : -1;
-        edgeX = cx + signX * halfW;
-        edgeY = cy + (signX * halfW * sin) / (cos || 0.0001);
-      } else {
-        const signY = sin > 0 ? 1 : -1;
-        edgeY = cy + signY * halfH;
-        edgeX = cx + (signY * halfH * cos) / (sin || 0.0001);
+      // Hide marker completely when target is already visible on the player's screen
+      if (this.visible) {
+        this.container.setVisible(false);
+        this.visible = false;
       }
-
-      this.container.setPosition(edgeX, edgeY);
-
-      // Arrow sits on the outer rim of the badge pointing outward in direction of target
-      const bw = 114 / 2 + 3;
-      const bh = 30 / 2 + 3;
-      let ax: number;
-      let ay: number;
-      if (Math.abs(cos) * bh > Math.abs(sin) * bw) {
-        const signX = cos > 0 ? 1 : -1;
-        ax = signX * bw;
-        ay = (signX * bw * sin) / (cos || 0.0001);
-      } else {
-        const signY = sin > 0 ? 1 : -1;
-        ay = signY * bh;
-        ax = (signY * bh * cos) / (sin || 0.0001);
-      }
-
-      this.arrow.setPosition(ax, ay);
-      this.arrow.setRotation(angle + Math.PI / 2);
+      return;
     }
+
+    // -------------------------------------------------------------
+    // OFF-SCREEN: Plaque clamps to the screen edge pointing toward target
+    // -------------------------------------------------------------
+    const cx = sw / 2;
+    const cy = sh / 2;
+    const angle = Math.atan2(dy, dx);
+
+    const padX = 72;
+    const padY = 48;
+    const halfW = sw / 2 - padX;
+    const halfH = sh / 2 - padY;
+
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    let edgeX: number;
+    let edgeY: number;
+
+    if (Math.abs(cos) * halfH > Math.abs(sin) * halfW) {
+      const signX = cos > 0 ? 1 : -1;
+      edgeX = cx + signX * halfW;
+      edgeY = cy + (signX * halfW * sin) / (cos || 0.0001);
+    } else {
+      const signY = sin > 0 ? 1 : -1;
+      edgeY = cy + signY * halfH;
+      edgeX = cx + (signY * halfH * cos) / (sin || 0.0001);
+    }
+
+    this.container.setPosition(edgeX, edgeY);
+
+    // Arrow sits on the outer rim of the badge pointing outward in direction of target
+    const bw = 114 / 2 + 3;
+    const bh = 30 / 2 + 3;
+    let ax: number;
+    let ay: number;
+    if (Math.abs(cos) * bh > Math.abs(sin) * bw) {
+      const signX = cos > 0 ? 1 : -1;
+      ax = signX * bw;
+      ay = (signX * bw * sin) / (cos || 0.0001);
+    } else {
+      const signY = sin > 0 ? 1 : -1;
+      ay = signY * bh;
+      ax = (signY * bh * cos) / (sin || 0.0001);
+    }
+
+    this.arrow.setPosition(ax, ay);
+    this.arrow.setRotation(angle + Math.PI / 2);
 
     if (!this.visible) {
       this.container.setVisible(true);

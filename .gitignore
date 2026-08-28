@@ -6,3 +6,4 @@ dist
 .claude/
 vendor/**/*.zip
 *.zip
+.wrangler

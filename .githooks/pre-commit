@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "🔍 Running pre-commit validation (npm run check)..."
+npm run check
+RESULT=$?
+if [ $RESULT -ne 0 ]; then
+  echo "❌ Commit rejected: 'npm run check' failed. Please fix all errors before committing."
+  exit 1
+fi

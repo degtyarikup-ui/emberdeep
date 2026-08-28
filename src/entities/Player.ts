@@ -223,7 +223,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const base = baseSpeed * (1 + (this.items['boots'] || 0) * 0.15);
     const sprintFactor = this.isSprinting ? 1.55 : 1.0;
     const hackFactor = this.speedHack ? 2.2 : 1.0;
-    return base * sprintFactor * hackFactor;
+    const frostSlow = this.frostSlowTimer > 0 ? this.frostSlowFactor : 1.0;
+    return base * sprintFactor * hackFactor * frostSlow;
   }
 
   get attackDamage(): number {
@@ -358,6 +359,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   get isDowned(): boolean {
     return this.dying;
+  }
+
+  get isDead(): boolean {
+    return this.dying || this.hp <= 0;
+  }
+
+  public frostSlowTimer = 0;
+  public frostSlowFactor = 1.0;
+
+  applyStatusEffect(effect: string, duration: number, slowFactor = 0.5): void {
+    if (this.isDead) return;
+    if (effect === 'frost') {
+      this.frostSlowTimer = Math.max(this.frostSlowTimer, duration);
+      this.frostSlowFactor = slowFactor;
+      this.setTint(0x93c5fd);
+    }
   }
 
   get currentAnim(): ActorAnim {
@@ -1367,6 +1384,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.classSkillCooldown > 0) this.classSkillCooldown -= delta;
     if (this.attackLock > 0) this.attackLock -= delta;
     if (this.knockbackLock > 0) this.knockbackLock -= delta;
+
+    if (this.frostSlowTimer > 0) {
+      this.frostSlowTimer -= delta;
+      if (this.frostSlowTimer <= 0) {
+        this.frostSlowTimer = 0;
+        this.frostSlowFactor = 1.0;
+        this.clearTint();
+        this.setTint(PLAYER_TINTS[this.slot] ?? 0xffffff);
+      }
+    }
 
     // Knight Shield Bastion update
     if (this.knightShieldActive) {

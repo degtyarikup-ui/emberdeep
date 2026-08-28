@@ -211,5 +211,13 @@ describe('difficulty progression', () => {
     expect(hasImp).toBe(false);
     expect(hasOrcGrunt).toBe(true);
   });
+
+  it('depth 2 (Ancient Ruins) has no imp enemies and spawns skeleton_necromancer', () => {
+    const level2 = buildLevel1(2);
+    const hasImp = level2.enemies.some((e) => e.kind === 'imp');
+    const hasNecromancer = level2.enemies.some((e) => e.kind === 'skeleton_necromancer');
+    expect(hasImp).toBe(false);
+    expect(hasNecromancer).toBe(true);
+  });
 });
 

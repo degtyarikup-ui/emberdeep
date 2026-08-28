@@ -434,6 +434,7 @@ export const ENTITY_PALETTE: EditorEntityItem[] = [
   { category: 'enemy', id: 'wolf', name: 'Волк', icon: 'WF', color: '#a8a29e' },
   { category: 'enemy', id: 'direwolf', name: 'Лютоволк', icon: 'DW', color: '#e2e8f0' },
   { category: 'enemy', id: 'skeleton', name: 'Скелет', icon: 'SK', color: '#f8fafc' },
+  { category: 'enemy', id: 'skeleton_necromancer', name: 'Скелет-Некромант', icon: 'SN', color: '#c084fc' },
   { category: 'enemy', id: 'imp', name: 'Бес', icon: 'IM', color: '#f87171' },
   { category: 'enemy', id: 'orc_grunt', name: 'Орк-пехотинец', icon: 'OG', color: '#4ade80' },
   { category: 'enemy', id: 'orc_shield', name: 'Орк со щитом', icon: 'OS', color: '#60a5fa' },

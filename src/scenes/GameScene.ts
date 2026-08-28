@@ -1607,6 +1607,106 @@ export class GameScene extends Phaser.Scene {
           onComplete: () => ring.destroy(),
         });
       }
+      if (action.healPulse) {
+        const hp = action.healPulse;
+        const ring = this.add.circle(hp.x, hp.y, 14, 0x2dd4bf, 0.65);
+        ring.setPipeline('Light2D');
+        ring.setDepth(DEPTH.FLOOR + 2);
+        this.worldLayer.add(ring);
+        this.tweens.add({
+          targets: ring,
+          radius: hp.radius,
+          alpha: 0,
+          duration: 600,
+          ease: 'Cubic.easeOut',
+          onComplete: () => ring.destroy(),
+        });
+
+        // Heal all surrounding skeleton allies
+        for (const ally of this.enemies) {
+          if ((ally.kind === 'skeleton' || ally.kind === 'skeleton_necromancer') && !ally.isDead && ally.active) {
+            if (Math.hypot(ally.x - hp.x, ally.y - hp.y) <= hp.radius) {
+              ally.heal(hp.healAmount);
+            }
+          }
+        }
+      }
+      if (action.frostBeam) {
+        const fb = action.frostBeam;
+        if (fb.charging) {
+          // Soft cyan aiming line indicator
+          const aimLine = this.add.graphics();
+          aimLine.setDepth(DEPTH.YSORT_BASE + fb.y + 10);
+          aimLine.lineStyle(1.5, 0x38bdf8, 0.45);
+          aimLine.beginPath();
+          aimLine.moveTo(fb.x, fb.y);
+          aimLine.lineTo(fb.targetX, fb.targetY);
+          aimLine.strokePath();
+          this.worldLayer.add(aimLine);
+          this.time.delayedCall(45, () => aimLine.destroy());
+        } else {
+          // Unleash continuous Frost Beam blast
+          const angle = Math.atan2(fb.targetY - fb.y, fb.targetX - fb.x);
+          const maxDist = 240;
+          const endX = fb.x + Math.cos(angle) * maxDist;
+          const endY = fb.y + Math.sin(angle) * maxDist;
+
+          const beam = this.add.graphics();
+          beam.setDepth(DEPTH.YSORT_BASE + Math.max(fb.y, endY) + 20);
+          // Outer frost glow
+          beam.lineStyle(10, 0x0284c7, 0.6);
+          beam.beginPath();
+          beam.moveTo(fb.x, fb.y);
+          beam.lineTo(endX, endY);
+          beam.strokePath();
+          // Core cold beam
+          beam.lineStyle(4, 0xe0f2fe, 0.95);
+          beam.beginPath();
+          beam.moveTo(fb.x, fb.y);
+          beam.lineTo(endX, endY);
+          beam.strokePath();
+          this.worldLayer.add(beam);
+
+          this.tweens.add({
+            targets: beam,
+            alpha: 0,
+            duration: fb.duration,
+            ease: 'Sine.easeOut',
+            onComplete: () => beam.destroy(),
+          });
+
+          // Line collision check against players
+          for (const p of this.players) {
+            if (p.isDead) continue;
+            const px = p.x;
+            const py = p.y - 10;
+            const l2 = (endX - fb.x) ** 2 + (endY - fb.y) ** 2;
+            let t = ((px - fb.x) * (endX - fb.x) + (py - fb.y) * (endY - fb.y)) / (l2 || 1);
+            t = Math.max(0, Math.min(1, t));
+            const projX = fb.x + t * (endX - fb.x);
+            const projY = fb.y + t * (endY - fb.y);
+            const dist = Math.hypot(px - projX, py - projY);
+
+            if (dist <= 18) {
+              this.handlePlayerHurt(p, enemy, 1);
+              p.applyStatusEffect('frost', 2500, 0.5);
+              // Frost shatter sparks
+              for (let i = 0; i < 4; i++) {
+                const spk = this.add.rectangle(p.x + (Math.random() - 0.5) * 14, p.y - 10 + (Math.random() - 0.5) * 14, 3, 3, 0xbae6fd, 1);
+                spk.setDepth(DEPTH.UI);
+                this.tweens.add({
+                  targets: spk,
+                  x: spk.x + (Math.random() - 0.5) * 20,
+                  y: spk.y + (Math.random() - 0.5) * 20,
+                  alpha: 0,
+                  duration: 300,
+                  onComplete: () => spk.destroy(),
+                });
+              }
+            }
+          }
+        }
+      }
       if (action.minionSpawns) {
         for (const m of action.minionSpawns) {
           const minion = new Enemy(this, m.x, m.y, m.kind, this.enemies.length + 100);

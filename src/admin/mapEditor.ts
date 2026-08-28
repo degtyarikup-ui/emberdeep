@@ -1342,7 +1342,7 @@ export class MapEditor {
         this.level.decorations.push({ col, row, key: String(this.activeItemId), solid: true });
         this.broadcastEntities();
       } else if (this.activeCategory === 'enemy') {
-        const standardEnemies: string[] = ['wolf', 'direwolf', 'skeleton', 'imp', 'orc_grunt', 'orc_shield', 'orc_archer', 'bandit_assassin'];
+        const standardEnemies: string[] = ['wolf', 'direwolf', 'skeleton', 'skeleton_necromancer', 'imp', 'orc_grunt', 'orc_shield', 'orc_archer', 'bandit_assassin'];
         if (standardEnemies.includes(String(this.activeItemId))) {
           this.level.enemies = this.level.enemies.filter((e) => e.col !== col || e.row !== row);
           this.level.enemies.push({ col, row, kind: this.activeItemId as EnemyKind });

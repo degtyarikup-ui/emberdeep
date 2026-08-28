@@ -39,6 +39,7 @@ export const SPRITE_DEFS: Record<string, SpriteDefinition> = {
   wolf: { url: asset('pc-wolf-idle.png'), sx: 0, sy: 0, sw: 32, sh: 32, widthTiles: 1.0, heightTiles: 1.0 },
   direwolf: { url: asset('direwolf-idle.png'), sx: 0, sy: 0, sw: 32, sh: 32, widthTiles: 1.1, heightTiles: 1.1 },
   skeleton: { url: asset('pc-skeleton-idle.png'), sx: 0, sy: 0, sw: 32, sh: 32, widthTiles: 1.0, heightTiles: 1.0 },
+  skeleton_necromancer: { url: asset('pc-skeleton-idle.png'), sx: 0, sy: 0, sw: 32, sh: 32, widthTiles: 1.1, heightTiles: 1.1 },
   imp: { url: asset('pc-orc-idle.png'), sx: 0, sy: 0, sw: 32, sh: 32, widthTiles: 1.0, heightTiles: 1.0 },
   orc_grunt: { url: asset('orc-grunt-idle.png'), sx: 0, sy: 0, sw: 24, sh: 26, widthTiles: 1.0, heightTiles: 1.0 },
   orc_shield: { url: asset('orc_warrior_idle_anim_f0.png'), sx: 0, sy: 0, sw: 24, sh: 26, widthTiles: 1.0, heightTiles: 1.0 },

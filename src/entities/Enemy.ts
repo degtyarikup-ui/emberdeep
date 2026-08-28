@@ -9,7 +9,7 @@ import {
   ComboResult,
 } from '../combat/ElementalSystem';
 
-export type EnemyKind = 'imp' | 'skeleton' | 'wolf' | 'orc_shield' | 'orc_archer' | 'direwolf' | 'orc_grunt';
+export type EnemyKind = 'imp' | 'skeleton' | 'wolf' | 'orc_shield' | 'orc_archer' | 'direwolf' | 'orc_grunt' | 'skeleton_necromancer';
 
 export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'special_windup' | 'recovery' | 'backstep' | 'dead';
 
@@ -17,6 +17,8 @@ export interface EnemyActionOutput {
   landedHit: boolean;
   damage: number;
   projectile?: { x: number; y: number; targetX: number; targetY: number; damage: number; isArrow?: boolean };
+  frostBeam?: { x: number; y: number; targetX: number; targetY: number; charging: boolean; duration: number };
+  healPulse?: { x: number; y: number; radius: number; healAmount: number };
   howl?: boolean;
   minionSpawns?: { x: number; y: number; kind: EnemyKind }[];
 }
@@ -86,6 +88,26 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     lungeDuration: 140,
     recoveryDuration: 360,
     lungeSpeed: 150,
+    canBackstep: true,
+    canCircleStrafe: true,
+  },
+  skeleton_necromancer: {
+    clips: ACTORS.SKELETON,
+    originY: { idle: 0.82, run: 0.74, death: 0.78 },
+    bodySize: { idle: [18, 18], run: [18, 18] },
+    bodyOffset: { idle: [7, 14], run: [23, 46] },
+    maxHp: 8,
+    patrolSpeed: 35,
+    chaseSpeed: 75,
+    detectRadius: 210,
+    loseRadius: 360,
+    attackRange: 190,
+    contactDamage: 1,
+    scale: 1.08,
+    windupDuration: 300,
+    lungeDuration: 100,
+    recoveryDuration: 400,
+    lungeSpeed: 0,
     canBackstep: true,
     canCircleStrafe: true,
   },
@@ -220,6 +242,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private strafeDir = 1;
   private backstepCooldown = 0;
 
+  // Necromancer specific state
+  public staffSprite?: Phaser.GameObjects.Sprite;
+  public necromancerSpellType: 'heal' | 'frost' = 'frost';
+  private necromancerHealCooldown = 5000 + Math.random() * 3000;
+  private necromancerBeamCooldown = 3000 + Math.random() * 2000;
+
   // Net sync
   private netTargetX = 0;
   private netTargetY = 0;
@@ -294,6 +322,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     if (kind === 'direwolf') {
       this.setTint(0x94a3b8);
+    } else if (kind === 'skeleton_necromancer') {
+      this.setTint(0xc084fc); // deep amethyst mystic cloak
+      this.staffSprite = scene.add.sprite(x, y - 10, TEXTURE.STAFF);
+      this.staffSprite.setScale(0.9);
+      this.staffSprite.setTint(0x38bdf8); // frost rune crystal
+      this.staffSprite.setDepth(DEPTH.YSORT_BASE + y + 1);
+      const worldLayer = (scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+      if (worldLayer) worldLayer.add(this.staffSprite);
     }
 
     const body = this.body as Phaser.Physics.Arcade.Body;
@@ -303,6 +339,57 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     body.setOffset(ox, oy);
     this.setDepth(DEPTH.YSORT_BASE + y);
     this.shadow = scene.add.sprite(x, y + 2, TEXTURE.SHADOW).setAlpha(0.35).setDepth(DEPTH.SHADOW);
+  }
+
+  heal(amount: number): number {
+    if (this.aiState === 'dead' || this.hp <= 0) return 0;
+    const actualHeal = Math.min(amount, this.stats.maxHp - this.hp);
+    if (actualHeal <= 0) return 0;
+    this.hp += actualHeal;
+
+    if (this.scene) {
+      const healText = this.scene.add
+        .text(this.x, this.y - 24, `+${actualHeal}`, {
+          fontFamily: FONT.UI,
+          fontSize: '12px',
+          fontStyle: '700',
+          color: '#22c55e',
+          stroke: '#052e16',
+          strokeThickness: 2,
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH.UI);
+
+      this.scene.tweens.add({
+        targets: healText,
+        y: this.y - 42,
+        alpha: 0,
+        duration: 700,
+        ease: 'Cubic.easeOut',
+        onComplete: () => healText.destroy(),
+      });
+
+      // Sparkle particles
+      for (let i = 0; i < 4; i++) {
+        const spk = this.scene.add.rectangle(
+          this.x + (Math.random() - 0.5) * 16,
+          this.y - 10 + (Math.random() - 0.5) * 16,
+          2,
+          2,
+          0x4ade80,
+          1
+        );
+        spk.setDepth(DEPTH.YSORT_BASE + this.y + 10);
+        this.scene.tweens.add({
+          targets: spk,
+          y: '-=12',
+          alpha: 0,
+          duration: 500,
+          onComplete: () => spk.destroy(),
+        });
+      }
+    }
+    return actualHeal;
   }
 
   get isDead(): boolean {
@@ -495,6 +582,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setScale(this.stats.scale);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
+    if (this.staffSprite) {
+      this.staffSprite.destroy();
+      this.staffSprite = undefined;
+    }
+
     body.setVelocity(0, 0);
     body.enable = false;
     this.setOrigin(0.5, this.stats.originY.death);
@@ -587,8 +679,20 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.setTint(0xfde047);
     } else {
       if (this.hitLock <= 0 && this.aiState !== 'windup' && this.aiState !== 'special_windup') {
-        this.clearTint();
+        if (this.kind === 'skeleton_necromancer') {
+          this.setTint(0xc084fc);
+        } else if (this.kind === 'direwolf') {
+          this.setTint(0x94a3b8);
+        } else {
+          this.clearTint();
+        }
       }
+    }
+
+    if (this.staffSprite && this.active && !this.isDead) {
+      this.staffSprite.setPosition(this.x + (this.flipX ? -8 : 8), this.y - 12);
+      this.staffSprite.setFlipX(this.flipX);
+      this.staffSprite.setDepth(DEPTH.YSORT_BASE + this.y + 1);
     }
 
     if (this.backstepCooldown > 0) this.backstepCooldown -= delta;
@@ -684,6 +788,46 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
         // Check Special Attack triggers
         if (this.specialCooldown <= 0) {
+          // Skeleton Necromancer: Heal Undead Spell (checks for hurt skeleton allies within 160px)
+          if (this.kind === 'skeleton_necromancer') {
+            this.necromancerHealCooldown -= delta;
+            if (this.necromancerHealCooldown <= 0) {
+              const woundedAlly = otherEnemies.some(
+                (e) =>
+                  (e.kind === 'skeleton' || e.kind === 'skeleton_necromancer') &&
+                  !e.isDead &&
+                  e.active &&
+                  e.currentHp < e.maxHp &&
+                  Math.hypot(e.x - this.x, e.y - this.y) <= 160
+              );
+              if (woundedAlly) {
+                this.aiState = 'special_windup';
+                this.necromancerSpellType = 'heal';
+                this.stateTimer = 500;
+                this.necromancerHealCooldown = 7000 + Math.random() * 1500;
+                this.setTint(0x2dd4bf); // turquoise necromantic pulse
+                this.setScale(this.stats.scale * 1.1, this.stats.scale * 1.1);
+                body.setVelocity(0, 0);
+                SoundFX.playStaffCast(this.x, this.y);
+                break;
+              }
+            }
+
+            // Skeleton Necromancer: Frost Beam Spell (range 50..220 px)
+            this.necromancerBeamCooldown -= delta;
+            if (this.necromancerBeamCooldown <= 0 && distToPlayer >= 50 && distToPlayer <= 220) {
+              this.aiState = 'special_windup';
+              this.necromancerSpellType = 'frost';
+              this.stateTimer = 1000; // 1.0 sec charge
+              this.necromancerBeamCooldown = 4500 + Math.random() * 1000;
+              this.setTint(0x38bdf8); // frost blue aura
+              this.setScale(this.stats.scale * 1.1, this.stats.scale * 1.1);
+              body.setVelocity(0, 0);
+              SoundFX.playStaffCast(this.x, this.y);
+              output.frostBeam = { x: this.x, y: this.y - 12, targetX: playerX, targetY: playerY, charging: true, duration: 1000 };
+              break;
+            }
+          }
           // Orc Grunt Heavy Chop at close range (<= 48 px)
           if (this.kind === 'orc_grunt' && distToPlayer <= 48) {
             this.aiState = 'special_windup';
@@ -757,6 +901,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             SoundFX.playWolfSnarl();
             break;
           }
+        }
+
+        // Skeleton Necromancer: Tactical retreat if player approaches too close (< 75px)
+        if (this.kind === 'skeleton_necromancer' && distToPlayer < 75) {
+          const backAngle = Math.atan2(this.y - playerY, this.x - playerX);
+          body.setVelocity(Math.cos(backAngle) * this.stats.chaseSpeed * 1.15, Math.sin(backAngle) * this.stats.chaseSpeed * 1.15);
+          this.setFlipX(dx < 0);
+          break;
         }
 
         // Orc Archer: Tactical retreat if player approaches too close
@@ -862,11 +1014,28 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.setFlipX(dx < 0);
         body.setVelocity(0, 0);
 
+        if (this.kind === 'skeleton_necromancer' && this.necromancerSpellType === 'frost') {
+          output.frostBeam = { x: this.x, y: this.y - 12, targetX: playerX, targetY: playerY, charging: true, duration: this.stateTimer };
+        }
+
         if (this.stateTimer <= 0) {
           this.clearTint();
           this.setScale(this.stats.scale);
+          if (this.kind === 'skeleton_necromancer') this.setTint(0xc084fc);
 
-          if (this.kind === 'orc_grunt') {
+          if (this.kind === 'skeleton_necromancer') {
+            if (this.necromancerSpellType === 'heal') {
+              output.healPulse = { x: this.x, y: this.y - 10, radius: 160, healAmount: 3 };
+              SoundFX.playEnergyHit(this.x, this.y);
+              this.aiState = 'recovery';
+              this.stateTimer = 400;
+            } else {
+              output.frostBeam = { x: this.x, y: this.y - 12, targetX: playerX, targetY: playerY, charging: false, duration: 800 };
+              SoundFX.playStaffCast(this.x, this.y);
+              this.aiState = 'recovery';
+              this.stateTimer = 800;
+            }
+          } else if (this.kind === 'orc_grunt') {
             // Heavy Chop execution: deal 2 damage and play cleave slash
             SoundFX.playBoneCleave();
             if (this.scene) {

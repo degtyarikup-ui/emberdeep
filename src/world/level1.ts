@@ -2098,7 +2098,7 @@ function buildAncientRuinsLevel(biome: BiomeConfig, depth: number): LevelData {
   const enemies: { col: number; row: number; kind: EnemyKind }[] = [
     // Spawn approach & West gate
     { col: 34, row: 58, kind: 'skeleton' }, { col: 34, row: 62, kind: 'skeleton_necromancer' },
-    { col: 44, row: 58, kind: 'skeleton' }, { col: 44, row: 62, kind: 'wolf' },
+    { col: 44, row: 58, kind: 'skeleton' }, { col: 44, row: 62, kind: 'direwolf' },
     // North Wing - Necropolis & Crypts
     { col: 52, row: 40, kind: 'skeleton' }, { col: 52, row: 28, kind: 'skeleton_necromancer' },
     { col: 58, row: 16, kind: 'skeleton' }, { col: 68, row: 16, kind: 'skeleton' },
@@ -2107,25 +2107,25 @@ function buildAncientRuinsLevel(biome: BiomeConfig, depth: number): LevelData {
     { col: 104, row: 14, kind: 'skeleton' }, { col: 104, row: 24, kind: 'skeleton_necromancer' },
     { col: 124, row: 18, kind: 'skeleton' }, { col: 136, row: 18, kind: 'skeleton' },
     { col: 124, row: 28, kind: 'skeleton_necromancer' }, { col: 134, row: 26, kind: 'skeleton' },
-    { col: 86, row: 40, kind: 'skeleton' }, { col: 106, row: 40, kind: 'wolf' },
+    { col: 86, row: 40, kind: 'skeleton' }, { col: 106, row: 40, kind: 'direwolf' },
     // Central Wing - Colonnade & Council Hall
     { col: 70, row: 58, kind: 'skeleton' }, { col: 70, row: 62, kind: 'skeleton_necromancer' },
-    { col: 86, row: 58, kind: 'skeleton' }, { col: 86, row: 62, kind: 'wolf' },
+    { col: 86, row: 58, kind: 'skeleton' }, { col: 86, row: 62, kind: 'direwolf' },
     { col: 112, row: 56, kind: 'skeleton' }, { col: 112, row: 64, kind: 'skeleton_necromancer' },
     { col: 126, row: 58, kind: 'skeleton' }, { col: 126, row: 62, kind: 'skeleton' },
-    { col: 140, row: 58, kind: 'wolf' }, { col: 140, row: 62, kind: 'skeleton_necromancer' },
+    { col: 140, row: 58, kind: 'direwolf' }, { col: 140, row: 62, kind: 'skeleton_necromancer' },
     // South Wing - Gardens & Chapel
-    { col: 52, row: 78, kind: 'skeleton_necromancer' }, { col: 52, row: 88, kind: 'wolf' },
-    { col: 58, row: 80, kind: 'skeleton' }, { col: 68, row: 80, kind: 'wolf' },
+    { col: 52, row: 78, kind: 'skeleton_necromancer' }, { col: 52, row: 88, kind: 'direwolf' },
+    { col: 58, row: 80, kind: 'skeleton' }, { col: 68, row: 80, kind: 'direwolf' },
     { col: 58, row: 90, kind: 'skeleton_necromancer' }, { col: 68, row: 90, kind: 'skeleton' },
     { col: 90, row: 82, kind: 'skeleton' }, { col: 106, row: 82, kind: 'skeleton' },
     { col: 90, row: 90, kind: 'skeleton_necromancer' }, { col: 106, row: 90, kind: 'skeleton' },
-    { col: 124, row: 78, kind: 'wolf' }, { col: 136, row: 78, kind: 'skeleton' },
+    { col: 124, row: 78, kind: 'direwolf' }, { col: 136, row: 78, kind: 'skeleton' },
     { col: 124, row: 88, kind: 'skeleton_necromancer' }, { col: 136, row: 86, kind: 'skeleton' },
-    { col: 84, row: 104, kind: 'skeleton' }, { col: 102, row: 104, kind: 'wolf' },
+    { col: 84, row: 104, kind: 'skeleton' }, { col: 102, row: 104, kind: 'direwolf' },
     // East Approach & Pre-Arena
     { col: 144, row: 58, kind: 'skeleton' }, { col: 144, row: 62, kind: 'skeleton' },
-    { col: 148, row: 60, kind: 'wolf' },
+    { col: 148, row: 60, kind: 'direwolf' },
   ];
 
   return {

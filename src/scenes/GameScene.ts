@@ -1691,7 +1691,7 @@ export class GameScene extends Phaser.Scene {
             const dist = Math.hypot(px - projX, py - projY);
 
             if (dist <= 18) {
-              this.handlePlayerHurt(p, enemy, 1);
+              this.handlePlayerHurt(p, enemy, 2);
               p.applyStatusEffect('frost', 2500, 0.5);
               // Frost shatter sparks
               for (let i = 0; i < 4; i++) {

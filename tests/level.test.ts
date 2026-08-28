@@ -212,12 +212,16 @@ describe('difficulty progression', () => {
     expect(hasOrcGrunt).toBe(true);
   });
 
-  it('depth 2 (Ancient Ruins) has no imp enemies and spawns skeleton_necromancer', () => {
+  it('depth 2 (Ancient Ruins) has no imp or wolf enemies, and spawns direwolf and skeleton_necromancer', () => {
     const level2 = buildLevel1(2);
     const hasImp = level2.enemies.some((e) => e.kind === 'imp');
+    const hasWolf = level2.enemies.some((e) => e.kind === 'wolf');
     const hasNecromancer = level2.enemies.some((e) => e.kind === 'skeleton_necromancer');
+    const hasDirewolf = level2.enemies.some((e) => e.kind === 'direwolf');
     expect(hasImp).toBe(false);
+    expect(hasWolf).toBe(false);
     expect(hasNecromancer).toBe(true);
+    expect(hasDirewolf).toBe(true);
   });
 });
 

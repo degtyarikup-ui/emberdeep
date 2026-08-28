@@ -76,18 +76,18 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     originY: { idle: 0.82, run: 0.74, death: 0.78 },
     bodySize: { idle: [16, 18], run: [18, 18] },
     bodyOffset: { idle: [8, 14], run: [23, 46] },
-    maxHp: 8,
-    patrolSpeed: 30,
-    chaseSpeed: 62,
-    detectRadius: 140,
-    loseRadius: 210,
-    attackRange: 38,
+    maxHp: 20,
+    patrolSpeed: 35,
+    chaseSpeed: 70,
+    detectRadius: 150,
+    loseRadius: 230,
+    attackRange: 40,
     contactDamage: 1,
     scale: 1.0,
     windupDuration: 280,
     lungeDuration: 140,
-    recoveryDuration: 360,
-    lungeSpeed: 150,
+    recoveryDuration: 340,
+    lungeSpeed: 160,
     canBackstep: true,
     canCircleStrafe: true,
   },
@@ -96,17 +96,17 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     originY: { idle: 0.82, run: 0.74, death: 0.78 },
     bodySize: { idle: [18, 18], run: [18, 18] },
     bodyOffset: { idle: [7, 14], run: [23, 46] },
-    maxHp: 8,
-    patrolSpeed: 35,
-    chaseSpeed: 75,
-    detectRadius: 210,
-    loseRadius: 360,
+    maxHp: 18,
+    patrolSpeed: 40,
+    chaseSpeed: 80,
+    detectRadius: 220,
+    loseRadius: 380,
     attackRange: 190,
     contactDamage: 1,
     scale: 1.08,
     windupDuration: 300,
     lungeDuration: 100,
-    recoveryDuration: 400,
+    recoveryDuration: 380,
     lungeSpeed: 0,
     canBackstep: true,
     canCircleStrafe: true,
@@ -176,7 +176,7 @@ const STATS: Record<EnemyKind, EnemyStats> = {
     originY: { idle: 0.90, run: 0.90, death: 0.90 },
     bodySize: { idle: [24, 18], run: [24, 18] },
     bodyOffset: { idle: [4, 12], run: [4, 12] },
-    maxHp: 10,
+    maxHp: 14,
     patrolSpeed: 65,
     chaseSpeed: 130,
     detectRadius: 220,
@@ -531,7 +531,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   private collapseToBonePile(): void {
     this.aiState = 'bone_pile';
-    this.bonePileHp = 2;
+    this.bonePileHp = 3;
     this.bonePileTimer = 5000;
     this.bonePileMaxTimer = 5000;
     this.bonePileBaseX = this.x;
@@ -1233,7 +1233,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
           if (this.kind === 'skeleton_necromancer') {
             if (this.necromancerSpellType === 'heal') {
-              output.healPulse = { x: this.x, y: this.y - 10, radius: 160, healAmount: 3 };
+              output.healPulse = { x: this.x, y: this.y - 10, radius: 160, healAmount: 4 };
               SoundFX.playEnergyHit(this.x, this.y);
               this.aiState = 'recovery';
               this.stateTimer = 400;
@@ -1276,7 +1276,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             SoundFX.playBoneCleave();
             if (distToPlayer <= 52) {
               output.landedHit = true;
-              output.damage = 2; // Bone Cleave deals 2 damage!
+              output.damage = 3; // Bone Cleave deals 3 damage!
             }
             this.aiState = 'recovery';
             this.stateTimer = 450;
@@ -1363,7 +1363,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         const hitRadius = this.kind === 'orc_shield' ? 38 : CONTACT_RADIUS;
         if (distToPlayer < hitRadius) {
           output.landedHit = true;
-          output.damage = this.kind === 'orc_shield' ? 2 : this.stats.contactDamage;
+          output.damage = (this.kind === 'orc_shield' || this.kind === 'direwolf') ? 2 : this.stats.contactDamage;
           this.setAngle(0);
           this.aiState = 'recovery';
           this.stateTimer = this.stats.recoveryDuration;

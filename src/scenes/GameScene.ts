@@ -707,6 +707,9 @@ export class GameScene extends Phaser.Scene {
 
     this.enemies = level.enemies.map((e, id) => {
       const enemy = new Enemy(this, e.col * TILE_SIZE + TILE_SIZE / 2, e.row * TILE_SIZE + TILE_SIZE, e.kind, id);
+      if (this.depth === 2 && (e.kind === 'skeleton' || e.kind === 'skeleton_necromancer')) {
+        enemy.canReassemble = true;
+      }
       if (this.role !== 'guest') {
         this.physics.add.collider(enemy, layer);
         this.physics.add.collider(enemy, this.solids);
@@ -1710,6 +1713,9 @@ export class GameScene extends Phaser.Scene {
       if (action.minionSpawns) {
         for (const m of action.minionSpawns) {
           const minion = new Enemy(this, m.x, m.y, m.kind, this.enemies.length + 100);
+          if (this.depth === 2 && (m.kind === 'skeleton' || m.kind === 'skeleton_necromancer')) {
+            minion.canReassemble = true;
+          }
           this.physics.add.collider(minion, this.solids);
           this.worldLayer.add(minion);
           this.enemies.push(minion);
@@ -1730,6 +1736,9 @@ export class GameScene extends Phaser.Scene {
         }
         for (const m of action.minionSpawns) {
           const enemy = new Enemy(this, m.x, m.y, m.kind, this.enemies.length + 100);
+          if (this.depth === 2 && (m.kind === 'skeleton' || m.kind === 'skeleton_necromancer')) {
+            enemy.canReassemble = true;
+          }
           this.physics.add.collider(enemy, this.solids);
           this.worldLayer.add(enemy);
           this.enemies.push(enemy);

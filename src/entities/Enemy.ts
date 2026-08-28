@@ -11,7 +11,7 @@ import {
 
 export type EnemyKind = 'imp' | 'skeleton' | 'wolf' | 'orc_shield' | 'orc_archer' | 'direwolf' | 'orc_grunt' | 'skeleton_necromancer';
 
-export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'special_windup' | 'recovery' | 'backstep' | 'dead';
+export type AIState = 'patrol' | 'alert' | 'chase' | 'windup' | 'lunge' | 'special_windup' | 'recovery' | 'backstep' | 'bone_pile' | 'dead';
 
 export interface EnemyActionOutput {
   landedHit: boolean;
@@ -248,6 +248,16 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private necromancerHealCooldown = 5000 + Math.random() * 3000;
   private necromancerBeamCooldown = 3000 + Math.random() * 2000;
 
+  // Level 2 Skeleton Resurrection
+  public canReassemble = false;
+  private bonePileHp = 2;
+  private bonePileTimer = 5000;
+  private bonePileMaxTimer = 5000;
+  private bonePileGlow?: Phaser.GameObjects.Arc;
+  private bonePileBar?: Phaser.GameObjects.Graphics;
+  private bonePileBaseX = 0;
+  private bonePileBaseY = 0;
+
   // Net sync
   private netTargetX = 0;
   private netTargetY = 0;
@@ -393,11 +403,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   get isDead(): boolean {
-    return this.aiState === 'dead' || this.hp <= 0;
+    return this.aiState === 'dead' || (this.hp <= 0 && this.aiState !== 'bone_pile');
+  }
+
+  get isBonePile(): boolean {
+    return this.aiState === 'bone_pile';
   }
 
   get currentAnim(): 'idle' | 'run' | 'dead' {
-    if (this.aiState === 'dead') return 'dead';
+    if (this.aiState === 'dead' || this.aiState === 'bone_pile') return 'dead';
     const body = this.body as Phaser.Physics.Arcade.Body;
     const moving = body && body.velocity.lengthSq() > 100;
     return moving ? 'run' : 'idle';
@@ -420,7 +434,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   get isInCombat(): boolean {
-    return this.aggroTimer > 0 || this.aiState === 'chase' || this.aiState === 'windup' || this.aiState === 'lunge';
+    return this.aggroTimer > 0 || this.aiState === 'chase' || this.aiState === 'windup' || this.aiState === 'lunge' || this.aiState === 'bone_pile';
   }
 
   /** Check if this enemy currently has an active elemental status. */
@@ -504,9 +518,107 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
-  /** Returns true if this hit killed it. */
+  private cleanupBonePile(): void {
+    if (this.bonePileGlow) {
+      this.bonePileGlow.destroy();
+      this.bonePileGlow = undefined;
+    }
+    if (this.bonePileBar) {
+      this.bonePileBar.destroy();
+      this.bonePileBar = undefined;
+    }
+  }
+
+  private collapseToBonePile(): void {
+    this.aiState = 'bone_pile';
+    this.bonePileHp = 2;
+    this.bonePileTimer = 5000;
+    this.bonePileMaxTimer = 5000;
+    this.bonePileBaseX = this.x;
+    this.bonePileBaseY = this.y;
+    this.clearTint();
+    this.setAngle(0);
+
+    if (this.staffSprite) {
+      this.staffSprite.destroy();
+      this.staffSprite = undefined;
+    }
+
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      body.setVelocity(0, 0);
+      body.setSize(22, 14);
+      body.setOffset(5, 18);
+    }
+
+    // Play skeleton death animation once and hold on the final collapsed bone pile frame
+    this.setOrigin(0.5, this.stats.originY.death);
+    this.play(this.stats.clips.death.key);
+    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      if (this.aiState === 'bone_pile') {
+        this.stop();
+        this.setFrame(this.stats.clips.death.frameCount - 1);
+      }
+    });
+
+    if (this.scene) {
+      // Amethyst pulsing rune glow on the floor
+      this.bonePileGlow = this.scene.add.circle(this.x, this.y + 2, 14, 0xc084fc, 0.45);
+      this.bonePileGlow.setDepth(DEPTH.FLOOR + 2);
+      const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+      if (worldLayer) worldLayer.add(this.bonePileGlow);
+      this.scene.tweens.add({
+        targets: this.bonePileGlow,
+        scaleX: 1.35,
+        scaleY: 1.35,
+        alpha: 0.2,
+        yoyo: true,
+        repeat: -1,
+        duration: 600,
+        ease: 'Sine.easeInOut',
+      });
+
+      // Mini timer bar above the bones
+      this.bonePileBar = this.scene.add.graphics();
+      this.bonePileBar.setDepth(DEPTH.YSORT_BASE + this.y + 15);
+      if (worldLayer) worldLayer.add(this.bonePileBar);
+    }
+  }
+
+  /** Returns true if this hit killed it permanently. */
   takeDamage(amount: number, fromX: number, fromY: number, otherEnemies: Enemy[] = []): boolean {
     if (this.aiState === 'dead' || this.hitLock > 0) return false;
+
+    // Bone pile damage handling (2 hits to permanently shatter)
+    if (this.aiState === 'bone_pile') {
+      this.bonePileHp -= 1;
+      this.hitLock = 100;
+      this.setTintFill(0xffffff);
+      if (this.scene?.time) {
+        this.scene.time.delayedCall(80, () => this.active && !this.isDead && this.clearTint());
+      }
+      SoundFX.playEnemyHit('skeleton', this.x, this.y);
+      if (this.scene) {
+        for (let i = 0; i < 4; i++) {
+          const spk = this.scene.add.rectangle(this.x + (Math.random() - 0.5) * 16, this.y - 4 + (Math.random() - 0.5) * 8, 3, 3, 0xe2e8f0, 1);
+          spk.setDepth(DEPTH.YSORT_BASE + this.y + 10);
+          this.scene.tweens.add({
+            targets: spk,
+            x: spk.x + (Math.random() - 0.5) * 20,
+            y: spk.y - 10 + (Math.random() - 0.5) * 10,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => spk.destroy(),
+          });
+        }
+      }
+      if (this.bonePileHp <= 0) {
+        this.cleanupBonePile();
+        this.die();
+        return true;
+      }
+      return false;
+    }
 
     // Orc Shieldbearer Block (70% chance to block with steel shield and mitigate 70% damage)
     if (this.kind === 'orc_shield' && Math.random() < 0.7) {
@@ -569,6 +681,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
 
     if (this.hp <= 0) {
+      if (this.canReassemble && (this.kind === 'skeleton' || this.kind === 'skeleton_necromancer')) {
+        this.collapseToBonePile();
+        return false;
+      }
       this.die();
       return true;
     }
@@ -576,6 +692,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   private die(): void {
+    this.cleanupBonePile();
     this.aiState = 'dead';
     this.clearTint();
     this.setAngle(0);
@@ -626,6 +743,97 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   ): EnemyActionOutput {
     const output: EnemyActionOutput = { landedHit: false, damage: this.stats.contactDamage };
     if (this.aiState === 'dead') return output;
+
+    if (this.aiState === 'bone_pile') {
+      this.bonePileTimer -= delta;
+
+      // Update timer bar
+      if (this.bonePileBar) {
+        this.bonePileBar.clear();
+        const barW = 24;
+        const barH = 3;
+        const bx = this.bonePileBaseX - barW / 2;
+        const by = this.bonePileBaseY - 20;
+        const ratio = Math.max(0, this.bonePileTimer / this.bonePileMaxTimer);
+
+        // Bar background
+        this.bonePileBar.fillStyle(0x0f172a, 0.85);
+        this.bonePileBar.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+
+        // Depleting purple-to-crimson bar
+        const col = this.bonePileTimer <= 1500 ? 0xf43f5e : 0xa855f7;
+        this.bonePileBar.fillStyle(col, 0.95);
+        this.bonePileBar.fillRect(bx, by, barW * ratio, barH);
+      }
+
+      // Rattle shake during last 1.5 seconds
+      if (this.bonePileTimer <= 1500) {
+        this.x = this.bonePileBaseX + (Math.random() - 0.5) * 3;
+      } else {
+        this.x = this.bonePileBaseX;
+      }
+
+      // Resurrection
+      if (this.bonePileTimer <= 0) {
+        this.cleanupBonePile();
+        this.x = this.bonePileBaseX;
+        this.y = this.bonePileBaseY;
+        this.hp = Math.max(2, Math.floor(this.stats.maxHp / 2));
+        this.aiState = 'chase';
+        this.clearTint();
+        this.setOrigin(0.5, this.stats.originY.idle);
+        this.setScale(this.stats.scale);
+
+        if (this.kind === 'skeleton_necromancer') {
+          this.setTint(0xc084fc);
+          this.staffSprite = this.scene.add.sprite(this.x, this.y - 10, TEXTURE.STAFF);
+          this.staffSprite.setScale(0.9);
+          this.staffSprite.setTint(0x38bdf8);
+          this.staffSprite.setDepth(DEPTH.YSORT_BASE + this.y + 1);
+          const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+          if (worldLayer) worldLayer.add(this.staffSprite);
+        }
+
+        const body = this.body as Phaser.Physics.Arcade.Body;
+        if (body) {
+          const [w, h] = this.stats.bodySize.idle;
+          const [ox, oy] = this.stats.bodyOffset.idle;
+          body.setSize(w, h);
+          body.setOffset(ox, oy);
+        }
+        this.play(this.stats.clips.idle.key);
+
+        // Dust shockwave & rise FX
+        if (this.scene) {
+          const shock = this.scene.add.circle(this.x, this.y + 2, 10, 0xe2e8f0, 0.7);
+          shock.setDepth(DEPTH.FLOOR + 3);
+          const worldLayer = (this.scene as unknown as { worldLayer?: Phaser.GameObjects.Layer }).worldLayer;
+          if (worldLayer) worldLayer.add(shock);
+          this.scene.tweens.add({
+            targets: shock,
+            radius: 36,
+            alpha: 0,
+            duration: 350,
+            onComplete: () => shock.destroy(),
+          });
+          for (let i = 0; i < 6; i++) {
+            const dust = this.scene.add.rectangle(this.x + (Math.random() - 0.5) * 16, this.y + (Math.random() - 0.5) * 8, 2, 2, 0xc084fc, 1);
+            dust.setDepth(DEPTH.YSORT_BASE + this.y + 10);
+            this.scene.tweens.add({
+              targets: dust,
+              y: '-=16',
+              alpha: 0,
+              duration: 400,
+              onComplete: () => dust.destroy(),
+            });
+          }
+        }
+        SoundFX.playBoneCleave(this.x, this.y);
+        this.provoke(6000, true);
+      }
+
+      return output;
+    }
 
     if (this.aggroTimer > 0) this.aggroTimer -= delta;
 
